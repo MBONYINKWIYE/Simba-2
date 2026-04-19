@@ -1,0 +1,112 @@
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import { usePreferencesStore } from '@/store/preferences-store';
+
+const resources = {
+  en: {
+    translation: {
+      appName: 'Simba Supermarket',
+      heroTitle: 'Groceries for Kigali, delivered with modern speed.',
+      heroCopy:
+        'A mobile-first supermarket designed for Rwanda, with quick search, better category discovery, and a simple MoMo-ready checkout.',
+      shopNow: 'Shop now',
+      exploreCategories: 'Explore categories',
+      searchPlaceholder: 'Search products, brands, or pantry staples',
+      allCategories: 'All categories',
+      inStockOnly: 'In stock only',
+      sortByPrice: 'Sort by price',
+      lowToHigh: 'Low to high',
+      highToLow: 'High to low',
+      addToCart: 'Add to cart',
+      unit: 'Unit',
+      checkout: 'Checkout',
+      orderSummary: 'Order summary',
+      momo: 'Mobile Money',
+      cash: 'Cash on delivery',
+      placeOrder: 'Place order',
+      emptyCart: 'Your basket is empty',
+      deliveryIn: 'Delivery in under 90 minutes in Kigali',
+      darkMode: 'Dark mode',
+      filters: 'Filters',
+      featuredCategories: 'Featured departments',
+      productCount: '{{count}} products',
+      noResults: 'No products match the current filters.',
+      checkoutSuccess: 'Your order has been staged successfully.',
+      architecture: 'Production-ready architecture',
+    },
+  },
+  fr: {
+    translation: {
+      appName: 'Simba Supermarché',
+      heroTitle: 'Les courses pour Kigali, livrées plus vite.',
+      heroCopy:
+        'Un supermarché mobile-first pour le Rwanda, avec recherche rapide, meilleure navigation et paiement MoMo simplifié.',
+      shopNow: 'Acheter',
+      exploreCategories: 'Explorer',
+      searchPlaceholder: 'Rechercher des produits, marques ou articles',
+      allCategories: 'Toutes les catégories',
+      inStockOnly: 'En stock seulement',
+      sortByPrice: 'Trier par prix',
+      lowToHigh: 'Croissant',
+      highToLow: 'Décroissant',
+      addToCart: 'Ajouter',
+      unit: 'Unité',
+      checkout: 'Paiement',
+      orderSummary: 'Récapitulatif',
+      momo: 'Mobile Money',
+      cash: 'Paiement à la livraison',
+      placeOrder: 'Valider la commande',
+      emptyCart: 'Votre panier est vide',
+      deliveryIn: 'Livraison en moins de 90 minutes à Kigali',
+      darkMode: 'Mode sombre',
+      filters: 'Filtres',
+      featuredCategories: 'Départements',
+      productCount: '{{count}} produits',
+      noResults: 'Aucun produit pour ces filtres.',
+      checkoutSuccess: 'Votre commande a été simulée avec succès.',
+      architecture: 'Architecture prête pour la production',
+    },
+  },
+  rw: {
+    translation: {
+      appName: 'Simba Supermarket',
+      heroTitle: 'Guhaha i Kigali bikorwa vuba kandi neza.',
+      heroCopy:
+        'Isoko ryo kuri internet ryubakiwe u Rwanda, rifite gushakisha byihuse, ibyiciro bisobanutse, n’ukwishyura kwa MoMo.',
+      shopNow: 'Tangira kugura',
+      exploreCategories: 'Reba ibyiciro',
+      searchPlaceholder: 'Shaka ibicuruzwa cyangwa ibirango',
+      allCategories: 'Ibyiciro byose',
+      inStockOnly: 'Ibihari gusa',
+      sortByPrice: 'Tondekanya ku giciro',
+      lowToHigh: 'Kuva hasi',
+      highToLow: 'Kuva hejuru',
+      addToCart: 'Shyira mu gitebo',
+      unit: 'Igipimo',
+      checkout: 'Kwishyura',
+      orderSummary: 'Incamake y’icyo uguze',
+      momo: 'Mobile Money',
+      cash: 'Amafaranga ku kwakira',
+      placeOrder: 'Ohereza icyifuzo',
+      emptyCart: 'Igitebo kirimo ubusa',
+      deliveryIn: 'Kugeza mu minota 90 muri Kigali',
+      darkMode: 'Ibara ryijimye',
+      filters: 'Muyunguruzi',
+      featuredCategories: 'Ibyiciro by’ingenzi',
+      productCount: 'Ibicuruzwa {{count}}',
+      noResults: 'Nta bicuruzwa bihuye n’ayo mahitamo.',
+      checkoutSuccess: 'Icyifuzo cyoherejwe mu buryo bw’igerageza.',
+      architecture: 'Imiterere y’umushinga igeze ku rwego rwo gukoreshwa',
+    },
+  },
+};
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: usePreferencesStore.getState().locale,
+  interpolation: {
+    escapeValue: false,
+  },
+});
+
+export default i18n;
