@@ -9,9 +9,6 @@ const ProductPage = lazy(() =>
 const CheckoutPage = lazy(() =>
   import('@/pages/checkout-page').then((module) => ({ default: module.CheckoutPage })),
 );
-const ArchitecturePage = lazy(() =>
-  import('@/pages/architecture-page').then((module) => ({ default: module.ArchitecturePage })),
-);
 
 const fallback = <div className="glass-panel p-8">Loading...</div>;
 
@@ -42,16 +39,6 @@ export const router = createBrowserRouter([
       <AppShell>
         <Suspense fallback={fallback}>
           <CheckoutPage />
-        </Suspense>
-      </AppShell>
-    ),
-  },
-  {
-    path: '/architecture',
-    element: (
-      <AppShell>
-        <Suspense fallback={fallback}>
-          <ArchitecturePage />
         </Suspense>
       </AppShell>
     ),

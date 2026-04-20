@@ -7,6 +7,7 @@ import { SearchFilterBar } from '@/components/shop/search-filter-bar';
 import { SkeletonGrid } from '@/components/shop/skeleton-grid';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { slugify } from '@/lib/utils';
 import type { Product } from '@/types';
 
 type Filters = {
@@ -58,6 +59,21 @@ export function HomePage() {
   }, [data?.products, debouncedQuery, filters]);
 
   const spotlightProducts = useMemo<Product[]>(() => (data?.products ?? []).slice(0, 12), [data?.products]);
+  const showCategorySections =
+    !filters.query && !filters.category && !filters.inStockOnly && filters.priceRange[1] === 300000 && filters.sortBy === 'default';
+  const groupedProducts = useMemo(() => {
+    const groups = new Map<string, Product[]>();
+
+    for (const product of data?.products ?? []) {
+      const current = groups.get(product.normalizedCategory) ?? [];
+      if (current.length < 15) {
+        current.push(product);
+      }
+      groups.set(product.normalizedCategory, current);
+    }
+
+    return Array.from(groups.entries());
+  }, [data?.products]);
 
   return (
     <div className="space-y-8">
@@ -70,10 +86,34 @@ export function HomePage() {
         />
       ) : null}
       <SearchFilterBar products={data?.products ?? []} filters={filters} onChange={setFilters} />
-      <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-        {t('productCount', { count: filteredProducts.length })}
-      </div>
-      {isLoading ? <SkeletonGrid /> : <ProductGrid products={filteredProducts} />}
+      {showCategorySections ? (
+        isLoading ? (
+          <SkeletonGrid />
+        ) : (
+          <div className="space-y-12">
+            {groupedProducts.map(([category, products]) => (
+              <section key={category} id={`category-${slugify(category)}`} className="space-y-4">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold">{category}</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Showing {products.length} featured products from this category
+                    </p>
+                  </div>
+                </div>
+                <ProductGrid products={products} />
+              </section>
+            ))}
+          </div>
+        )
+      ) : (
+        <>
+          <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            {t('productCount', { count: filteredProducts.length })}
+          </div>
+          {isLoading ? <SkeletonGrid /> : <ProductGrid products={filteredProducts} />}
+        </>
+      )}
     </div>
   );
 }
