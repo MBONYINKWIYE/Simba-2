@@ -108,6 +108,34 @@ This keeps the implementation lighter than Redux Toolkit while still being produ
 
 That gives a working storefront in local development before backend setup is complete.
 
+### Translated Catalog Files
+
+If you want product text to switch with the selected language, add locale-specific files in `public/catalog/`:
+
+- `public/catalog/simba_products.fr.json`
+- `public/catalog/simba_products.rw.json`
+
+Required structure:
+
+- Top-level object with `store` and `products`
+- `store` must include `name`, `tagline`, `location`, and `currency`
+- `products` must be an array of objects with:
+  - `id`
+  - `name`
+  - `price`
+  - `category`
+  - `subcategoryId`
+  - `inStock`
+  - `image`
+  - `unit`
+
+Important rules:
+
+- Keep `id` exactly the same as the base `simba_products.json` file
+- Keep `price`, `inStock`, `image`, and `subcategoryId` aligned with the base file
+- Translate only display fields such as `name`, `category`, `unit`, and optionally `store` text
+- Missing locale files automatically fall back to the default `public/simba_products.json`
+
 ## MoMo Integration Strategy
 
 Implemented MTN Collection sandbox flow:

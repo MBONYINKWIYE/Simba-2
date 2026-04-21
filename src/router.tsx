@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createBrowserRouter } from 'react-router-dom';
 import { AppShell } from '@/components/layout/app-shell';
 
@@ -14,7 +15,13 @@ const AuthCallbackPage = lazy(() =>
   import('@/pages/auth-callback-page').then((module) => ({ default: module.AuthCallbackPage })),
 );
 
-const fallback = <div className="glass-panel p-8">Loading...</div>;
+function RouteFallback() {
+  const { t } = useTranslation();
+
+  return <div className="glass-panel p-8">{t('loading')}</div>;
+}
+
+const fallback = <RouteFallback />;
 
 export const router = createBrowserRouter([
   {

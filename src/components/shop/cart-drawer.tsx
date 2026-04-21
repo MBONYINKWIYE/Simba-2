@@ -26,7 +26,7 @@ export function CartDrawer() {
       closeCart();
       await signInWithGoogle('/checkout');
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Failed to start Google sign-in.');
+      window.alert(error instanceof Error ? error.message : t('failedToStartGoogleSignIn'));
     }
   };
 
@@ -47,8 +47,8 @@ export function CartDrawer() {
               <ShoppingBasket size={18} />
             </div>
             <div>
-              <p className="font-bold">Cart</p>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{items.length} items</p>
+              <p className="font-bold">{t('cart')}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('cartItems', { count: items.length })}</p>
             </div>
           </div>
           <button onClick={closeCart} className="rounded-xl p-2 hover:bg-slate-100 dark:hover:bg-slate-800">
@@ -89,7 +89,7 @@ export function CartDrawer() {
                         onClick={() => removeItem(product.id)}
                         className="text-sm font-semibold text-rose-500"
                       >
-                        Remove
+                        {t('remove')}
                       </button>
                     </div>
                   </div>
@@ -100,21 +100,21 @@ export function CartDrawer() {
             <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
+                  <span>{t('subtotal')}</span>
                   <span>{formatCurrency(summary.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Delivery</span>
+                  <span>{t('delivery')}</span>
                   <span>{formatCurrency(summary.deliveryFee)}</span>
                 </div>
                 <div className="flex justify-between font-bold">
-                  <span>Total</span>
+                  <span>{t('total')}</span>
                   <span>{formatCurrency(summary.total)}</span>
                 </div>
               </div>
               {isConfigured && !user ? (
                 <Button fullWidth className="mt-4" onClick={handleGoogleSignIn}>
-                  Sign in to checkout
+                  {t('signInToCheckout')}
                 </Button>
               ) : (
                 <Link to="/checkout" onClick={closeCart} className="mt-4 block">

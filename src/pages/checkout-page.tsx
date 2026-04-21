@@ -33,7 +33,7 @@ export function CheckoutPage() {
     try {
       await signInWithGoogle('/checkout');
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Failed to start Google sign-in.');
+      setAuthError(error instanceof Error ? error.message : t('failedToStartGoogleSignIn'));
     }
   };
 
@@ -59,7 +59,7 @@ export function CheckoutPage() {
     };
 
     if (items.length === 0) {
-      setErrorMessage('Your cart is empty.');
+      setErrorMessage(t('emptyCartError'));
       return;
     }
 
@@ -69,10 +69,10 @@ export function CheckoutPage() {
         await createCashOrder(requestPayload);
         clearCart();
         setFormValues({ ...DEFAULT_CHECKOUT_VALUES });
-        setSuccessMessage('Cash on delivery order saved successfully.');
+        setSuccessMessage(t('cashOrderSaved'));
         return;
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to create cash order');
+        setErrorMessage(error instanceof Error ? error.message : t('failedToCreateCashOrder'));
         return;
       } finally {
         setIsSubmitting(false);
@@ -84,7 +84,7 @@ export function CheckoutPage() {
       const payment = await requestToPay(requestPayload);
 
       if (!payment.referenceId) {
-        throw new Error('MoMo payment started but no referenceId was returned.');
+        throw new Error(t('momoNoReference'));
       }
 
       setPaymentReference(payment.referenceId);
@@ -99,26 +99,26 @@ export function CheckoutPage() {
         if (nextStatus === 'SUCCESSFUL') {
           clearCart();
           setFormValues({ ...DEFAULT_CHECKOUT_VALUES });
-          setSuccessMessage('MoMo payment authorized successfully and the order has been saved.');
+          setSuccessMessage(t('momoAuthorized'));
           return;
         }
 
         if (nextStatus === 'FAILED') {
-          setErrorMessage('MoMo payment failed. Confirm the number and try again.');
+          setErrorMessage(t('momoFailed'));
           return;
         }
       }
 
-      setSuccessMessage('MoMo payment request submitted. The payment is still pending; check again shortly.');
+      setSuccessMessage(t('momoPending'));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to start MoMo payment');
+      setErrorMessage(error instanceof Error ? error.message : t('failedToStartMomo'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (isConfigured && isAuthLoading) {
-    return <div className="glass-panel p-6">Loading checkout...</div>;
+    return <div className="glass-panel p-6">{t('loadingCheckout')}</div>;
   }
 
   if (isConfigured && !user) {
@@ -126,12 +126,12 @@ export function CheckoutPage() {
       <section className="glass-panel mx-auto max-w-2xl p-6 sm:p-8">
         <h1 className="text-3xl font-bold">{t('checkout')}</h1>
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          You must sign in with Google before you can continue to checkout, place an order, and track its status later.
+          {t('signInCheckoutPrompt')}
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Button onClick={handleGoogleSignIn}>Continue with Google</Button>
+          <Button onClick={handleGoogleSignIn}>{t('continueWithGoogle')}</Button>
           <Link to="/">
-            <Button variant="secondary">Keep shopping</Button>
+            <Button variant="secondary">{t('keepShopping')}</Button>
           </Link>
         </div>
         {authError ? (
@@ -148,7 +148,7 @@ export function CheckoutPage() {
       <form className="glass-panel p-6" onSubmit={handleSubmit}>
         <h1 className="text-3xl font-bold">{t('checkout')}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Mobile Money checkout is routed through a Supabase Edge Function that talks to the MTN MoMo Collection sandbox.
+          {t('checkoutIntro')}
         </p>
         <div className="mt-6 grid gap-4">
           <input
@@ -156,27 +156,27 @@ export function CheckoutPage() {
             value={formValues.fullName}
             onChange={(event) => setFormValues((current) => ({ ...current, fullName: event.target.value }))}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder="Full name"
+            placeholder={t('fullName')}
           />
           <input
             required
             value={formValues.phone}
             onChange={(event) => setFormValues((current) => ({ ...current, phone: event.target.value }))}
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder="Phone number"
+            placeholder={t('phoneNumber')}
           />
           <textarea
             required
             value={formValues.address}
             onChange={(event) => setFormValues((current) => ({ ...current, address: event.target.value }))}
             className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder="Delivery address"
+            placeholder={t('deliveryAddress')}
           />
           <textarea
             value={formValues.notes}
             onChange={(event) => setFormValues((current) => ({ ...current, notes: event.target.value }))}
             className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder="Delivery notes"
+            placeholder={t('deliveryNotes')}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="rounded-3xl border border-brand-300 bg-brand-50 p-4 dark:border-brand-700 dark:bg-brand-900/20">
@@ -204,7 +204,7 @@ export function CheckoutPage() {
         </Button>
         {paymentReference ? (
           <p className="mt-4 rounded-2xl bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
-            Reference: {paymentReference} {paymentStatus ? `(${paymentStatus})` : ''}
+            {t('referenceLabel')}: {paymentReference} {paymentStatus ? `(${paymentStatus})` : ''}
           </p>
         ) : null}
         {successMessage ? (
@@ -240,19 +240,19 @@ export function CheckoutPage() {
         </div>
         <div className="mt-6 space-y-3 border-t border-slate-200 pt-4 text-sm dark:border-slate-800">
           <div className="flex justify-between">
-            <span>Subtotal</span>
+            <span>{t('subtotal')}</span>
             <span>{formatCurrency(summary.subtotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span>Delivery</span>
+            <span>{t('delivery')}</span>
             <span>{formatCurrency(summary.deliveryFee)}</span>
           </div>
           <div className="flex justify-between">
-            <span>Service fee</span>
+            <span>{t('serviceFee')}</span>
             <span>{formatCurrency(summary.serviceFee)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold">
-            <span>Total</span>
+            <span>{t('total')}</span>
             <span>{formatCurrency(summary.total)}</span>
           </div>
         </div>

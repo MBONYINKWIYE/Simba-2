@@ -1,7 +1,5 @@
 import { Search, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useMemo } from 'react';
-import type { Product } from '@/types';
 
 type FilterState = {
   query: string;
@@ -12,25 +10,17 @@ type FilterState = {
 };
 
 export function SearchFilterBar({
-  products,
+  categories,
+  maxPrice,
   filters,
   onChange,
 }: {
-  products: Product[];
+  categories: string[];
+  maxPrice: number;
   filters: FilterState;
   onChange: (filters: FilterState) => void;
 }) {
   const { t } = useTranslation();
-
-  const categories = useMemo(
-    () => Array.from(new Set(products.map((product) => product.normalizedCategory))).sort(),
-    [products],
-  );
-
-  const maxPrice = useMemo(
-    () => products.reduce((max, product) => Math.max(max, product.price), 0),
-    [products],
-  );
 
   return (
     <section id="catalog" className="glass-panel mt-8 p-4 sm:p-6">

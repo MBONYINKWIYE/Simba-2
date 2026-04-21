@@ -7,7 +7,6 @@ import { BrandLogo } from '@/components/layout/brand-logo';
 import { useAuth } from '@/hooks/use-auth';
 import { signInWithGoogle, signOut } from '@/lib/auth';
 import { useCatalog } from '@/hooks/use-catalog';
-import { slugify } from '@/lib/utils';
 import { LANGUAGES } from '@/lib/constants';
 import { useCartStore } from '@/store/cart-store';
 import { usePreferencesStore } from '@/store/preferences-store';
@@ -38,7 +37,7 @@ export function Header() {
       setIsMobileMenuOpen(false);
       await signInWithGoogle('/checkout');
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Failed to start Google sign-in.');
+      window.alert(error instanceof Error ? error.message : t('failedToStartGoogleSignIn'));
     }
   };
 
@@ -47,7 +46,7 @@ export function Header() {
       setIsMobileMenuOpen(false);
       await signOut();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Failed to sign out.');
+      window.alert(error instanceof Error ? error.message : t('failedToSignOut'));
     }
   };
 
@@ -55,17 +54,6 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-white/50 bg-stone-50/85 backdrop-blur dark:border-white/10 dark:bg-slate-950/80">
       <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3">
         <div className="flex min-w-0 items-center gap-2 md:gap-3">
-          <Button
-            variant="ghost"
-            className="h-11 w-11 shrink-0 rounded-2xl p-0 lg:hidden"
-            onClick={() => setIsMobileMenuOpen((open) => !open)}
-            aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            aria-expanded={isMobileMenuOpen}
-            aria-controls="mobile-navigation"
-          >
-            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </Button>
-
           <Link to="/" className="flex min-w-0 items-center gap-3">
           <BrandLogo />
           <div className="hidden min-[430px]:block">
@@ -76,24 +64,24 @@ export function Header() {
 
         <nav className="hidden items-center gap-4 lg:flex xl:gap-5">
           <NavLink to="/" className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            Home
+            {t('home')}
           </NavLink>
           <div className="group relative">
             <button className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-              Categories
+              {t('categories')}
               <ChevronDown size={15} className="transition group-hover:rotate-180" />
             </button>
             <div className="pointer-events-none absolute left-0 top-full pt-3 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
               <div className="w-80 rounded-3xl border border-slate-200 bg-white p-3 shadow-soft dark:border-slate-700 dark:bg-slate-900">
                 <div className="grid max-h-96 grid-cols-1 gap-1 overflow-y-auto">
                   {categories.map((category) => (
-                    <a
+                    <Link
                       key={category}
-                      href={`/#category-${slugify(category)}`}
+                      to={`/?category=${encodeURIComponent(category)}#catalog`}
                       className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                     >
                       {category}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -103,7 +91,7 @@ export function Header() {
             {t('checkout')}
           </NavLink>
           <NavLink to="/orders" className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            My orders
+            {t('myOrders')}
           </NavLink>
         </nav>
 
@@ -134,7 +122,7 @@ export function Header() {
                     onClick={() => setLocale(language.value)}
                   >
                     <span>{language.label}</span>
-                    {locale === language.value ? <span className="text-[11px] uppercase tracking-[0.16em]">On</span> : null}
+                    {locale === language.value ? <span className="text-[11px] uppercase tracking-[0.16em]">{t('selected')}</span> : null}
                   </button>
                 ))}
               </div>
@@ -150,7 +138,7 @@ export function Header() {
           </Button>
           <Button variant="secondary" className="relative h-11 rounded-2xl px-4" onClick={openCart}>
             <ShoppingBasket size={18} />
-            <span className="ml-2 hidden sm:inline">Cart</span>
+            <span className="ml-2 hidden sm:inline">{t('cart')}</span>
             {itemCount > 0 && (
               <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-accent-500 text-[10px] text-white">
                 {itemCount}
@@ -162,19 +150,29 @@ export function Header() {
               <>
                 <Link to="/orders" className="hidden xl:block">
                   <Button variant="secondary" className="h-11 rounded-2xl px-4">
-                    {user.user_metadata.full_name ?? user.email ?? 'Account'}
+                    {user.user_metadata.full_name ?? user.email ?? t('account')}
                   </Button>
                 </Link>
-                <Button variant="ghost" className="h-11 w-11 rounded-2xl p-0" onClick={handleSignOut} aria-label="Sign out">
+                <Button variant="ghost" className="h-11 w-11 rounded-2xl p-0" onClick={handleSignOut} aria-label={t('signOut')}>
                   <LogOut size={18} />
                 </Button>
               </>
             ) : (
               <Button variant="secondary" className="h-11 rounded-2xl px-4" onClick={handleGoogleSignIn}>
-                Sign in
+                {t('signIn')}
               </Button>
             )
           ) : null}
+          <Button
+            variant="ghost"
+            className="h-11 w-11 shrink-0 rounded-2xl p-0 lg:hidden"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            aria-label={isMobileMenuOpen ? t('closeNavigationMenu') : t('openNavigationMenu')}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
+          >
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </Button>
         </div>
       </div>
       {isMobileMenuOpen ? (
@@ -186,23 +184,23 @@ export function Header() {
                 className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Home
+                {t('home')}
               </NavLink>
               <details className="group rounded-2xl border border-slate-200 px-3 py-2 dark:border-slate-700">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Categories
+                  {t('categories')}
                   <ChevronDown size={15} className="transition group-open:rotate-180" />
                 </summary>
                 <div className="mt-3 grid gap-1">
                   {categories.map((category) => (
-                    <a
+                    <Link
                       key={category}
-                      href={`/#category-${slugify(category)}`}
+                      to={`/?category=${encodeURIComponent(category)}#catalog`}
                       className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       {category}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </details>
@@ -218,7 +216,7 @@ export function Header() {
                 className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                My orders
+                {t('myOrders')}
               </NavLink>
             </nav>
 
@@ -226,7 +224,7 @@ export function Header() {
               <details className="group rounded-2xl border border-slate-200 px-3 py-2 dark:border-slate-700">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-200">
                   <span>
-                    Language: {LANGUAGES.find((language) => language.value === locale)?.label ?? locale}
+                    {t('language')}: {LANGUAGES.find((language) => language.value === locale)?.label ?? locale}
                   </span>
                   <ChevronDown size={15} className="transition group-open:rotate-180" />
                 </summary>
@@ -242,7 +240,7 @@ export function Header() {
                       onClick={() => setLocale(language.value)}
                     >
                       <span>{language.label}</span>
-                      {locale === language.value ? <span className="text-[11px] uppercase tracking-[0.16em]">On</span> : null}
+                      {locale === language.value ? <span className="text-[11px] uppercase tracking-[0.16em]">{t('selected')}</span> : null}
                     </button>
                   ))}
                 </div>
@@ -255,7 +253,7 @@ export function Header() {
                   <div className="flex flex-col gap-2">
                     <Link to="/orders" onClick={() => setIsMobileMenuOpen(false)}>
                       <Button variant="secondary" className="h-11 w-full justify-start rounded-2xl px-4">
-                        {user.user_metadata.full_name ?? user.email ?? 'Account'}
+                        {user.user_metadata.full_name ?? user.email ?? t('account')}
                       </Button>
                     </Link>
                     <Button
@@ -264,14 +262,10 @@ export function Header() {
                       onClick={handleSignOut}
                     >
                       <LogOut size={18} />
-                      <span className="ml-2">Sign out</span>
+                      <span className="ml-2">{t('signOut')}</span>
                     </Button>
                   </div>
-                ) : (
-                  <Button variant="secondary" className="h-11 w-full rounded-2xl px-4" onClick={handleGoogleSignIn}>
-                    Sign in
-                  </Button>
-                )}
+                ) : null}
               </div>
             ) : null}
           </div>

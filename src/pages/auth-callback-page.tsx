@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -8,21 +9,26 @@ function getExchangeMarkerKey(authCode: string) {
 }
 
 export function AuthCallbackPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [message, setMessage] = useState('Completing sign-in...');
+  const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    setMessage(t('loadingSignIn'));
+  }, [t]);
 
   useEffect(() => {
     let isActive = true;
 
     async function completeSignIn() {
-      if (!supabase) {
-        if (isActive) {
-          setErrorMessage('Supabase is not configured.');
+        if (!supabase) {
+          if (isActive) {
+          setErrorMessage(t('supabaseNotConfigured'));
+          }
+          return;
         }
-        return;
-      }
 
       const authCode = searchParams.get('code');
       const errorDescription = searchParams.get('error_description') ?? searchParams.get('error');
@@ -37,7 +43,7 @@ export function AuthCallbackPage() {
 
       if (!authCode) {
         if (isActive) {
-          setErrorMessage('No auth code was returned from Google.');
+          setErrorMessage(t('noAuthCode'));
         }
         return;
       }
@@ -68,7 +74,7 @@ export function AuthCallbackPage() {
       }
 
       window.sessionStorage.setItem(exchangeMarkerKey, 'done');
-      setMessage('Sign-in complete. Redirecting...');
+      setMessage(t('signInCompleteRedirecting'));
       navigate(nextPath, { replace: true });
     }
 
@@ -77,11 +83,11 @@ export function AuthCallbackPage() {
     return () => {
       isActive = false;
     };
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, t]);
 
   return (
     <section className="glass-panel mx-auto max-w-xl p-6 sm:p-8">
-      <h1 className="text-3xl font-bold">Google sign-in</h1>
+      <h1 className="text-3xl font-bold">{t('googleSignIn')}</h1>
       {!errorMessage ? (
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{message}</p>
       ) : (
@@ -90,7 +96,7 @@ export function AuthCallbackPage() {
             {errorMessage}
           </p>
           <Button className="mt-5" onClick={() => navigate('/checkout', { replace: true })}>
-            Back to checkout
+            {t('backToCheckout')}
           </Button>
         </>
       )}

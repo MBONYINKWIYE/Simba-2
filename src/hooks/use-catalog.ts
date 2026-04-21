@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { loadFallbackCatalog } from '@/lib/catalog';
+import { loadCatalogStoreOverride, loadCatalogTranslations, loadFallbackCatalog } from '@/lib/catalog';
 import { queryKeys } from '@/lib/query-keys';
 import { hasSupabaseEnv, supabase } from '@/lib/supabase';
-import type { CatalogResponse, Product } from '@/types';
+import type { CatalogResponse, Locale, Product, ProductRecord } from '@/types';
 import { slugify } from '@/lib/utils';
+import { usePreferencesStore } from '@/store/preferences-store';
 
 type ProductRow = {
   id: number;
@@ -31,9 +32,31 @@ function toProduct(row: ProductRow): Product {
   };
 }
 
-async function fetchCatalog(): Promise<CatalogResponse> {
+function applyTranslations(products: Product[], translations: Map<number, ProductRecord>) {
+  if (translations.size === 0) {
+    return products;
+  }
+
+  return products.map((product) => {
+    const translatedProduct = translations.get(product.id);
+
+    if (!translatedProduct) {
+      return product;
+    }
+
+    return {
+      ...product,
+      name: translatedProduct.name || product.name,
+      category: translatedProduct.category || product.category,
+      unit: translatedProduct.unit || product.unit,
+      normalizedCategory: (translatedProduct.category || product.category).trim(),
+    };
+  });
+}
+
+async function fetchCatalog(locale: Locale): Promise<CatalogResponse> {
   if (!hasSupabaseEnv || !supabase) {
-    return loadFallbackCatalog();
+    return loadFallbackCatalog(locale);
   }
 
   const { data, error } = await supabase
@@ -42,23 +65,29 @@ async function fetchCatalog(): Promise<CatalogResponse> {
     .order('name');
 
   if (error) {
-    return loadFallbackCatalog();
+    return loadFallbackCatalog(locale);
   }
 
+  const baseProducts = (data ?? []).map(toProduct);
+  const localizedStore = await loadCatalogStoreOverride(locale);
+  const translations = await loadCatalogTranslations(locale);
+
   return {
-    store: {
+    store: localizedStore ?? {
       name: 'Simba Supermarket',
       tagline: "Rwanda's Online Supermarket",
       location: 'Kigali, Rwanda',
       currency: 'RWF',
     },
-    products: (data ?? []).map(toProduct),
+    products: applyTranslations(baseProducts, translations).sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
 export function useCatalog() {
+  const locale = usePreferencesStore((state) => state.locale);
+
   return useQuery({
-    queryKey: queryKeys.catalog,
-    queryFn: fetchCatalog,
+    queryKey: queryKeys.catalog(locale),
+    queryFn: () => fetchCatalog(locale),
   });
 }

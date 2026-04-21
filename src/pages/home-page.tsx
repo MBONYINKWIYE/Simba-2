@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { CategoryStrip } from '@/components/shop/category-strip';
 import { Hero } from '@/components/shop/hero';
 import { ProductGrid } from '@/components/shop/product-grid';
 import { SearchFilterBar } from '@/components/shop/search-filter-bar';
 import { SkeletonGrid } from '@/components/shop/skeleton-grid';
 import { useCatalog } from '@/hooks/use-catalog';
-import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { slugify } from '@/lib/utils';
 import type { Product } from '@/types';
 
@@ -29,23 +29,113 @@ const defaultFilters: Filters = {
 export function HomePage() {
   const { t } = useTranslation();
   const { data, isLoading } = useCatalog();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
-  const debouncedQuery = useDebouncedValue(filters.query, 250);
+  const deferredQuery = useDeferredValue(filters.query);
+  const products = data?.products ?? [];
+  const requestedCategory = searchParams.get('category') ?? '';
+
+  const catalogIndex = useMemo(() => {
+    const indexedProducts: Array<{ product: Product; searchableText: string }> = [];
+    const categorySet = new Set<string>();
+    let maxPrice = 0;
+
+    for (const product of products) {
+      categorySet.add(product.normalizedCategory);
+      maxPrice = Math.max(maxPrice, product.price);
+      indexedProducts.push({
+        product,
+        searchableText: `${product.name} ${product.normalizedCategory} ${product.unit}`.toLowerCase(),
+      });
+    }
+
+    return {
+      indexedProducts,
+      categories: Array.from(categorySet).sort(),
+      maxPrice,
+    };
+  }, [products]);
+
+  useEffect(() => {
+    const nextCategory = catalogIndex.categories.includes(requestedCategory) ? requestedCategory : '';
+    const nextMaxPrice = catalogIndex.maxPrice || defaultFilters.priceRange[1];
+
+    setFilters((current) => {
+      const nextPriceLimit = Math.min(current.priceRange[1], nextMaxPrice);
+      if (current.category === nextCategory && current.priceRange[1] === nextPriceLimit) {
+        return current;
+      }
+
+      return {
+        ...current,
+        category: nextCategory,
+        priceRange: [0, nextPriceLimit],
+      };
+    });
+  }, [catalogIndex.categories, catalogIndex.maxPrice, requestedCategory]);
+
+  useEffect(() => {
+    if (!location.hash && !requestedCategory) {
+      return;
+    }
+
+    const catalogSection = document.getElementById('catalog');
+    if (!catalogSection) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      catalogSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [location.hash, requestedCategory, products.length]);
+
+  const syncCategoryParam = (category: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (category) {
+      nextParams.set('category', category);
+    } else {
+      nextParams.delete('category');
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const updateFilters = (nextFilters: Filters) => {
+    syncCategoryParam(nextFilters.category);
+    startTransition(() => {
+      setFilters(nextFilters);
+    });
+  };
 
   const filteredProducts = useMemo(() => {
-    const products = data?.products ?? [];
-    const query = debouncedQuery.trim().toLowerCase();
+    const query = deferredQuery.trim().toLowerCase();
+    const next: Product[] = [];
 
-    const next = products
-      .filter((product) => (filters.category ? product.normalizedCategory === filters.category : true))
-      .filter((product) => (filters.inStockOnly ? product.inStock : true))
-      .filter((product) => product.price <= filters.priceRange[1])
-      .filter((product) => {
-        if (!query) return true;
-        return [product.name, product.normalizedCategory, product.unit].some((field) =>
-          field.toLowerCase().includes(query),
-        );
-      });
+    for (const entry of catalogIndex.indexedProducts) {
+      const { product, searchableText } = entry;
+
+      if (filters.category && product.normalizedCategory !== filters.category) {
+        continue;
+      }
+
+      if (filters.inStockOnly && !product.inStock) {
+        continue;
+      }
+
+      if (product.price > filters.priceRange[1]) {
+        continue;
+      }
+
+      if (query && !searchableText.includes(query)) {
+        continue;
+      }
+
+      next.push(product);
+    }
 
     if (filters.sortBy === 'price-asc') {
       next.sort((a, b) => a.price - b.price);
@@ -56,14 +146,19 @@ export function HomePage() {
     }
 
     return next;
-  }, [data?.products, debouncedQuery, filters]);
+  }, [catalogIndex.indexedProducts, deferredQuery, filters.category, filters.inStockOnly, filters.priceRange[1], filters.sortBy]);
 
-  const spotlightProducts = useMemo<Product[]>(() => (data?.products ?? []).slice(0, 12), [data?.products]);
+  const spotlightProducts = useMemo<Product[]>(() => products.slice(0, 12), [products]);
+  const activeMaxPrice = catalogIndex.maxPrice || defaultFilters.priceRange[1];
   const showCategorySections =
-    !filters.query && !filters.category && !filters.inStockOnly && filters.priceRange[1] === 300000 && filters.sortBy === 'default';
+    !filters.query &&
+    !filters.category &&
+    !filters.inStockOnly &&
+    filters.priceRange[1] === activeMaxPrice &&
+    filters.sortBy === 'default';
   const groupedProducts = useMemo(() => {
     const groups = new Map<string, Product[]>();
-    const sortedProducts = [...(data?.products ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
 
     for (const product of sortedProducts) {
       const current = groups.get(product.normalizedCategory) ?? [];
@@ -74,7 +169,7 @@ export function HomePage() {
     }
 
     return Array.from(groups.entries());
-  }, [data?.products]);
+  }, [products]);
 
   return (
     <div className="space-y-8">
@@ -83,10 +178,15 @@ export function HomePage() {
         <CategoryStrip
           products={spotlightProducts}
           selectedCategory={filters.category}
-          onCategorySelect={(category) => setFilters((current) => ({ ...current, category }))}
+          onCategorySelect={(category) => updateFilters({ ...filters, category })}
         />
       ) : null}
-      <SearchFilterBar products={data?.products ?? []} filters={filters} onChange={setFilters} />
+      <SearchFilterBar
+        categories={catalogIndex.categories}
+        maxPrice={catalogIndex.maxPrice}
+        filters={filters}
+        onChange={updateFilters}
+      />
       {showCategorySections ? (
         isLoading ? (
           <SkeletonGrid />

@@ -1,12 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { ordersQueryOptions } from '@/lib/orders';
 import { formatCurrency } from '@/lib/utils';
 
-function formatStatusLabel(value: string) {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+function formatStatusLabel(value: string, translate: (key: string) => string) {
+  const normalizedValue = value.replace(/_/g, ' ');
+  const translationKey = value.toLowerCase() as
+    | 'momo'
+    | 'cash'
+    | 'confirmed'
+    | 'cancelled'
+    | 'pending'
+    | 'delivered'
+    | 'failed'
+    | 'processing'
+    | 'paid';
+
+  const translated = translate(translationKey);
+  return translated === translationKey
+    ? normalizedValue.replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : translated;
 }
 
 function getOrderStatusDisplay(paymentStatus: string, fulfillmentStatus?: string | null) {
@@ -37,7 +53,26 @@ function statusClassName(value: string) {
   return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
 }
 
+function OrdersHeader() {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h1 className="text-3xl font-bold">{t('myOrders')}</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          {t('ordersHeaderCopy')}
+        </p>
+      </div>
+      <Link to="/#catalog" className="sm:self-start">
+        <Button className="w-full sm:w-auto">{t('placeNewOrder')}</Button>
+      </Link>
+    </div>
+  );
+}
+
 export function OrdersPage() {
+  const { t } = useTranslation();
   const { user, isLoading, isConfigured } = useAuth();
   const ordersQuery = useQuery({
     ...(user ? ordersQueryOptions(user.id) : ordersQueryOptions('guest')),
@@ -47,42 +82,42 @@ export function OrdersPage() {
   if (!isConfigured) {
     return (
       <section className="glass-panel p-6">
-        <h1 className="text-3xl font-bold">My orders</h1>
+        <OrdersHeader />
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Supabase is not configured yet, so account-based order history is unavailable.
+          {t('ordersUnavailable')}
         </p>
       </section>
     );
   }
 
   if (isLoading) {
-    return <div className="glass-panel p-6">Loading your account...</div>;
+    return <div className="glass-panel p-6">{t('loadingAccount')}</div>;
   }
 
   if (!user) {
     return (
       <section className="glass-panel p-6">
-        <h1 className="text-3xl font-bold">My orders</h1>
+        <OrdersHeader />
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          Sign in with Google to see your previous orders and their live status.
+          {t('ordersSignInPrompt')}
         </p>
         <Link to="/checkout" className="mt-5 inline-block">
-          <Button>Go to checkout</Button>
+          <Button>{t('goToCheckout')}</Button>
         </Link>
       </section>
     );
   }
 
   if (ordersQuery.isLoading) {
-    return <div className="glass-panel p-6">Loading your orders...</div>;
+    return <div className="glass-panel p-6">{t('loadingOrders')}</div>;
   }
 
   if (ordersQuery.isError) {
     return (
       <section className="glass-panel p-6">
-        <h1 className="text-3xl font-bold">My orders</h1>
+        <OrdersHeader />
         <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
-          {ordersQuery.error instanceof Error ? ordersQuery.error.message : 'Failed to load orders.'}
+          {ordersQuery.error instanceof Error ? ordersQuery.error.message : t('failedToLoadOrders')}
         </p>
       </section>
     );
@@ -93,16 +128,13 @@ export function OrdersPage() {
   return (
     <div className="space-y-6">
       <section className="glass-panel p-6">
-        <h1 className="text-3xl font-bold">My orders</h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Track each order after checkout, including payment and fulfillment progress.
-        </p>
+        <OrdersHeader />
       </section>
 
       {orders.length === 0 ? (
         <section className="glass-panel p-6">
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            You have not placed any orders yet.
+            {t('noOrdersYet')}
           </p>
         </section>
       ) : (
@@ -113,7 +145,7 @@ export function OrdersPage() {
             <section key={order.id} className="glass-panel p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
-                <h2 className="text-xl font-bold">Order #{order.id.slice(0, 8)}</h2>
+                <h2 className="text-xl font-bold">{t('orderLabel')} #{order.id.slice(0, 8)}</h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {new Date(order.created_at).toLocaleString()}
                 </p>
@@ -121,10 +153,10 @@ export function OrdersPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(orderStatus)}`}>
-                  {formatStatusLabel(orderStatus)}
+                  {formatStatusLabel(orderStatus, t)}
                 </span>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(order.payment_status)}`}>
-                  Payment: {formatStatusLabel(order.payment_status)}
+                  {t('payment')}: {formatStatusLabel(order.payment_status, t)}
                 </span>
               </div>
             </div>
@@ -147,7 +179,7 @@ export function OrdersPage() {
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
-              <p className="text-sm text-slate-500 dark:text-slate-400">Payment method: {formatStatusLabel(order.payment_method)}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('paymentMethod')}: {formatStatusLabel(order.payment_method, t)}</p>
               <p className="text-lg font-bold">{formatCurrency(order.total_rwf)}</p>
             </div>
             </section>
