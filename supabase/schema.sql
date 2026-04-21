@@ -1,4 +1,5 @@
 create extension if not exists pg_trgm;
+create extension if not exists pgcrypto;
 
 create table if not exists public.catalog_products (
   id bigint primary key,
@@ -23,11 +24,14 @@ create index if not exists catalog_products_search_idx on public.catalog_product
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  user_email text,
   full_name text not null,
   phone text not null,
   delivery_address text not null,
   payment_method text not null check (payment_method in ('momo', 'cash')),
   payment_status text not null default 'pending' check (payment_status in ('pending', 'paid', 'failed')),
+  fulfillment_status text not null default 'pending' check (fulfillment_status in ('pending', 'confirmed', 'processing', 'delivered', 'cancelled')),
   subtotal_rwf integer not null,
   delivery_fee_rwf integer not null,
   service_fee_rwf integer not null,
@@ -52,6 +56,13 @@ create table if not exists public.order_items (
   unit_price_rwf integer not null
 );
 
+alter table public.orders add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.orders add column if not exists user_email text;
+alter table public.orders add column if not exists fulfillment_status text not null default 'pending';
+
+create index if not exists orders_user_id_idx on public.orders (user_id);
+create index if not exists order_items_order_id_idx on public.order_items (order_id);
+
 alter table public.catalog_products enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
@@ -71,6 +82,13 @@ to service_role
 using (true)
 with check (true);
 
+drop policy if exists "Users can read own orders" on public.orders;
+create policy "Users can read own orders"
+on public.orders
+for select
+to authenticated
+using (auth.uid() = user_id);
+
 drop policy if exists "Service role manages order items" on public.order_items;
 create policy "Service role manages order items"
 on public.order_items
@@ -78,3 +96,17 @@ for all
 to service_role
 using (true)
 with check (true);
+
+drop policy if exists "Users can read own order items" on public.order_items;
+create policy "Users can read own order items"
+on public.order_items
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.orders
+    where public.orders.id = public.order_items.order_id
+      and public.orders.user_id = auth.uid()
+  )
+);

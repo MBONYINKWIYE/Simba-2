@@ -2,10 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const sourcePath = path.resolve('simba_products.json');
+const publicPath = path.resolve('public', 'simba_products.json');
 const targetDir = path.resolve('supabase', 'seeds');
 const targetPath = path.join(targetDir, 'catalog-products.json');
 
-const raw = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+const sourceText = fs.readFileSync(sourcePath, 'utf8');
+const raw = JSON.parse(sourceText);
 
 const slugify = (value) =>
   value
@@ -30,6 +32,9 @@ const rows = raw.products.map((product) => ({
 }));
 
 fs.mkdirSync(targetDir, { recursive: true });
+fs.mkdirSync(path.dirname(publicPath), { recursive: true });
+fs.writeFileSync(publicPath, sourceText);
 fs.writeFileSync(targetPath, JSON.stringify(rows, null, 2));
 
+console.log(`Synced fallback catalog to ${publicPath}`);
 console.log(`Prepared ${rows.length} rows for Supabase at ${targetPath}`);

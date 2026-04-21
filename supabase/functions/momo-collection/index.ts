@@ -56,6 +56,11 @@ type RegisterNotificationBody = {
   callbackUrl?: string;
 };
 
+type AuthenticatedUser = {
+  id: string;
+  email: string | null;
+};
+
 type RequestBody =
   | RequestToPayBody
   | CreateCashOrderBody
@@ -152,15 +157,61 @@ async function validateAccountHolder(phone: string) {
   };
 }
 
-async function insertOrder(payload: RequestToPayBody, referenceId: string, externalId: string, accountHolderStatus: string) {
+async function getAuthenticatedUser(request: Request): Promise<AuthenticatedUser> {
+  const authorization = request.headers.get('Authorization') ?? '';
+  const token = authorization.replace(/^Bearer\s+/i, '').trim();
+
+  if (!token) {
+    throw new Error('Authentication is required to place an order.');
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !data.user) {
+    throw new Error('Unable to verify the authenticated user.');
+  }
+
+  return {
+    id: data.user.id,
+    email: data.user.email ?? null,
+  };
+}
+
+async function assertOrderOwnership(referenceId: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('orders')
+    .select('id')
+    .eq('momo_reference', referenceId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to verify order ownership: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Order not found for the current user.');
+  }
+}
+
+async function insertOrder(
+  payload: RequestToPayBody,
+  user: AuthenticatedUser,
+  referenceId: string,
+  externalId: string,
+  accountHolderStatus: string,
+) {
   const { data: order, error } = await supabaseAdmin
     .from('orders')
     .insert({
+      user_id: user.id,
+      user_email: user.email,
       full_name: payload.checkout.fullName,
       phone: payload.checkout.phone,
       delivery_address: payload.checkout.address,
       payment_method: payload.checkout.paymentMethod,
       payment_status: 'pending',
+      fulfillment_status: 'pending',
       subtotal_rwf: payload.subtotalRwf,
       delivery_fee_rwf: payload.deliveryFeeRwf,
       service_fee_rwf: payload.serviceFeeRwf,
@@ -195,15 +246,18 @@ async function insertOrder(payload: RequestToPayBody, referenceId: string, exter
   return order.id as string;
 }
 
-async function createCashOrder(payload: CreateCashOrderBody) {
+async function createCashOrder(payload: CreateCashOrderBody, user: AuthenticatedUser) {
   const { data: order, error } = await supabaseAdmin
     .from('orders')
     .insert({
+      user_id: user.id,
+      user_email: user.email,
       full_name: payload.checkout.fullName,
       phone: payload.checkout.phone,
       delivery_address: payload.checkout.address,
       payment_method: payload.checkout.paymentMethod,
       payment_status: 'pending',
+      fulfillment_status: 'pending',
       subtotal_rwf: payload.subtotalRwf,
       delivery_fee_rwf: payload.deliveryFeeRwf,
       service_fee_rwf: payload.serviceFeeRwf,
@@ -257,7 +311,7 @@ async function updateOrderStatus(referenceId: string, status: string, providerPa
   }
 }
 
-async function requestToPay(payload: RequestToPayBody) {
+async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser) {
   const validation = await validateAccountHolder(payload.checkout.phone);
   const accountHolderStatus = validation.ok ? 'active' : 'unknown';
 
@@ -307,7 +361,7 @@ async function requestToPay(payload: RequestToPayBody) {
     };
   }
 
-  const orderId = await insertOrder(payload, referenceId, externalId, accountHolderStatus);
+  const orderId = await insertOrder(payload, user, referenceId, externalId, accountHolderStatus);
 
   return {
     ok: true,
@@ -328,7 +382,8 @@ function safeJsonParse(input: string) {
   }
 }
 
-async function getRequestToPayStatus(referenceId: string) {
+async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUser) {
+  await assertOrderOwnership(referenceId, user.id);
   const accessToken = await createAccessToken();
   const response = await fetch(`${baseUrl}/collection/v1_0/requesttopay/${referenceId}`, {
     method: 'GET',
@@ -404,15 +459,18 @@ Deno.serve(async (request) => {
         return jsonResponse(result, result.ok ? 200 : result.status);
       }
       case 'requestToPay': {
-        const result = await requestToPay(body);
+        const user = await getAuthenticatedUser(request);
+        const result = await requestToPay(body, user);
         return jsonResponse(result, result.ok ? 202 : result.status);
       }
       case 'createCashOrder': {
-        const orderId = await createCashOrder(body);
+        const user = await getAuthenticatedUser(request);
+        const orderId = await createCashOrder(body, user);
         return jsonResponse({ ok: true, orderId }, 201);
       }
       case 'getRequestToPayStatus': {
-        const result = await getRequestToPayStatus(body.referenceId);
+        const user = await getAuthenticatedUser(request);
+        const result = await getRequestToPayStatus(body.referenceId, user);
         return jsonResponse(result, result.ok ? 200 : result.status);
       }
       case 'registerDeliveryNotification': {

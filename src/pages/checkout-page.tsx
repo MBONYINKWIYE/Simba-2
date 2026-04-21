@@ -1,7 +1,10 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { signInWithGoogle } from '@/lib/auth';
 import { DEFAULT_CHECKOUT_VALUES } from '@/lib/constants';
 import { createCashOrder, requestToPay, getRequestToPayStatus } from '@/lib/momo';
 import { formatCurrency } from '@/lib/utils';
@@ -21,6 +24,18 @@ export function CheckoutPage() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const { user, isLoading: isAuthLoading, isConfigured } = useAuth();
+
+  const handleGoogleSignIn = async () => {
+    setAuthError('');
+
+    try {
+      await signInWithGoogle('/checkout');
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Failed to start Google sign-in.');
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -101,6 +116,32 @@ export function CheckoutPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (isConfigured && isAuthLoading) {
+    return <div className="glass-panel p-6">Loading checkout...</div>;
+  }
+
+  if (isConfigured && !user) {
+    return (
+      <section className="glass-panel mx-auto max-w-2xl p-6 sm:p-8">
+        <h1 className="text-3xl font-bold">{t('checkout')}</h1>
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+          You must sign in with Google before you can continue to checkout, place an order, and track its status later.
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Button onClick={handleGoogleSignIn}>Continue with Google</Button>
+          <Link to="/">
+            <Button variant="secondary">Keep shopping</Button>
+          </Link>
+        </div>
+        {authError ? (
+          <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
+            {authError}
+          </p>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">

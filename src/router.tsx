@@ -9,6 +9,10 @@ const ProductPage = lazy(() =>
 const CheckoutPage = lazy(() =>
   import('@/pages/checkout-page').then((module) => ({ default: module.CheckoutPage })),
 );
+const OrdersPage = lazy(() => import('@/pages/orders-page').then((module) => ({ default: module.OrdersPage })));
+const AuthCallbackPage = lazy(() =>
+  import('@/pages/auth-callback-page').then((module) => ({ default: module.AuthCallbackPage })),
+);
 
 const fallback = <div className="glass-panel p-8">Loading...</div>;
 
@@ -39,6 +43,26 @@ export const router = createBrowserRouter([
       <AppShell>
         <Suspense fallback={fallback}>
           <CheckoutPage />
+        </Suspense>
+      </AppShell>
+    ),
+  },
+  {
+    path: '/auth/callback',
+    element: (
+      <AppShell>
+        <Suspense fallback={fallback}>
+          <AuthCallbackPage />
+        </Suspense>
+      </AppShell>
+    ),
+  },
+  {
+    path: '/orders',
+    element: (
+      <AppShell>
+        <Suspense fallback={fallback}>
+          <OrdersPage />
         </Suspense>
       </AppShell>
     ),

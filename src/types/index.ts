@@ -76,3 +76,28 @@ export type CreateCashOrderResult = {
   ok: boolean;
   orderId?: string;
 };
+
+export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled';
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed';
+
+export type OrderHistoryItem = {
+  id: number;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  unit_price_rwf: number;
+};
+
+export type OrderHistoryRecord = {
+  id: string;
+  created_at: string;
+  total_rwf: number;
+  payment_method: 'momo' | 'cash';
+  payment_status: PaymentStatus;
+  fulfillment_status?: OrderStatus | null;
+  delivery_address: string;
+  full_name: string;
+  phone: string;
+  order_items: OrderHistoryItem[];
+};

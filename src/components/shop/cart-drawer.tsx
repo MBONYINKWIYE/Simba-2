@@ -2,6 +2,8 @@ import { Minus, Plus, ShoppingBasket, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { signInWithGoogle } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import { useOrderSummary } from '@/hooks/use-order-summary';
 import { useCartStore } from '@/store/cart-store';
@@ -17,6 +19,16 @@ export function CartDrawer() {
   const decrementItem = useCartStore((state) => state.decrementItem);
   const removeItem = useCartStore((state) => state.removeItem);
   const summary = useOrderSummary();
+  const { user, isConfigured } = useAuth();
+
+  const handleGoogleSignIn = async () => {
+    try {
+      closeCart();
+      await signInWithGoogle('/checkout');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Failed to start Google sign-in.');
+    }
+  };
 
   return (
     <div className={`fixed inset-0 z-50 ${isCartOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}>
@@ -100,9 +112,15 @@ export function CartDrawer() {
                   <span>{formatCurrency(summary.total)}</span>
                 </div>
               </div>
-              <Link to="/checkout" onClick={closeCart} className="mt-4 block">
-                <Button fullWidth>{t('checkout')}</Button>
-              </Link>
+              {isConfigured && !user ? (
+                <Button fullWidth className="mt-4" onClick={handleGoogleSignIn}>
+                  Sign in to checkout
+                </Button>
+              ) : (
+                <Link to="/checkout" onClick={closeCart} className="mt-4 block">
+                  <Button fullWidth>{t('checkout')}</Button>
+                </Link>
+              )}
             </div>
           </>
         )}

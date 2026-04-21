@@ -23,9 +23,10 @@ export async function loadFallbackCatalog(): Promise<CatalogResponse> {
   }
 
   const rawCatalog = (await response.json()) as RawCatalog;
+  const products = rawCatalog.products.map(normalizeProduct).sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     store: rawCatalog.store,
-    products: rawCatalog.products.map(normalizeProduct),
+    products,
   };
 }

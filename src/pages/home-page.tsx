@@ -63,8 +63,9 @@ export function HomePage() {
     !filters.query && !filters.category && !filters.inStockOnly && filters.priceRange[1] === 300000 && filters.sortBy === 'default';
   const groupedProducts = useMemo(() => {
     const groups = new Map<string, Product[]>();
+    const sortedProducts = [...(data?.products ?? [])].sort((a, b) => a.name.localeCompare(b.name));
 
-    for (const product of data?.products ?? []) {
+    for (const product of sortedProducts) {
       const current = groups.get(product.normalizedCategory) ?? [];
       if (current.length < 15) {
         current.push(product);

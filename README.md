@@ -82,6 +82,8 @@ Core user flows already implemented:
 - Product detail page
 - Persistent cart with `localStorage`
 - One-page checkout with Supabase Edge Function backed MoMo initiation and status polling
+- Google sign-in required for checkout and order history
+- Authenticated order history with per-user order/payment status
 - Dark mode toggle
 - English, French, and Kinyarwanda support
 - Route-level lazy loading
@@ -200,15 +202,17 @@ For larger growth:
 
 1. Create a new Supabase project.
 2. Run [schema.sql](/C:/Users/frank/a2sv_projects/Simba-2/supabase/schema.sql:1) in SQL Editor.
-3. Set `anon` key in Vercel env vars.
-4. Set `service_role` key locally for import scripts only.
-5. Deploy the Edge Function:
+3. In `Authentication -> Providers`, enable `Google`.
+4. Add your site URL and redirect URLs such as `http://localhost:5173/auth/callback` and your production `/auth/callback` URL.
+5. Set `anon` key in Vercel env vars.
+6. Set `service_role` key locally for import scripts only.
+7. Deploy the Edge Function:
 
 ```bash
 supabase functions deploy momo-collection
 ```
 
-6. Set Edge Function secrets:
+8. Set Edge Function secrets:
 
 ```bash
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
@@ -220,7 +224,7 @@ supabase secrets set MTN_MOMO_API_KEY=your_api_key
 supabase secrets set MTN_MOMO_CALLBACK_URL=https://your-public-callback-url
 ```
 
-7. Run:
+9. Run:
 
 ```bash
 npm run seed:prepare
