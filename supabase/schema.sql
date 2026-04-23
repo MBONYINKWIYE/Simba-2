@@ -514,6 +514,7 @@ as $$
   order by s.name, cp.name
 $$;
 
+drop function if exists public.get_available_shops_for_cart(jsonb);
 create or replace function public.get_available_shops_for_cart(
   cart_items jsonb
 )
@@ -570,6 +571,7 @@ as $$
   order by s.created_at asc
 $$;
 
+drop function if exists public.list_shop_review_summary();
 create or replace function public.list_shop_review_summary()
 returns table (
   shop_id uuid,
@@ -588,6 +590,9 @@ as $$
   group by shop_id
 $$;
 
+drop function if exists public.create_order_with_inventory(
+  uuid, text, uuid, timestamptz, text, text, text, text, text, text, text, integer, integer, integer, integer, text, jsonb, text, text, text, text, text, jsonb
+);
 create or replace function public.create_order_with_inventory(
   p_user_id uuid,
   p_user_email text,
