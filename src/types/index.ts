@@ -39,7 +39,53 @@ export type CheckoutFormValues = {
   phone: string;
   address: string;
   notes: string;
+  pickupTime: string;
   paymentMethod: 'momo' | 'cash';
+};
+
+export type Shop = {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  phone: string;
+  created_at: string;
+};
+
+export type AvailableShop = Shop & {
+  available_product_count: number;
+  average_rating: number;
+  review_count: number;
+};
+
+export type ShopAdminAssignment = {
+  id: string;
+  user_id: string;
+  user_email: string;
+  shop_id: string;
+  shop_name: string;
+  role: 'admin' | 'manager' | 'staff';
+  created_at: string;
+};
+
+export type InventoryRecord = {
+  inventory_id: string;
+  shop_id: string;
+  shop_name: string;
+  product_id: number;
+  product_name: string;
+  quantity: number;
+  updated_at: string;
+};
+
+export type UserRole = 'customer' | 'shop_admin' | 'super_admin';
+
+export type AuthRoleProfile = {
+  role: UserRole;
+  shopId: string | null;
+  shopName: string | null;
+  adminRole: 'admin' | 'manager' | 'staff' | null;
 };
 
 export type CheckoutItemPayload = {
@@ -47,6 +93,16 @@ export type CheckoutItemPayload = {
   productName: string;
   quantity: number;
   unitPriceRwf: number;
+};
+
+export type OrderCreatePayload = {
+  checkout: CheckoutFormValues;
+  items: CheckoutItemPayload[];
+  subtotalRwf: number;
+  deliveryFeeRwf: number;
+  serviceFeeRwf: number;
+  totalRwf: number;
+  shopId: string;
 };
 
 export type RequestToPayResult = {
@@ -78,6 +134,7 @@ export type CreateCashOrderResult = {
 };
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled';
+export type ShopOrderStatus = 'pending' | 'preparing' | 'ready' | 'picked_up';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
@@ -92,12 +149,60 @@ export type OrderHistoryItem = {
 export type OrderHistoryRecord = {
   id: string;
   created_at: string;
+  pickup_time?: string | null;
   total_rwf: number;
   payment_method: 'momo' | 'cash';
   payment_status: PaymentStatus;
+  status?: ShopOrderStatus | null;
   fulfillment_status?: OrderStatus | null;
   delivery_address: string;
   full_name: string;
   phone: string;
+  shop_id?: string | null;
+  shops?: Pick<Shop, 'id' | 'name' | 'address' | 'phone'> | null;
   order_items: OrderHistoryItem[];
+  review?: ReviewRecord | null;
+};
+
+export type ReviewRecord = {
+  id: string;
+  order_id: string;
+  user_id: string;
+  shop_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+};
+
+export type ShopReviewSummary = {
+  shop_id: string;
+  average_rating: number;
+  review_count: number;
+};
+
+export type AdminOrderRecord = {
+  id: string;
+  created_at: string;
+  pickup_time?: string | null;
+  full_name: string;
+  phone: string;
+  delivery_address: string;
+  notes: string | null;
+  payment_method: 'momo' | 'cash';
+  payment_status: PaymentStatus;
+  status: ShopOrderStatus;
+  total_rwf: number;
+  subtotal_rwf: number;
+  delivery_fee_rwf: number;
+  service_fee_rwf: number;
+  user_email: string | null;
+  shop_id: string;
+  assigned_staff_user_id?: string | null;
+  shops?: Pick<Shop, 'id' | 'name' | 'address' | 'phone'> | null;
+  order_items: OrderHistoryItem[];
+};
+
+export type CatalogAiSearchResult = {
+  answer: string;
+  productIds: number[];
 };

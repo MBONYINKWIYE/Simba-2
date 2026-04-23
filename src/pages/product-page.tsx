@@ -13,6 +13,7 @@ export function ProductPage() {
   const { data } = useCatalog();
   const addItem = useCartStore((state) => state.addItem);
   const product = data?.products.find((item) => item.slug === slug);
+  const isInCart = useCartStore((state) => Boolean(product && state.items[product.id]));
 
   if (!product) {
     return (
@@ -56,7 +57,7 @@ export function ProductPage() {
           </p>
           <Button className="mt-6 w-full sm:w-fit" onClick={() => addItem(product)} disabled={!product.inStock}>
             <ShoppingBasket size={16} className="mr-2" />
-            {t('addToCart')}
+            {isInCart ? t('addedToCart') : t('addToCart')}
           </Button>
         </div>
       </div>

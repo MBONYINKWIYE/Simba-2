@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter } from 'react-router-dom';
 import { AppShell } from '@/components/layout/app-shell';
+import { AdminRoute } from '@/pages/admin/admin-route';
 
 const HomePage = lazy(() => import('@/pages/home-page').then((module) => ({ default: module.HomePage })));
 const ProductPage = lazy(() =>
@@ -13,6 +14,12 @@ const CheckoutPage = lazy(() =>
 const OrdersPage = lazy(() => import('@/pages/orders-page').then((module) => ({ default: module.OrdersPage })));
 const AuthCallbackPage = lazy(() =>
   import('@/pages/auth-callback-page').then((module) => ({ default: module.AuthCallbackPage })),
+);
+const AdminLoginPage = lazy(() =>
+  import('@/pages/admin/admin-login-page').then((module) => ({ default: module.AdminLoginPage })),
+);
+const AdminDashboardPage = lazy(() =>
+  import('@/pages/admin/admin-dashboard-page').then((module) => ({ default: module.AdminDashboardPage })),
 );
 
 function RouteFallback() {
@@ -70,6 +77,40 @@ export const router = createBrowserRouter([
       <AppShell>
         <Suspense fallback={fallback}>
           <OrdersPage />
+        </Suspense>
+      </AppShell>
+    ),
+  },
+  {
+    path: '/admin/login',
+    element: (
+      <AppShell>
+        <Suspense fallback={fallback}>
+          <AdminLoginPage />
+        </Suspense>
+      </AppShell>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <AppShell>
+        <Suspense fallback={fallback}>
+          <AdminRoute>
+            <AdminDashboardPage />
+          </AdminRoute>
+        </Suspense>
+      </AppShell>
+    ),
+  },
+  {
+    path: '/admin/orders/:orderId',
+    element: (
+      <AppShell>
+        <Suspense fallback={fallback}>
+          <AdminRoute>
+            <AdminDashboardPage />
+          </AdminRoute>
         </Suspense>
       </AppShell>
     ),

@@ -1,294 +1,123 @@
 # Simba Supermarket
 
-Modern e-commerce storefront for Simba Supermarket, built with `Vite + React + TypeScript + Tailwind + Supabase`.
+Simba Supermarket is now a multi-shop grocery storefront with authenticated checkout, MTN MoMo payment support, customer order tracking, and a role-based admin dashboard for shop admins and super admins.
+
+## Current Product Scope
+
+The app currently includes:
+
+- Public storefront with category browsing, search, filters, product details, and persistent cart
+- Google sign-in with Supabase Auth
+- Auth callback flow for web login redirects
+- Checkout restricted to authenticated users
+- Shop selection at checkout based on cart availability
+- Distance-based shop ranking using browser geolocation
+- Cash and MTN MoMo checkout flows
+- Customer order history with payment and fulfillment status
+- Admin login and protected admin routes
+- Shop admin dashboard for inventory, order queue, and shop phone updates
+- Super admin controls for creating shops and assigning shop admins
+- English, French, and Kinyarwanda UI support
+- Theme and locale persistence with Zustand
 
 ## Stack
 
 - Frontend: Vite, React 19, TypeScript, Tailwind CSS, React Router
-- State: Zustand for cart and user preferences
-- Data: Supabase Postgres via `@supabase/supabase-js`
-- Caching: React Query
-- i18n: `react-i18next` for English, French, and Kinyarwanda
-
-## Folder Structure
-
-```text
-.
-|-- src
-|   |-- components
-|   |   |-- layout
-|   |   |-- shop
-|   |   `-- ui
-|   |-- hooks
-|   |-- lib
-|   |-- pages
-|   |-- store
-|   |-- styles
-|   |-- types
-|   |-- i18n.ts
-|   |-- main.tsx
-|   `-- router.tsx
-|-- scripts
-|   |-- prepare-seed.mjs
-|   `-- import-to-supabase.mjs
-|-- supabase
-|   |-- schema.sql
-|   |-- functions
-|   |   |-- _shared
-|   |   `-- momo-collection
-|   `-- seeds
-|-- simba_products.json
-|-- .env.example
-`-- README.md
-```
-
-## Database Schema
-
-Use [schema.sql](/C:/Users/frank/a2sv_projects/Simba-2/supabase/schema.sql:1).
-
-- `catalog_products`: denormalized catalog table tuned for fast listing, search, category, and price filtering.
-- `orders`: checkout records with mock MoMo/cash payment state.
-- `order_items`: snapshot of line items at purchase time.
-
-Why denormalized:
-
-- The source data does not include stable subcategory names, only `subcategoryId`.
-- 700+ products do not justify an over-normalized read path for the initial storefront.
-- Filtering and search are simpler and faster against a single listing table.
-
-## Import Strategy From JSON
-
-1. Run `npm run seed:prepare`.
-2. This converts `simba_products.json` into `supabase/seeds/catalog-products.json`.
-3. Create the schema in Supabase SQL editor with `supabase/schema.sql`.
-4. Import with `npm run seed:supabase` after setting `VITE_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
-
-Import notes:
-
-- The script performs chunked `upsert` calls in batches of 250 rows.
-- Product IDs from the dataset are preserved as primary keys.
-- Slugs are generated from `name + id` for stable routing.
-- Raw `subcategoryId` is preserved in `raw_subcategory_id` for future cleanup or mapping.
-
-## Frontend Implementation
-
-Core user flows already implemented:
+- Data fetching and caching: Supabase client and TanStack Query
+- State: Zustand
+- Auth and database: Supabase Auth, Postgres, Row Level Security, SQL functions
+- Payments: Supabase Edge Function for MTN MoMo Collection
+- i18n: react-i18next
 
-- Hero landing section with mobile-first promotional layout
-- Product listing grid
-- Category-based browsing
-- Debounced search
-- Filters: category, price ceiling, and stock availability
-- Product detail page
-- Persistent cart with `localStorage`
-- One-page checkout with Supabase Edge Function backed MoMo initiation and status polling
-- Google sign-in required for checkout and order history
-- Authenticated order history with per-user order/payment status
-- Dark mode toggle
-- English, French, and Kinyarwanda support
-- Route-level lazy loading
-- Skeleton loading UI
+## Routes
 
-## State Management
-
-`Zustand` is used for:
+Implemented routes in [src/router.tsx](C:\Users\frank\a2sv_projects\Simba-2\src\router.tsx):
 
-- `cart-store.ts`: cart CRUD and persistence
-- `preferences-store.ts`: theme and locale persistence
-- `ui-store.ts`: cart drawer visibility
+- `/`
+- `/products/:slug`
+- `/checkout`
+- `/orders`
+- `/auth/callback`
+- `/admin/login`
+- `/admin`
+- `/admin/orders/:orderId`
 
-This keeps the implementation lighter than Redux Toolkit while still being production-realistic.
+## Auth And Roles
 
-## Data Fetching Layer
+Authentication uses Supabase Google OAuth.
 
-`src/hooks/use-catalog.ts` uses:
+Current role model:
 
-- Supabase client when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are present
-- Local JSON fallback when env vars are missing or the query fails
+- Customer: signed-in shopper with access to checkout and personal order history
+- Shop admin: can manage one or more assigned shops
+- Super admin: can manage all shops and assign admins
 
-That gives a working storefront in local development before backend setup is complete.
+The current super admin email allowlist is defined in [src/lib/constants.ts](C:\Users\frank\a2sv_projects\Simba-2\src\lib\constants.ts).
 
-### Translated Catalog Files
+Recent auth behavior:
 
-If you want product text to switch with the selected language, add locale-specific files in `public/catalog/`:
+- Logout clears the local Supabase session
+- Logout uses global sign-out
+- Google sign-in requests account selection so the browser does not silently restore the previous super admin session
 
-- `public/catalog/simba_products.fr.json`
-- `public/catalog/simba_products.rw.json`
+## Admin Capabilities
 
-Required structure:
+### Shop Admin
 
-- Top-level object with `store` and `products`
-- `store` must include `name`, `tagline`, `location`, and `currency`
-- `products` must be an array of objects with:
-  - `id`
-  - `name`
-  - `price`
-  - `category`
-  - `subcategoryId`
-  - `inStock`
-  - `image`
-  - `unit`
+- View shop orders
+- Update order status from `pending` to `preparing`, `ready`, and `picked_up`
+- Manage inventory quantities for assigned shops
+- Update shop phone number
 
-Important rules:
+### Super Admin
 
-- Keep `id` exactly the same as the base `simba_products.json` file
-- Keep `price`, `inStock`, `image`, and `subcategoryId` aligned with the base file
-- Translate only display fields such as `name`, `category`, `unit`, and optionally `store` text
-- Missing locale files automatically fall back to the default `public/simba_products.json`
+- Everything a shop admin can do
+- Create new shops
+- Assign shop admins and managers
+- View shop admin assignments across all shops
+- View and manage data across every shop
 
-## MoMo Integration Strategy
+## Checkout And Fulfillment Flow
 
-Implemented MTN Collection sandbox flow:
+The checkout flow now depends on real shop inventory:
 
-- Frontend calls Supabase Edge Function `momo-collection`
-- Edge Function gets MTN access token
-- Edge Function optionally validates account holder status
-- Edge Function calls `requesttopay`
-- Frontend polls `requesttopay/{referenceId}`
-- Order and payment metadata are stored in `orders` and `order_items`
+1. The customer signs in with Google.
+2. The cart is converted into a payload of product IDs and quantities.
+3. Supabase returns shops that can fulfill the entire cart.
+4. The frontend ranks those shops by distance when geolocation is available.
+5. The customer selects a shop and places the order.
+6. Inventory is decremented inside the database transaction that creates the order.
 
-Supported actions in [supabase/functions/momo-collection/index.ts](/C:/Users/frank/a2sv_projects/Simba-2/supabase/functions/momo-collection/index.ts:1):
+Supported payment methods:
 
-- `createAccessToken` against `/collection/token/`
-- `validateAccountHolder` against `/collection/v1_0/accountholder/.../active`
-- `requestToPay` against `/collection/v1_0/requesttopay`
-- `getRequestToPayStatus` against `/collection/v1_0/requesttopay/{referenceId}`
-- `registerDeliveryNotification` against `/collection/v1_0/requesttopay/{referenceId}/deliverynotification`
+- `momo`
+- `cash`
 
-Frontend integration points:
+Mobile Money integration uses Paypack and lives in [supabase/functions/payment-collection/index.ts](C:\Users\frank\a2sv_projects\Simba-2\supabase\functions\payment-collection\index.ts).
 
-- [src/lib/momo.ts](/C:/Users/frank/a2sv_projects/Simba-2/src/lib/momo.ts:1)
-- [src/pages/checkout-page.tsx](/C:/Users/frank/a2sv_projects/Simba-2/src/pages/checkout-page.tsx:1)
+Frontend payment integration lives in [src/lib/payment.ts](C:\Users\frank\a2sv_projects\Simba-2\src\lib\payment.ts) and [src/pages/checkout-page.tsx](C:\Users\frank\a2sv_projects\Simba-2\src\pages\checkout-page.tsx).
 
-## Internationalization
+## Database Model
 
-Languages included:
+The current schema is in [supabase/schema.sql](C:\Users\frank\a2sv_projects\Simba-2\supabase\schema.sql).
 
-- English: `en`
-- French: `fr`
-- Kinyarwanda: `rw`
+Main tables:
 
-All core shopping surfaces are translated via `src/i18n.ts`.
+- `catalog_products`
+- `shops`
+- `shop_admins`
+- `inventory`
+- `orders`
+- `order_items`
 
-## Dark Mode
+Important database behavior already implemented:
 
-- Tailwind `darkMode: 'class'`
-- User preference persisted in Zustand
-- System preference fallback supported
-
-## UI/UX Direction
-
-- Mobile-first spacing and card sizing
-- Large tap targets for search, cart, and checkout
-- Warm grocery-oriented palette using olive/green brand tones and cool accent blue
-- High-contrast CTAs and simplified page sections
-- Sticky header and off-canvas cart for quick basket review
-
-Suggested next UX improvements:
-
-- Category pages with editorial banners
-- Real delivery slot selection
-- Saved addresses and authenticated order history
-- Homepage personalization by frequent purchases
-
-## Image Handling
-
-- Product images: existing Cloudinary URLs from dataset
-- Category imagery: curated Unsplash/Pexels lifestyle images
-- Keep product cards on `loading="lazy"`
-- For production, transform Cloudinary URLs with optimized width/quality parameters
-
-## Performance Optimizations
-
-- Route-based code splitting using `React.lazy`
-- Lazy-loaded product images
-- Debounced search to avoid per-keystroke heavy filtering
-- React Query cache with 5-minute stale time
-- Denormalized Supabase reads for listing screens
-- Local fallback catalog to avoid blank states during backend setup
-
-For larger growth:
-
-- Add virtualization if catalog size grows well beyond the current range
-- Paginate server-side by category
-- Move search to Postgres trigram or full-text queries
-
-## Deployment Guide
-
-### Frontend on Vercel
-
-1. Push the repo to GitHub.
-2. Import the project into Vercel.
-3. Set build command: `npm run build`
-4. Set output directory: `dist`
-5. Add env vars:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-6. Deploy.
-
-### Supabase
-
-1. Create a new Supabase project.
-2. Run [schema.sql](/C:/Users/frank/a2sv_projects/Simba-2/supabase/schema.sql:1) in SQL Editor.
-3. In `Authentication -> Providers`, enable `Google`.
-4. Add your site URL and redirect URLs such as `http://localhost:5173/auth/callback` and your production `/auth/callback` URL.
-5. Set `anon` key in Vercel env vars.
-6. Set `service_role` key locally for import scripts only.
-7. Deploy the Edge Function:
-
-```bash
-supabase functions deploy momo-collection
-```
-
-8. Set Edge Function secrets:
-
-```bash
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-supabase secrets set MTN_MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
-supabase secrets set MTN_MOMO_TARGET_ENVIRONMENT=sandbox
-supabase secrets set MTN_MOMO_COLLECTION_SUBSCRIPTION_KEY=your_collection_subscription_key
-supabase secrets set MTN_MOMO_API_USER=your_api_user
-supabase secrets set MTN_MOMO_API_KEY=your_api_key
-supabase secrets set MTN_MOMO_CALLBACK_URL=https://your-public-callback-url
-```
-
-9. Run:
-
-```bash
-npm run seed:prepare
-npm run seed:supabase
-```
-
-## Environment Variables
-
-Use [.env.example](/C:/Users/frank/a2sv_projects/Simba-2/.env.example:1).
-
-```bash
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_public_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-MTN_MOMO_BASE_URL=https://sandbox.momodeveloper.mtn.com
-MTN_MOMO_TARGET_ENVIRONMENT=sandbox
-MTN_MOMO_COLLECTION_SUBSCRIPTION_KEY=your_collection_subscription_key
-MTN_MOMO_API_USER=your_api_user
-MTN_MOMO_API_KEY=your_api_key
-MTN_MOMO_CALLBACK_URL=https://your-public-callback-url
-```
-
-Important:
-
-- `VITE_*` values are frontend-safe
-- `SUPABASE_SERVICE_ROLE_KEY`, `MTN_MOMO_COLLECTION_SUBSCRIPTION_KEY`, `MTN_MOMO_API_USER`, and `MTN_MOMO_API_KEY` must stay in backend or Edge Function secrets only
-
-## Optional Enhancements
-
-- Supabase Auth for saved carts and order history
-- Edge Function checkout API
-- Promo codes
-- Skeleton loaders for product detail and checkout
-- Recently viewed products
-- Cloudinary transformed thumbnails
-- Analytics for search terms and cart abandonment
+- Row Level Security on all main tables
+- Helper SQL functions for role checks and shop-scoped access
+- Shop availability lookup for a full cart
+- Inventory-safe order creation
+- Shop admin assignment by email
+- Shop inventory upsert and deletion helpers
 
 ## Local Development
 
@@ -297,4 +126,118 @@ npm install
 npm run dev
 ```
 
-If Supabase is not configured, the app still runs using the bundled JSON catalog.
+If Supabase is not configured, the storefront still runs against the bundled catalog JSON, but authenticated checkout, orders, and admin features will not work.
+
+## Environment Variables
+
+Use [\.env.example](C:\Users\frank\a2sv_projects\Simba-2\.env.example) as the source of truth.
+
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_AUTH_REDIRECT_URL=http://localhost:5173/auth/callback
+SUPABASE_AUTH_CALLBACK_URL=https://your-project-ref.supabase.co/auth/v1/callback
+SUPABASE_SERVICE_ROLE_KEY=
+PAYPACK_CLIENT_ID=
+PAYPACK_CLIENT_SECRET=
+```
+
+Notes:
+
+- `VITE_*` values are exposed to the frontend
+- `SUPABASE_SERVICE_ROLE_KEY` must stay server-side only
+- Paypack secrets belong in Supabase Edge Function secrets, not the frontend
+
+## Setup
+
+### 1. Frontend
+
+```bash
+npm install
+npm run dev
+```
+
+### 2. Supabase Database
+
+1. Create a Supabase project.
+2. Run [supabase/schema.sql](C:\Users\frank\a2sv_projects\Simba-2\supabase\schema.sql) in the SQL editor.
+3. Enable Google in `Authentication -> Providers`.
+4. Add redirect URLs for local and deployed environments, including `/auth/callback`.
+5. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the frontend environment.
+
+### 3. Seed Catalog Data
+
+```bash
+npm run seed:prepare
+npm run seed:supabase
+```
+
+This converts `simba_products.json` into the Supabase seed payload and imports it with chunked upserts.
+
+### 4. Deploy The Edge Function
+
+```bash
+supabase functions deploy payment-collection
+```
+
+Set function secrets:
+
+```bash
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+supabase secrets set PAYPACK_CLIENT_ID=your_client_id
+supabase secrets set PAYPACK_CLIENT_SECRET=your_client_secret
+```
+
+## Data And Fallback Strategy
+
+- Catalog reads use Supabase when configured
+- The app falls back to local JSON catalog data when Supabase is unavailable for storefront browsing
+- Locale-specific catalog files can live under `public/catalog/`
+
+Current translated catalog files:
+
+- `public/catalog/simba_products.fr.json`
+- `public/catalog/simba_products.rw.json`
+
+## Project Structure
+
+```text
+.
+|-- public
+|   |-- catalog
+|   `-- simba_products.json
+|-- scripts
+|   |-- import-to-supabase.mjs
+|   `-- prepare-seed.mjs
+|-- src
+|   |-- components
+|   |-- hooks
+|   |-- lib
+|   |-- pages
+|   |   `-- admin
+|   |-- providers
+|   |-- store
+|   |-- styles
+|   |-- types
+|   |-- i18n.ts
+|   |-- main.tsx
+|   `-- router.tsx
+|-- supabase
+|   |-- functions
+|   |   |-- _shared
+|   |   |-- catalog-search
+|   |   `-- payment-collection
+|   |-- seeds
+|   `-- schema.sql
+|-- .env.example
+|-- package.json
+`-- README.md
+```
+
+## Verification
+
+Last verified in this repo state:
+
+- `npm run build`
+
+The build passed after the latest auth/logout fix and README update.

@@ -16,7 +16,7 @@ function requireSupabaseClient() {
 
 export async function requestToPay(args: OrderCreatePayload) {
   const client = requireSupabaseClient();
-  const { data, error } = await client.functions.invoke<RequestToPayResult>('momo-collection', {
+  const { data, error } = await client.functions.invoke<RequestToPayResult>('payment-collection', {
     body: {
       action: 'requestToPay',
       ...args,
@@ -28,7 +28,7 @@ export async function requestToPay(args: OrderCreatePayload) {
   }
 
   if (!data?.ok) {
-    throw new Error(data?.message ?? 'Failed to initiate MoMo payment');
+    throw new Error(data?.message ?? 'Failed to initiate Mobile Money payment');
   }
 
   return data;
@@ -36,7 +36,7 @@ export async function requestToPay(args: OrderCreatePayload) {
 
 export async function getRequestToPayStatus(referenceId: string) {
   const client = requireSupabaseClient();
-  const { data, error } = await client.functions.invoke<RequestToPayStatusResult>('momo-collection', {
+  const { data, error } = await client.functions.invoke<RequestToPayStatusResult>('payment-collection', {
     body: {
       action: 'getRequestToPayStatus',
       referenceId,
@@ -52,7 +52,7 @@ export async function getRequestToPayStatus(referenceId: string) {
 
 export async function createCashOrder(args: OrderCreatePayload) {
   const client = requireSupabaseClient();
-  const { data, error } = await client.functions.invoke<CreateCashOrderResult>('momo-collection', {
+  const { data, error } = await client.functions.invoke<CreateCashOrderResult>('payment-collection', {
     body: {
       action: 'createCashOrder',
       ...args,

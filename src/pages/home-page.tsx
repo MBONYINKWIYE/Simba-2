@@ -1,4 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { CategoryStrip } from '@/components/shop/category-strip';
@@ -6,7 +7,10 @@ import { Hero } from '@/components/shop/hero';
 import { ProductGrid } from '@/components/shop/product-grid';
 import { SearchFilterBar } from '@/components/shop/search-filter-bar';
 import { SkeletonGrid } from '@/components/shop/skeleton-grid';
+import { useCatalogAiSearch } from '@/hooks/use-catalog-ai-search';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useShopReviewSummary } from '@/hooks/use-reviews';
+import { useShops } from '@/hooks/use-shops';
 import { slugify } from '@/lib/utils';
 import type { Product } from '@/types';
 
@@ -32,7 +36,14 @@ export function HomePage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [aiProductIds, setAiProductIds] = useState<number[]>([]);
+  const [aiError, setAiError] = useState('');
   const deferredQuery = useDeferredValue(filters.query);
+  const shopsQuery = useShops();
+  const shopReviewSummaryQuery = useShopReviewSummary();
+  const aiSearch = useCatalogAiSearch();
   const products = data?.products ?? [];
   const requestedCategory = searchParams.get('category') ?? '';
 
@@ -106,6 +117,9 @@ export function HomePage() {
 
   const updateFilters = (nextFilters: Filters) => {
     syncCategoryParam(nextFilters.category);
+    setAiAnswer('');
+    setAiError('');
+    setAiProductIds([]);
     startTransition(() => {
       setFilters(nextFilters);
     });
@@ -149,8 +163,14 @@ export function HomePage() {
   }, [catalogIndex.indexedProducts, deferredQuery, filters.category, filters.inStockOnly, filters.priceRange[1], filters.sortBy]);
 
   const spotlightProducts = useMemo<Product[]>(() => products.slice(0, 12), [products]);
+  const featuredProducts = useMemo<Product[]>(() => products.slice(0, 6), [products]);
   const activeMaxPrice = catalogIndex.maxPrice || defaultFilters.priceRange[1];
+  const aiProducts = useMemo(
+    () => aiProductIds.map((id) => products.find((product) => product.id === id)).filter(Boolean) as Product[],
+    [aiProductIds, products],
+  );
   const showCategorySections =
+    aiProducts.length === 0 &&
     !filters.query &&
     !filters.category &&
     !filters.inStockOnly &&
@@ -171,9 +191,80 @@ export function HomePage() {
     return Array.from(groups.entries());
   }, [products]);
 
+  const displayedProducts = aiProducts.length > 0 ? aiProducts : filteredProducts;
+  const shopReviewSummary = new Map(
+    (shopReviewSummaryQuery.data ?? []).map((entry) => [entry.shop_id, entry]),
+  );
+
+  const handleAiSearch = async () => {
+    const query = aiQuery.trim();
+
+    if (!query) {
+      return;
+    }
+
+    setAiError('');
+    setAiAnswer('');
+    setAiProductIds([]);
+
+    try {
+      const result = await aiSearch.mutateAsync({ query, products });
+      setAiAnswer(result.answer);
+      setAiProductIds(result.productIds);
+      setFilters((current) => ({ ...current, query: '' }));
+    } catch (error) {
+      setAiError(t('aiSearchFallback'));
+      setFilters((current) => ({ ...current, query }));
+    }
+  };
+
+  const handleAiQueryChange = (value: string) => {
+    setAiQuery(value);
+
+    if (!value.trim()) {
+      setAiAnswer('');
+      setAiError('');
+      setAiProductIds([]);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      <Hero />
+      <Hero
+        productCount={products.length}
+        branchNames={(shopsQuery.data ?? []).map((shop) => shop.name)}
+      />
+      <section className="grid gap-4 md:grid-cols-3">
+        {(shopsQuery.data ?? []).slice(0, 3).map((shop) => {
+          const reviewSummary = shopReviewSummary.get(shop.id);
+
+          return (
+            <article key={shop.id} className="glass-panel p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+                {t('branchCardLabel')}
+              </p>
+              <h2 className="mt-3 text-xl font-bold">{shop.name}</h2>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{shop.address}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shop.phone}</p>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-sm font-medium dark:bg-slate-800">
+                <Star size={14} className="fill-amber-400 text-amber-400" />
+                {reviewSummary
+                  ? t('shopRatingValue', { rating: Number(reviewSummary.average_rating).toFixed(1), count: reviewSummary.review_count })
+                  : t('shopRatingEmpty')}
+              </div>
+            </article>
+          );
+        })}
+      </section>
+      <section className="space-y-4">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
+          </div>
+        </div>
+        <ProductGrid products={featuredProducts} />
+      </section>
       {data ? (
         <CategoryStrip
           products={spotlightProducts}
@@ -186,6 +277,12 @@ export function HomePage() {
         maxPrice={catalogIndex.maxPrice}
         filters={filters}
         onChange={updateFilters}
+        aiQuery={aiQuery}
+        onAiQueryChange={handleAiQueryChange}
+        onAiSearch={() => void handleAiSearch()}
+        aiAnswer={aiAnswer}
+        aiError={aiError}
+        isAiSearching={aiSearch.isPending}
       />
       {showCategorySections ? (
         isLoading ? (
@@ -210,9 +307,9 @@ export function HomePage() {
       ) : (
         <>
           <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            {t('productCount', { count: filteredProducts.length })}
+            {t('productCount', { count: displayedProducts.length })}
           </div>
-          {isLoading ? <SkeletonGrid /> : <ProductGrid products={filteredProducts} />}
+          {isLoading ? <SkeletonGrid /> : <ProductGrid products={displayedProducts} />}
         </>
       )}
     </div>

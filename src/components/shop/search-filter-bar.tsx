@@ -1,5 +1,6 @@
-import { Search, SlidersHorizontal } from 'lucide-react';
+import { Bot, Search, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 
 type FilterState = {
   query: string;
@@ -14,16 +15,53 @@ export function SearchFilterBar({
   maxPrice,
   filters,
   onChange,
+  aiQuery,
+  onAiQueryChange,
+  onAiSearch,
+  aiAnswer,
+  aiError,
+  isAiSearching,
 }: {
   categories: string[];
   maxPrice: number;
   filters: FilterState;
   onChange: (filters: FilterState) => void;
+  aiQuery: string;
+  onAiQueryChange: (value: string) => void;
+  onAiSearch: () => void;
+  aiAnswer: string;
+  aiError: string;
+  isAiSearching: boolean;
 }) {
   const { t } = useTranslation();
 
   return (
     <section id="catalog" className="glass-panel mt-8 p-4 sm:p-6">
+      <div className="rounded-3xl border border-brand-200 bg-brand-50/70 p-4 dark:border-brand-900 dark:bg-brand-900/10">
+        <div className="flex items-start gap-3">
+          <div className="rounded-2xl bg-white p-3 text-brand-600 dark:bg-slate-900 dark:text-brand-300">
+            <Bot size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">{t('aiSearchTitle')}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('aiSearchHint')}</p>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+              <input
+                value={aiQuery}
+                onChange={(event) => onAiQueryChange(event.target.value)}
+                placeholder={t('aiSearchPlaceholder')}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-brand-200 transition focus:ring dark:border-slate-700 dark:bg-slate-900"
+              />
+              <Button onClick={onAiSearch} disabled={isAiSearching || !aiQuery.trim()}>
+                {isAiSearching ? t('loading') : t('aiSearchButton')}
+              </Button>
+            </div>
+            {aiAnswer ? <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{aiAnswer}</p> : null}
+            {aiError ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{aiError}</p> : null}
+          </div>
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-300">
         <SlidersHorizontal size={16} />
         {t('filters')}

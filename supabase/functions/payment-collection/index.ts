@@ -49,17 +49,6 @@ type StatusBody = {
   referenceId: string;
 };
 
-type ValidateBody = {
-  action: 'validateAccountHolder';
-  phone: string;
-};
-
-type RegisterNotificationBody = {
-  action: 'registerDeliveryNotification';
-  referenceId: string;
-  callbackUrl?: string;
-};
-
 type AuthenticatedUser = {
   id: string;
   email: string | null;
@@ -68,24 +57,13 @@ type AuthenticatedUser = {
 type RequestBody =
   | RequestToPayBody
   | CreateCashOrderBody
-  | StatusBody
-  | ValidateBody
-  | RegisterNotificationBody;
+  | StatusBody;
 
-type MomoStatus = 'PENDING' | 'SUCCESSFUL' | 'FAILED';
-
-const baseUrl = Deno.env.get('MTN_MOMO_BASE_URL') ?? 'https://sandbox.momodeveloper.mtn.com';
-const targetEnvironment = Deno.env.get('MTN_MOMO_TARGET_ENVIRONMENT') ?? 'sandbox';
-const callbackUrl = Deno.env.get('MTN_MOMO_CALLBACK_URL') ?? '';
-const collectionSubscriptionKey = Deno.env.get('MTN_MOMO_COLLECTION_SUBSCRIPTION_KEY') ?? '';
-const apiUser = Deno.env.get('MTN_MOMO_API_USER') ?? '';
-const apiKey = Deno.env.get('MTN_MOMO_API_KEY') ?? '';
+const baseUrl = 'https://payments.paypack.rw/api';
+const clientId = Deno.env.get('PAYPACK_CLIENT_ID') ?? '';
+const clientSecret = Deno.env.get('PAYPACK_CLIENT_SECRET') ?? '';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  console.error('Missing Supabase runtime environment for Edge Function');
-}
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { persistSession: false },
@@ -101,64 +79,29 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function requireConfig() {
-  const missing = [
-    ['MTN_MOMO_COLLECTION_SUBSCRIPTION_KEY', collectionSubscriptionKey],
-    ['MTN_MOMO_API_USER', apiUser],
-    ['MTN_MOMO_API_KEY', apiKey],
-  ].filter(([, value]) => !value);
-
-  if (missing.length > 0) {
-    throw new Error(`Missing MTN MoMo configuration: ${missing.map(([name]) => name).join(', ')}`);
-  }
-}
-
 async function createAccessToken() {
-  requireConfig();
-  const basicAuth = btoa(`${apiUser}:${apiKey}`);
-  const response = await fetch(`${baseUrl}/collection/token/`, {
+  if (!clientId || !clientSecret) {
+    throw new Error('Missing Paypack configuration: PAYPACK_CLIENT_ID or PAYPACK_CLIENT_SECRET');
+  }
+
+  const response = await fetch(`${baseUrl}/auth/agents/authorize`, {
     method: 'POST',
     headers: {
-      Authorization: `Basic ${basicAuth}`,
-      'Ocp-Apim-Subscription-Key': collectionSubscriptionKey,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Failed to create MTN access token: ${response.status} ${errorText}`);
+    throw new Error(`Failed to create Paypack access token: ${response.status} ${errorText}`);
   }
 
   const json = await response.json();
-  const accessToken = json.access_token as string | undefined;
-
-  if (!accessToken) {
-    throw new Error('MTN token response did not include access_token');
-  }
-
-  return accessToken;
-}
-
-async function validateAccountHolder(phone: string) {
-  const accessToken = await createAccessToken();
-  const response = await fetch(
-    `${baseUrl}/collection/v1_0/accountholder/msisdn/${encodeURIComponent(phone)}/active`,
-    {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'X-Target-Environment': targetEnvironment,
-        'Ocp-Apim-Subscription-Key': collectionSubscriptionKey,
-      },
-    },
-  );
-
-  const text = await response.text();
-  return {
-    ok: response.ok,
-    status: response.status,
-    body: text ? JSON.parse(text) : null,
-  };
+  return json.access as string;
 }
 
 async function getAuthenticatedUser(request: Request): Promise<AuthenticatedUser> {
@@ -202,8 +145,7 @@ async function insertOrder(
   payload: RequestToPayBody,
   user: AuthenticatedUser,
   referenceId: string,
-  externalId: string,
-  accountHolderStatus: string,
+  paypackStatus: string,
 ) {
   const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
     p_user_id: user.id,
@@ -224,11 +166,11 @@ async function insertOrder(
     p_notes: payload.checkout.notes ?? null,
     p_items: payload.items,
     p_momo_reference: referenceId,
-    p_momo_external_id: externalId,
-    p_momo_account_holder_status: accountHolderStatus,
-    p_momo_status: 'PENDING',
-    p_payment_provider: 'mtn-momo',
-    p_payment_payload: {},
+    p_momo_external_id: referenceId, // Paypack uses one ref
+    p_momo_account_holder_status: 'active',
+    p_momo_status: paypackStatus.toUpperCase(),
+    p_payment_provider: 'paypack',
+    p_payment_payload: { provider: 'paypack' },
   });
 
   if (error || !data) {
@@ -261,7 +203,7 @@ async function createCashOrder(payload: CreateCashOrderBody, user: Authenticated
     p_momo_external_id: null,
     p_momo_account_holder_status: null,
     p_momo_status: null,
-    p_payment_provider: 'mtn-momo',
+    p_payment_provider: 'cash',
     p_payment_payload: {
       mode: 'cash-on-delivery',
     },
@@ -275,16 +217,16 @@ async function createCashOrder(payload: CreateCashOrderBody, user: Authenticated
 }
 
 async function updateOrderStatus(referenceId: string, status: string, providerPayload: unknown) {
-  const normalizedStatus = status.toUpperCase();
-  const paymentStatus = normalizedStatus === 'SUCCESSFUL' ? 'paid' : normalizedStatus === 'FAILED' ? 'failed' : 'pending';
+  const normalizedStatus = status.toLowerCase();
+  const paymentStatus = normalizedStatus === 'success' ? 'paid' : normalizedStatus === 'failed' ? 'failed' : 'pending';
 
   const { error } = await supabaseAdmin
     .from('orders')
     .update({
-      momo_status: normalizedStatus,
+      momo_status: normalizedStatus.toUpperCase(),
       payment_status: paymentStatus,
       payment_payload: providerPayload,
-      paid_at: normalizedStatus === 'SUCCESSFUL' ? new Date().toISOString() : null,
+      paid_at: normalizedStatus === 'success' ? new Date().toISOString() : null,
     })
     .eq('momo_reference', referenceId);
 
@@ -294,90 +236,53 @@ async function updateOrderStatus(referenceId: string, status: string, providerPa
 }
 
 async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser) {
-  const validation = await validateAccountHolder(payload.checkout.phone);
-  const accountHolderStatus = validation.ok ? 'active' : 'unknown';
-
   const accessToken = await createAccessToken();
-  const referenceId = crypto.randomUUID();
-  const externalId = crypto.randomUUID();
 
-  const requestBody = {
-    amount: payload.totalRwf.toString(),
-    currency: 'RWF',
-    externalId,
-    payer: {
-      partyIdType: 'MSISDN',
-      partyId: payload.checkout.phone,
-    },
-    payerMessage: `Simba order payment for ${payload.checkout.fullName}`,
-    payeeNote: `Simba supermarket order ${externalId}`,
-  };
-
-  const headers: HeadersInit = {
-    Authorization: `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-    'X-Reference-Id': referenceId,
-    'X-Target-Environment': targetEnvironment,
-    'Ocp-Apim-Subscription-Key': collectionSubscriptionKey,
-  };
-
-  if (callbackUrl) {
-    headers['X-Callback-Url'] = callbackUrl;
-  }
-
-  const response = await fetch(`${baseUrl}/collection/v1_0/requesttopay`, {
+  const response = await fetch(`${baseUrl}/transactions/cashin`, {
     method: 'POST',
-    headers,
-    body: JSON.stringify(requestBody),
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: payload.totalRwf,
+      number: payload.checkout.phone,
+    }),
   });
 
-  const responseText = await response.text();
-  const providerPayload = responseText ? safeJsonParse(responseText) : null;
+  const responseData = await response.json();
 
   if (!response.ok) {
     return {
       ok: false,
       status: response.status,
-      message: 'MTN requestToPay failed',
-      providerPayload,
+      message: responseData?.message ?? 'Paypack cashin failed',
+      providerPayload: responseData,
     };
   }
 
-  const orderId = await insertOrder(payload, user, referenceId, externalId, accountHolderStatus);
+  const orderId = await insertOrder(payload, user, responseData.ref, responseData.status);
 
   return {
     ok: true,
     status: response.status,
     orderId,
-    referenceId,
-    externalId,
-    accountHolderStatus,
-    providerPayload,
+    referenceId: responseData.ref,
+    providerPayload: responseData,
   };
-}
-
-function safeJsonParse(input: string) {
-  try {
-    return JSON.parse(input);
-  } catch {
-    return { raw: input };
-  }
 }
 
 async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUser) {
   await assertOrderOwnership(referenceId, user.id);
   const accessToken = await createAccessToken();
-  const response = await fetch(`${baseUrl}/collection/v1_0/requesttopay/${referenceId}`, {
+  const response = await fetch(`${baseUrl}/transactions/find/${referenceId}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'X-Target-Environment': targetEnvironment,
-      'Ocp-Apim-Subscription-Key': collectionSubscriptionKey,
     },
   });
 
-  const text = await response.text();
-  const payload = text ? safeJsonParse(text) : null;
+  const payload = await response.json();
 
   if (!response.ok) {
     return {
@@ -387,43 +292,16 @@ async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUse
     };
   }
 
-  const status = (payload?.status as MomoStatus | undefined) ?? 'PENDING';
+  const status = payload?.status ?? 'pending';
   await updateOrderStatus(referenceId, status, payload);
 
   return {
     ok: true,
     status: response.status,
-    payload,
-  };
-}
-
-async function registerDeliveryNotification(referenceId: string, explicitCallbackUrl?: string) {
-  const accessToken = await createAccessToken();
-  const notifyUrl = explicitCallbackUrl ?? callbackUrl;
-
-  if (!notifyUrl) {
-    throw new Error('No callback URL configured for delivery notification');
-  }
-
-  const response = await fetch(
-    `${baseUrl}/collection/v1_0/requesttopay/${referenceId}/deliverynotification`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'X-Target-Environment': targetEnvironment,
-        'Ocp-Apim-Subscription-Key': collectionSubscriptionKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ callbackUrl: notifyUrl }),
+    payload: {
+      status: status.toUpperCase() === 'SUCCESS' ? 'SUCCESSFUL' : status.toUpperCase() === 'FAILED' ? 'FAILED' : 'PENDING',
+      ...payload
     },
-  );
-
-  const text = await response.text();
-  return {
-    ok: response.ok,
-    status: response.status,
-    payload: text ? safeJsonParse(text) : null,
   };
 }
 
@@ -436,14 +314,10 @@ Deno.serve(async (request) => {
     const body = (await request.json()) as RequestBody;
 
     switch (body.action) {
-      case 'validateAccountHolder': {
-        const result = await validateAccountHolder(body.phone);
-        return jsonResponse(result, result.ok ? 200 : result.status);
-      }
       case 'requestToPay': {
         const user = await getAuthenticatedUser(request);
         const result = await requestToPay(body, user);
-        return jsonResponse(result, result.ok ? 202 : result.status);
+        return jsonResponse(result, result.ok ? 200 : result.status);
       }
       case 'createCashOrder': {
         const user = await getAuthenticatedUser(request);
@@ -453,10 +327,6 @@ Deno.serve(async (request) => {
       case 'getRequestToPayStatus': {
         const user = await getAuthenticatedUser(request);
         const result = await getRequestToPayStatus(body.referenceId, user);
-        return jsonResponse(result, result.ok ? 200 : result.status);
-      }
-      case 'registerDeliveryNotification': {
-        const result = await registerDeliveryNotification(body.referenceId, body.callbackUrl);
         return jsonResponse(result, result.ok ? 200 : result.status);
       }
       default:

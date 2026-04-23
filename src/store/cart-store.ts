@@ -4,9 +4,11 @@ import type { Product } from '@/types';
 
 type CartState = {
   items: Record<number, { product: Product; quantity: number }>;
+  selectedShopId: string | null;
   addItem: (product: Product) => void;
   removeItem: (productId: number) => void;
   decrementItem: (productId: number) => void;
+  setSelectedShop: (shopId: string | null) => void;
   clearCart: () => void;
 };
 
@@ -14,6 +16,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: {},
+      selectedShopId: null,
       addItem: (product) =>
         set((state) => {
           const current = state.items[product.id];
@@ -27,6 +30,7 @@ export const useCartStore = create<CartState>()(
             },
           };
         }),
+      setSelectedShop: (shopId) => set({ selectedShopId: shopId }),
       removeItem: (productId) =>
         set((state) => {
           const next = { ...state.items };
@@ -53,7 +57,7 @@ export const useCartStore = create<CartState>()(
             },
           };
         }),
-      clearCart: () => set({ items: {} }),
+      clearCart: () => set((state) => ({ items: {}, selectedShopId: state.selectedShopId })),
     }),
     {
       name: 'simba-cart',

@@ -10,6 +10,7 @@ import { useCartStore } from '@/store/cart-store';
 export function ProductCard({ product }: { product: Product }) {
   const { t } = useTranslation();
   const addItem = useCartStore((state) => state.addItem);
+  const isInCart = useCartStore((state) => Boolean(state.items[product.id]));
 
   return (
     <article className="group overflow-hidden rounded-3xl border border-white/50 bg-white shadow-soft transition hover:-translate-y-1 dark:border-white/10 dark:bg-slate-900">
@@ -52,7 +53,7 @@ export function ProductCard({ product }: { product: Product }) {
             </Link>
             <Button onClick={() => addItem(product)} disabled={!product.inStock}>
               <ShoppingBasket size={16} className="mr-2" />
-              {t('addToCart')}
+              {isInCart ? t('addedToCart') : t('addToCart')}
             </Button>
           </div>
         </div>
