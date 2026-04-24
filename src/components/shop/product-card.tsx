@@ -29,9 +29,16 @@ export function ProductCard({ product }: { product: Product }) {
             <h3 className="mt-3 line-clamp-2 text-base font-bold">{product.name}</h3>
           </div>
           {product.inStock ? (
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              In stock
-            </span>
+            <div className="text-right">
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {t('availableInStock')}
+              </span>
+              {product.stockQuantity !== undefined && (
+                <p className="mt-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  {product.stockQuantity} {t('availableInStock').toLowerCase()}
+                </p>
+              )}
+            </div>
           ) : (
             <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
               Out

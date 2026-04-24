@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, LogOut, Menu, MoonStar, ShoppingBasket, SunMedium, X } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/layout/brand-logo';
@@ -25,20 +25,22 @@ export function Header() {
   const setTheme = usePreferencesStore((state) => state.setTheme);
   const openCart = useUiStore((state) => state.openCart);
   const { user, isConfigured } = useAuth();
-  const categories = Array.from(new Set((data?.products ?? []).map((product) => product.normalizedCategory))).sort();
+  const products = data?.products ?? [];
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((p) => p.normalizedCategory))).sort(),
+    [products]
+  );
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsLanguageMenuOpen(false);
   }, [locale, theme, user]);
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsMobileMenuOpen(false);
-      await signInWithGoogle('/checkout');
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : t('failedToStartGoogleSignIn'));
-    }
+  const handleSignIn = () => {
+    setIsMobileMenuOpen(false);
+    navigate('/auth/login');
   };
 
   const handleSignOut = async () => {
@@ -158,7 +160,7 @@ export function Header() {
                 </Button>
               </>
             ) : (
-              <Button variant="secondary" className="h-11 rounded-2xl px-4" onClick={handleGoogleSignIn}>
+              <Button variant="secondary" className="h-11 rounded-2xl px-4" onClick={handleSignIn}>
                 {t('signIn')}
               </Button>
             )

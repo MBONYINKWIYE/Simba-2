@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
@@ -10,8 +10,10 @@ import { SkeletonGrid } from '@/components/shop/skeleton-grid';
 import { useCatalogAiSearch } from '@/hooks/use-catalog-ai-search';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useShopReviewSummary } from '@/hooks/use-reviews';
-import { useShops } from '@/hooks/use-shops';
-import { slugify } from '@/lib/utils';
+import { useShops, useNearestShop } from '@/hooks/use-shops';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { slugify, haversineDistanceInKm } from '@/lib/utils';
+import { useCartStore } from '@/store/cart-store';
 import type { Product } from '@/types';
 
 type Filters = {
@@ -36,13 +38,25 @@ export function HomePage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const [localQuery, setLocalQuery] = useState(filters.query);
   const [aiQuery, setAiQuery] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiProductIds, setAiProductIds] = useState<number[]>([]);
   const [aiError, setAiError] = useState('');
-  const deferredQuery = useDeferredValue(filters.query);
+  
+  const debouncedQuery = useDebouncedValue(localQuery, 300);
+  
   const shopsQuery = useShops();
+  const { nearestShop, coords } = useNearestShop();
+  const selectedShopId = useCartStore((state) => state.selectedShopId);
+  const setSelectedShop = useCartStore((state) => state.setSelectedShop);
   const shopReviewSummaryQuery = useShopReviewSummary();
+
+  useEffect(() => {
+    if (nearestShop && !selectedShopId) {
+      setSelectedShop(nearestShop.id);
+    }
+  }, [nearestShop, selectedShopId, setSelectedShop]);
   const aiSearch = useCatalogAiSearch();
   const products = data?.products ?? [];
   const requestedCategory = searchParams.get('category') ?? '';
@@ -120,13 +134,18 @@ export function HomePage() {
     setAiAnswer('');
     setAiError('');
     setAiProductIds([]);
+    
+    if (nextFilters.query !== localQuery) {
+      setLocalQuery(nextFilters.query);
+    }
+    
     startTransition(() => {
       setFilters(nextFilters);
     });
   };
 
   const filteredProducts = useMemo(() => {
-    const query = deferredQuery.trim().toLowerCase();
+    const query = debouncedQuery.trim().toLowerCase();
     const next: Product[] = [];
 
     for (const entry of catalogIndex.indexedProducts) {
@@ -160,7 +179,7 @@ export function HomePage() {
     }
 
     return next;
-  }, [catalogIndex.indexedProducts, deferredQuery, filters.category, filters.inStockOnly, filters.priceRange[1], filters.sortBy]);
+  }, [catalogIndex.indexedProducts, debouncedQuery, filters.category, filters.inStockOnly, filters.priceRange[1], filters.sortBy]);
 
   const spotlightProducts = useMemo<Product[]>(() => products.slice(0, 12), [products]);
   const featuredProducts = useMemo<Product[]>(() => products.slice(0, 6), [products]);
@@ -237,14 +256,37 @@ export function HomePage() {
       <section className="grid gap-4 md:grid-cols-3">
         {(shopsQuery.data ?? []).slice(0, 3).map((shop) => {
           const reviewSummary = shopReviewSummary.get(shop.id);
+          const distance = coords ? haversineDistanceInKm(coords, shop) : null;
+          const isNearest = nearestShop?.id === shop.id;
+          const isSelected = selectedShopId === shop.id;
 
           return (
-            <article key={shop.id} className="glass-panel p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-                {t('branchCardLabel')}
-              </p>
+            <article
+              key={shop.id}
+              onClick={() => setSelectedShop(shop.id)}
+              className={`cursor-pointer transition-all glass-panel p-5 border-2 ${
+                isSelected ? 'border-brand-500 ring-2 ring-brand-200' : 'border-transparent'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+                  {t('branchCardLabel')}
+                </p>
+                {isNearest && (
+                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700 uppercase tracking-wider">
+                    Nearest
+                  </span>
+                )}
+              </div>
               <h2 className="mt-3 text-xl font-bold">{shop.name}</h2>
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{shop.address}</p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-sm text-slate-500 dark:text-slate-400">{shop.address}</p>
+                {distance !== null && (
+                  <span className="text-xs font-medium text-slate-400">
+                    {distance.toFixed(1)} km
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shop.phone}</p>
               <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-sm font-medium dark:bg-slate-800">
                 <Star size={14} className="fill-amber-400 text-amber-400" />
@@ -275,8 +317,11 @@ export function HomePage() {
       <SearchFilterBar
         categories={catalogIndex.categories}
         maxPrice={catalogIndex.maxPrice}
-        filters={filters}
-        onChange={updateFilters}
+        filters={{ ...filters, query: localQuery }}
+        onChange={(nextFilters) => {
+          setLocalQuery(nextFilters.query);
+          updateFilters(nextFilters);
+        }}
         aiQuery={aiQuery}
         onAiQueryChange={handleAiQueryChange}
         onAiSearch={() => void handleAiSearch()}

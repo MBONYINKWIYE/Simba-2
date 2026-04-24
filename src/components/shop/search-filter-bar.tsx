@@ -49,6 +49,11 @@ export function SearchFilterBar({
               <input
                 value={aiQuery}
                 onChange={(event) => onAiQueryChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && aiQuery.trim() && !isAiSearching) {
+                    onAiSearch();
+                  }
+                }}
                 placeholder={t('aiSearchPlaceholder')}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none ring-brand-200 transition focus:ring dark:border-slate-700 dark:bg-slate-900"
               />

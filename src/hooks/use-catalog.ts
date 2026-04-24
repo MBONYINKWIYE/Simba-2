@@ -5,6 +5,7 @@ import { hasSupabaseEnv, supabase } from '@/lib/supabase';
 import type { CatalogResponse, Locale, Product, ProductRecord } from '@/types';
 import { slugify } from '@/lib/utils';
 import { usePreferencesStore } from '@/store/preferences-store';
+import { useCartStore } from '@/store/cart-store';
 
 type ProductRow = {
   id: number;
@@ -15,6 +16,7 @@ type ProductRow = {
   in_stock: boolean;
   image_url: string;
   unit_label: string;
+  stock_quantity?: number;
 };
 
 function toProduct(row: ProductRow): Product {
@@ -29,6 +31,7 @@ function toProduct(row: ProductRow): Product {
     unit: row.unit_label,
     slug: `${slugify(row.name)}-${row.id}`,
     normalizedCategory: row.category_name,
+    stockQuantity: row.stock_quantity,
   };
 }
 
@@ -54,21 +57,33 @@ function applyTranslations(products: Product[], translations: Map<number, Produc
   });
 }
 
-async function fetchCatalog(locale: Locale): Promise<CatalogResponse> {
+async function fetchCatalog(locale: Locale, shopId?: string | null): Promise<CatalogResponse> {
   if (!hasSupabaseEnv || !supabase) {
     return loadFallbackCatalog(locale);
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('catalog_products')
-    .select('id, name, price_rwf, category_name, raw_subcategory_id, in_stock, image_url, unit_label')
-    .order('name');
+    .select('id, name, price_rwf, category_name, raw_subcategory_id, in_stock, image_url, unit_label');
+
+  if (shopId) {
+    query = supabase
+      .from('catalog_products')
+      .select('id, name, price_rwf, category_name, raw_subcategory_id, in_stock, image_url, unit_label, inventory!left(quantity)')
+      .eq('inventory.shop_id', shopId);
+  }
+
+  const { data, error } = await query.order('name');
 
   if (error) {
+    console.error('Catalog fetch error:', error);
     return loadFallbackCatalog(locale);
   }
 
-  const baseProducts = (data ?? []).map(toProduct);
+  const baseProducts = (data ?? []).map((row: any) => {
+    const stock_quantity = row.inventory?.[0]?.quantity ?? (row.in_stock ? 50 : 0); // Fallback for demo
+    return toProduct({ ...row, stock_quantity });
+  });
   const localizedStore = await loadCatalogStoreOverride(locale);
   const translations = await loadCatalogTranslations(locale);
 
@@ -85,9 +100,10 @@ async function fetchCatalog(locale: Locale): Promise<CatalogResponse> {
 
 export function useCatalog() {
   const locale = usePreferencesStore((state) => state.locale);
+  const selectedShopId = useCartStore((state) => state.selectedShopId);
 
   return useQuery({
-    queryKey: queryKeys.catalog(locale),
-    queryFn: () => fetchCatalog(locale),
+    queryKey: [...queryKeys.catalog(locale), selectedShopId],
+    queryFn: () => fetchCatalog(locale, selectedShopId),
   });
 }

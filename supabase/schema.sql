@@ -226,8 +226,61 @@ create index if not exists orders_shop_status_created_at_idx on public.orders (s
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
 create index if not exists reviews_shop_id_idx on public.reviews (shop_id);
 create index if not exists reviews_user_id_idx on public.reviews (user_id);
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  full_name text,
+  avatar_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
+create policy "Public profiles are viewable by everyone"
+on public.profiles
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
+on public.profiles
+for update
+to authenticated
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+-- Function to handle new user creation
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  insert into public.profiles (id, email, full_name, avatar_url)
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'avatar_url'
+  );
+  return new;
+end;
+$$;
+
+-- Trigger for new user creation
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+create index if not exists profiles_email_idx on public.profiles (email);
 
 create or replace function public.current_shop_admin_shop_ids()
+...
 returns setof uuid
 language sql
 stable
@@ -1060,3 +1113,44 @@ on public.reviews
 for insert
 to authenticated
 with check (auth.uid() = user_id);
+
+-- Seeding extra shops and inventory
+do $$
+declare
+  main_shop_id uuid;
+  other_shop_id uuid;
+  prod_id bigint;
+begin
+  -- Ensure extra shops exist
+  if not exists (select 1 from public.shops where name = 'Simba Gikondo') then
+    insert into public.shops (name, address, latitude, longitude, phone)
+    values ('Simba Gikondo', 'KK 31 St, Gikondo, Kigali', -1.9721, 30.0719, '+250788111111');
+  end if;
+
+  if not exists (select 1 from public.shops where name = 'Simba Kimironko') then
+    insert into public.shops (name, address, latitude, longitude, phone)
+    values ('Simba Kimironko', 'KG 11 St, Kimironko, Kigali', -1.9321, 30.1219, '+250788222222');
+  end if;
+
+  -- Get main shop ID
+  select id into main_shop_id from public.shops where name = 'Simba Kigali Main' limit 1;
+
+  -- 1. All products for Simba Kigali Main (Large stock)
+  for prod_id in select id from public.catalog_products loop
+    insert into public.inventory (shop_id, product_id, quantity)
+    values (main_shop_id, prod_id, 100)
+    on conflict (shop_id, product_id) do update set quantity = 100;
+  end loop;
+
+  -- 2. Varied products for other shops (15-40 items per category)
+  for other_shop_id in select id from public.shops where id <> main_shop_id loop
+    -- Insert roughly 20 random products per shop to simulate varied inventory
+    insert into public.inventory (shop_id, product_id, quantity)
+    select other_shop_id, id, floor(random() * 26 + 15)::int -- 15 to 40
+    from public.catalog_products
+    order by random()
+    limit 40
+    on conflict (shop_id, product_id) do nothing;
+  end loop;
+end
+$$;

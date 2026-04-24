@@ -21,6 +21,7 @@ export type StoreMetadata = {
 export type Product = ProductRecord & {
   slug: string;
   normalizedCategory: string;
+  stockQuantity?: number;
 };
 
 export type CatalogResponse = {

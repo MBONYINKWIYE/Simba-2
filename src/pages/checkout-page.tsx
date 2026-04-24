@@ -2,7 +2,7 @@ import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Clock3, Star } from 'lucide-react';
+import { Clock3, Star, ShoppingBasket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
@@ -290,22 +290,29 @@ export function CheckoutPage() {
 
   if (isConfigured && !user) {
     return (
-      <section className="glass-panel mx-auto max-w-2xl p-6 sm:p-8">
+      <section className="glass-panel mx-auto max-w-2xl p-6 sm:p-8 text-center">
+        <div className="flex justify-center mb-6">
+          <div className="w-16 h-16 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <ShoppingBasket className="text-white" size={32} />
+          </div>
+        </div>
         <h1 className="text-3xl font-bold">{t('checkout')}</h1>
-        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-3 text-slate-500 dark:text-slate-400 max-w-md mx-auto">
           {t('signInCheckoutPrompt')}
         </p>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Button onClick={handleGoogleSignIn}>{t('continueWithGoogle')}</Button>
-          <Link to="/">
-            <Button variant="secondary">{t('keepShopping')}</Button>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row justify-center">
+          <Link to="/auth/login?next=/checkout">
+            <Button className="w-full sm:w-auto px-8">{t('signIn')}</Button>
+          </Link>
+          <Link to="/auth/signup?next=/checkout">
+            <Button variant="secondary" className="w-full sm:w-auto px-8">{t('signUp')}</Button>
           </Link>
         </div>
-        {authError ? (
-          <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-            {authError}
-          </p>
-        ) : null}
+        <div className="mt-6">
+          <Link to="/" className="text-sm text-brand-600 font-medium hover:underline">
+            {t('keepShopping')}
+          </Link>
+        </div>
       </section>
     );
   }

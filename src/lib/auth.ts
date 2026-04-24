@@ -33,6 +33,39 @@ export async function signInWithGoogle(nextPath = '/checkout') {
   }
 }
 
+export async function signInWithEmail(email: string, password: string) {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function signUpWithEmail(email: string, password: string, fullName: string) {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+      },
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 function clearAuthExchangeMarkers() {
   for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
     const key = window.sessionStorage.key(index);
@@ -66,17 +99,56 @@ export async function getUserRoleProfile(userId: string, userEmail?: string | nu
     };
   }
 
-  const { data, error } = await client
-    .from('shop_admins')
-    .select('role, shop_id')
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await client
+      .from('shop_admins')
+      .select('role, shop_id')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    if (error) {
+      console.warn('Error fetching user role profile:', error.message);
+      return {
+        role: 'customer',
+        shopId: null,
+        shopName: null,
+        adminRole: null,
+      };
+    }
 
-  if (!data) {
+    if (!data) {
+      return {
+        role: 'customer',
+        shopId: null,
+        shopName: null,
+        adminRole: null,
+      };
+    }
+
+    let shopName: string | null = null;
+
+    if (data.shop_id) {
+      const { data: shop, error: shopError } = await client
+        .from('shops')
+        .select('name')
+        .eq('id', data.shop_id)
+        .maybeSingle();
+
+      if (shopError) {
+        console.warn('Error fetching shop name:', shopError.message);
+      } else {
+        shopName = shop?.name ?? null;
+      }
+    }
+
+    return {
+      role: 'shop_admin',
+      shopId: data.shop_id,
+      shopName,
+      adminRole: data.role,
+    };
+  } catch (err) {
+    console.warn('Exception in getUserRoleProfile:', err);
     return {
       role: 'customer',
       shopId: null,
@@ -84,29 +156,6 @@ export async function getUserRoleProfile(userId: string, userEmail?: string | nu
       adminRole: null,
     };
   }
-
-  let shopName: string | null = null;
-
-  if (data.shop_id) {
-    const { data: shop, error: shopError } = await client
-      .from('shops')
-      .select('name')
-      .eq('id', data.shop_id)
-      .maybeSingle();
-
-    if (shopError) {
-      throw new Error(shopError.message);
-    }
-
-    shopName = shop?.name ?? null;
-  }
-
-  return {
-    role: 'shop_admin',
-    shopId: data.shop_id,
-    shopName,
-    adminRole: data.role,
-  };
 }
 
 export async function resolvePostSignInPath(userId: string, userEmail: string | null | undefined, nextPath: string) {

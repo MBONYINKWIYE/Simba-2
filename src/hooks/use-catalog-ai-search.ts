@@ -12,6 +12,8 @@ async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs): Pr
     throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   }
 
+  console.log('Starting AI Search for query:', query);
+
   const catalogContext = products.map((product) => ({
     id: product.id,
     name: product.name,
@@ -29,6 +31,7 @@ async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs): Pr
   });
 
   if (error) {
+    console.error('AI Search Invoke Error:', error);
     throw new Error(error.message);
   }
 
