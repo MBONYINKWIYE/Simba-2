@@ -34,7 +34,6 @@ function RouteFallback() {
 
 function ErrorBoundary() {
   const error = useRouteError() as any;
-  const { t } = useTranslation();
 
   return (
     <AppShell>

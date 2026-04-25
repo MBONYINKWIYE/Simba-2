@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/layout/brand-logo';
 import { useAuth } from '@/hooks/use-auth';
-import { signInWithGoogle, signOut } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
 import { useCatalog } from '@/hooks/use-catalog';
 import { LANGUAGES } from '@/lib/constants';
 import { useCartStore } from '@/store/cart-store';

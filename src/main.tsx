@@ -5,7 +5,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from '@/router';
 import { AuthProvider } from '@/providers/auth-provider';
 import '@/styles/index.css';
-import '@/i18n';
+import { initializeI18n } from '@/i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,12 +17,18 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </QueryClientProvider>
-  </React.StrictMode>,
-);
+async function bootstrap() {
+  await initializeI18n();
+
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </React.StrictMode>,
+  );
+}
+
+void bootstrap();

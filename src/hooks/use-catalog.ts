@@ -19,6 +19,15 @@ type ProductRow = {
   stock_quantity?: number;
 };
 
+type ProductWithInventoryRow = ProductRow & {
+  inventory?: Array<{
+    quantity: number | null;
+  }> | null;
+};
+
+const CATALOG_PRODUCT_FIELDS =
+  'id, name, price_rwf, category_name, raw_subcategory_id, in_stock, image_url, unit_label';
+
 function toProduct(row: ProductRow): Product {
   return {
     id: row.id,
@@ -62,25 +71,31 @@ async function fetchCatalog(locale: Locale, shopId?: string | null): Promise<Cat
     return loadFallbackCatalog(locale);
   }
 
-  let query = supabase
-    .from('catalog_products')
-    .select('id, name, price_rwf, category_name, raw_subcategory_id, in_stock, image_url, unit_label');
+  let data: ProductWithInventoryRow[] | null = null;
+  let error: Error | null = null;
 
   if (shopId) {
-    query = supabase
+    const result = await (supabase
       .from('catalog_products')
-      .select('id, name, price_rwf, category_name, raw_subcategory_id, in_stock, image_url, unit_label, inventory!left(quantity)')
-      .eq('inventory.shop_id', shopId);
-  }
+      .select(`${CATALOG_PRODUCT_FIELDS}, inventory!left(quantity)`) as any)
+      .eq('inventory.shop_id', shopId)
+      .order('name');
 
-  const { data, error } = await query.order('name');
+    data = (result.data ?? null) as ProductWithInventoryRow[] | null;
+    error = result.error;
+  } else {
+    const result = await supabase.from('catalog_products').select(CATALOG_PRODUCT_FIELDS).order('name');
+
+    data = (result.data ?? null) as ProductRow[] | null;
+    error = result.error;
+  }
 
   if (error) {
     console.error('Catalog fetch error:', error);
     return loadFallbackCatalog(locale);
   }
 
-  const baseProducts = (data ?? []).map((row: any) => {
+  const baseProducts = (data ?? []).map((row) => {
     const stock_quantity = row.inventory?.[0]?.quantity ?? (row.in_stock ? 50 : 0); // Fallback for demo
     return toProduct({ ...row, stock_quantity });
   });

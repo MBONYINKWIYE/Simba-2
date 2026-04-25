@@ -98,19 +98,15 @@ export function CartDrawer() {
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>{t('subtotal')}</span>
-                  <span>{formatCurrency(summary.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>{t('delivery')}</span>
-                  <span>{formatCurrency(summary.deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between font-bold">
-                  <span>{t('total')}</span>
-                  <span>{formatCurrency(summary.total)}</span>
-                </div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>{t('subtotal')}</span>
+                <span>{formatCurrency(summary.subtotal)}</span>
+              </div>
+              <div className="flex justify-between font-bold">
+                <span>{t('total')}</span>
+                <span>{formatCurrency(summary.total)}</span>
+              </div>
               </div>
               {isConfigured && !user ? (
                 <Button fullWidth className="mt-4" onClick={handleGoogleSignIn}>

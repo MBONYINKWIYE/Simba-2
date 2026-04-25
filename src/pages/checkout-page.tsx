@@ -6,8 +6,7 @@ import { Clock3, Star, ShoppingBasket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
-import { signInWithGoogle } from '@/lib/auth';
-import { DEFAULT_CHECKOUT_VALUES, ORDER_DEPOSIT_RWF } from '@/lib/constants';
+import { DEFAULT_CHECKOUT_VALUES } from '@/lib/constants';
 import { createCashOrder, requestToPay, getRequestToPayStatus } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import { useOrderSummary } from '@/hooks/use-order-summary';
@@ -87,7 +86,6 @@ export function CheckoutPage() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authError, setAuthError] = useState('');
   const [locationError, setLocationError] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const { user, isLoading: isAuthLoading, isConfigured } = useAuth();
@@ -188,16 +186,6 @@ export function CheckoutPage() {
     });
   }, [pickupSlots]);
 
-  const handleGoogleSignIn = async () => {
-    setAuthError('');
-
-    try {
-      await signInWithGoogle('/checkout');
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : t('failedToStartGoogleSignIn'));
-    }
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSuccessMessage('');
@@ -224,8 +212,8 @@ export function CheckoutPage() {
       checkout: formValues,
       items: checkoutItems,
       subtotalRwf: summary.subtotal,
-      deliveryFeeRwf: summary.deliveryFee,
-      serviceFeeRwf: summary.serviceFee,
+      deliveryFeeRwf: 0,
+      serviceFeeRwf: 0,
       totalRwf: summary.total,
       shopId: selectedShopId,
     };
@@ -438,11 +426,6 @@ export function CheckoutPage() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-800/70 dark:bg-amber-950/30 dark:text-amber-100">
-          <p className="text-sm font-semibold">{t('depositNoticeTitle', { amount: formatCurrency(ORDER_DEPOSIT_RWF) })}</p>
-          <p className="mt-2 text-sm leading-6">{t('depositNoticeCopy')}</p>
-        </div>
-
         <div className="mt-6 grid gap-4">
           <input
             required
@@ -569,18 +552,6 @@ export function CheckoutPage() {
           <div className="flex justify-between">
             <span>{t('subtotal')}</span>
             <span>{formatCurrency(summary.subtotal)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>{t('delivery')}</span>
-            <span>{formatCurrency(summary.deliveryFee)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>{t('serviceFee')}</span>
-            <span>{formatCurrency(summary.serviceFee)}</span>
-          </div>
-          <div className="flex justify-between text-amber-700 dark:text-amber-300">
-            <span>{t('depositLine')}</span>
-            <span>{formatCurrency(ORDER_DEPOSIT_RWF)}</span>
           </div>
           <div className="flex justify-between text-lg font-bold">
             <span>{t('total')}</span>

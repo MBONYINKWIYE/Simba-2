@@ -57,6 +57,20 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
     });
   }, [catalogQuery.data?.products, searchTerm]);
 
+  const orderedProducts = useMemo(() => {
+    if (!selectedProductId) {
+      return filteredProducts;
+    }
+
+    const selectedProduct = filteredProducts.find((product) => String(product.id) === selectedProductId);
+
+    if (!selectedProduct) {
+      return filteredProducts;
+    }
+
+    return [selectedProduct, ...filteredProducts.filter((product) => String(product.id) !== selectedProductId)];
+  }, [filteredProducts, selectedProductId]);
+
   const handleAddInventory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const targetShopId = isSuperAdmin ? selectedShopId : scopeShopId;
@@ -91,101 +105,138 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
   };
 
   return (
-    <section className="glass-panel p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-soft dark:border-slate-800/80 dark:bg-slate-950/85">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-5 dark:border-slate-800">
+        <div className="space-y-2">
+          <div className="inline-flex rounded-full bg-brand-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
+            {t('inventoryDashboard')}
+          </div>
           <h2 className="text-2xl font-bold">{t('inventoryDashboard')}</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('inventoryDashboardCopy')}</p>
+          <p className="max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{t('inventoryDashboardCopy')}</p>
         </div>
-        <Badge>{inventoryQuery.data?.length ?? 0}</Badge>
+        <Badge className="mt-1">{inventoryQuery.data?.length ?? 0}</Badge>
       </div>
 
-      <form className="mt-5 grid gap-3 lg:grid-cols-[1fr_1.2fr_0.7fr_auto]" onSubmit={handleAddInventory}>
-        {isSuperAdmin ? (
+      <form className="mt-6 rounded-[1.75rem] border border-slate-200 bg-stone-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/60" onSubmit={handleAddInventory}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            {t('addInventory')}
+          </p>
+          {selectedProductId ? (
+            <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
+              {t('selected')}
+            </span>
+          ) : null}
+        </div>
+
+        <div className={`grid min-w-0 gap-3 ${isSuperAdmin ? 'xl:grid-cols-[0.9fr_1.1fr_1.2fr_0.7fr_auto]' : 'xl:grid-cols-[1.1fr_1.4fr_0.7fr_auto]'}`}>
+          {isSuperAdmin ? (
+            <select
+              value={selectedShopId}
+              onChange={(event) => setSelectedShopId(event.target.value)}
+              className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            >
+              <option value="">{t('selectShop')}</option>
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            placeholder={t('searchInventoryProducts')}
+          />
           <select
-            value={selectedShopId}
-            onChange={(event) => setSelectedShopId(event.target.value)}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+            value={selectedProductId}
+            onChange={(event) => setSelectedProductId(event.target.value)}
+            className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
-            <option value="">{t('selectShop')}</option>
-            {shops.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name}
+            <option value="">{t('selectProduct')}</option>
+            {orderedProducts.slice(0, 100).map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name}
               </option>
             ))}
           </select>
-        ) : null}
-        <input
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-          placeholder={t('searchInventoryProducts')}
-        />
-        <select
-          value={selectedProductId}
-          onChange={(event) => setSelectedProductId(event.target.value)}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-        >
-          <option value="">{t('selectProduct')}</option>
-          {filteredProducts.slice(0, 100).map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min="0"
-          value={newQuantity}
-          onChange={(event) => setNewQuantity(event.target.value)}
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
-          placeholder={t('quantity')}
-        />
-        <Button type="submit" disabled={upsertInventoryEntry.isPending || !(isSuperAdmin ? selectedShopId : scopeShopId) || !selectedProductId}>
-          {t('addInventory')}
-        </Button>
+          <input
+            type="number"
+            min="0"
+            value={newQuantity}
+            onChange={(event) => setNewQuantity(event.target.value)}
+            className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            placeholder={t('quantity')}
+          />
+          <Button
+            type="submit"
+            className="h-12 w-full"
+            disabled={upsertInventoryEntry.isPending || !(isSuperAdmin ? selectedShopId : scopeShopId) || !selectedProductId}
+          >
+            {t('addInventory')}
+          </Button>
+        </div>
       </form>
 
-      {inventoryQuery.isLoading ? <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('loading')}</p> : null}
+      {inventoryQuery.isLoading ? (
+        <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">{t('loading')}</p>
+      ) : null}
       {inventoryQuery.isError ? (
-        <p className="mt-4 text-sm text-rose-600 dark:text-rose-300">
+        <p className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300">
           {inventoryQuery.error instanceof Error ? inventoryQuery.error.message : t('inventoryLoadFailed')}
         </p>
       ) : null}
 
-      <div className="mt-5 space-y-3">
-        {(inventoryQuery.data ?? []).map((entry) => (
-          <div key={entry.inventory_id} className="rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="font-semibold">{entry.product_name}</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {isSuperAdmin ? entry.shop_name : t('inventoryUpdatedAt', { value: new Date(entry.updated_at).toLocaleString() })}
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <input
-                  type="number"
-                  min="0"
-                  value={draftQuantities[entry.inventory_id] ?? String(entry.quantity)}
-                  onChange={(event) =>
-                    setDraftQuantities((current) => ({
-                      ...current,
-                      [entry.inventory_id]: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:w-32 dark:border-slate-700 dark:bg-slate-950"
-                />
-                <Button variant="secondary" onClick={() => void handleSaveQuantity(entry)} disabled={upsertInventoryEntry.isPending}>
-                  {t('saveQuantity')}
-                </Button>
-                <Button variant="ghost" onClick={() => void handleRemoveInventory(entry)} disabled={deleteInventoryEntry.isPending}>
-                  {t('remove')}
-                </Button>
+      <div className="mt-6 grid min-w-0 gap-4">
+        {(inventoryQuery.data ?? []).length === 0 ? (
+          <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-white/60 p-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
+            <p className="text-base font-semibold text-slate-700 dark:text-slate-200">{t('inventoryDashboard')}</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">No inventory entries yet. Add a product above to start stocking this shop.</p>
+          </div>
+        ) : (
+          (inventoryQuery.data ?? []).map((entry) => (
+            <div
+              key={entry.inventory_id}
+              className="min-w-0 rounded-[1.75rem] border border-slate-200 bg-white/85 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-brand-700"
+            >
+              <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <p className="truncate text-lg font-semibold">{entry.product_name}</p>
+                    <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                      {t('quantity')}: {entry.quantity}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {isSuperAdmin ? entry.shop_name : t('inventoryUpdatedAt', { value: new Date(entry.updated_at).toLocaleString() })}
+                  </p>
+                </div>
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center xl:flex-none">
+                  <input
+                    type="number"
+                    min="0"
+                    value={draftQuantities[entry.inventory_id] ?? String(entry.quantity)}
+                    onChange={(event) =>
+                      setDraftQuantities((current) => ({
+                        ...current,
+                        [entry.inventory_id]: event.target.value,
+                      }))
+                    }
+                    className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 sm:w-32 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                  <Button variant="secondary" onClick={() => void handleSaveQuantity(entry)} disabled={upsertInventoryEntry.isPending}>
+                    {t('saveQuantity')}
+                  </Button>
+                  <Button variant="ghost" onClick={() => void handleRemoveInventory(entry)} disabled={deleteInventoryEntry.isPending}>
+                    {t('remove')}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </section>
   );

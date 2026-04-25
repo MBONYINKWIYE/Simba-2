@@ -237,14 +237,6 @@ function AdminOrderDetail({
                 <span>{t('subtotal')}</span>
                 <span>{formatCurrency(order.subtotal_rwf)}</span>
               </div>
-              <div className="flex justify-between gap-4">
-                <span>{t('delivery')}</span>
-                <span>{formatCurrency(order.delivery_fee_rwf)}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span>{t('serviceFee')}</span>
-                <span>{formatCurrency(order.service_fee_rwf)}</span>
-              </div>
               <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-base font-bold dark:border-slate-800">
                 <span>{t('total')}</span>
                 <span>{formatCurrency(order.total_rwf)}</span>

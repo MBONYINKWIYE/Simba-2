@@ -1,16 +1,17 @@
-import { DELIVERY_FEE, SERVICE_FEE } from '@/lib/constants';
 import { useCartStore } from '@/store/cart-store';
 
 export function useOrderSummary() {
   const itemsMap = useCartStore((state) => state.items);
   const items = Object.values(itemsMap);
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const total = subtotal + DELIVERY_FEE + SERVICE_FEE;
+  const deliveryFee = 0;
+  const serviceFee = 0;
+  const total = subtotal;
 
   return {
     subtotal,
-    deliveryFee: DELIVERY_FEE,
-    serviceFee: SERVICE_FEE,
+    deliveryFee,
+    serviceFee,
     total,
   };
 }
