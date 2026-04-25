@@ -33,7 +33,7 @@ export function Hero({
 
         <div className="relative z-10">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-100">{t('heroEyebrow')}</p>
-          <h1 className="mt-4 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">{t('heroTitle')}</h1>
+          <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">{t('heroTitle')}</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-emerald-50/85">{t('heroCopy')}</p>
           <div className="mt-6">
             <Link to="/#catalog">

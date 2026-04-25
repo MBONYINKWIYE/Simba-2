@@ -9,5 +9,6 @@ export const queryKeys = {
   shopReviewSummary: ['shop-review-summary'] as const,
   inventory: (scope: string) => ['inventory', scope] as const,
   adminOrders: (shopId: string) => ['admin-orders', shopId] as const,
+  order: (orderId: string) => ['order', orderId] as const,
   reviews: (userId: string) => ['reviews', userId] as const,
 };

@@ -134,7 +134,7 @@ set status = case fulfillment_status
   else 'pending'
 end
 where status is null
-  or status not in ('pending', 'preparing', 'ready', 'picked_up')
+  or status not in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected')
   or (status = 'pending' and fulfillment_status in ('processing', 'delivered'));
 
 do $$
@@ -194,7 +194,7 @@ begin
   ) then
     alter table public.orders
       add constraint orders_status_check
-      check (status in ('pending', 'preparing', 'ready', 'picked_up'));
+      check (status in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected'));
   end if;
 
   if not exists (
@@ -852,7 +852,7 @@ declare
   target_order public.orders;
   actor_role text;
 begin
-  if next_status not in ('pending', 'preparing', 'ready', 'picked_up') then
+  if next_status not in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected') then
     raise exception 'Invalid order status';
   end if;
 
@@ -883,7 +883,23 @@ begin
 
   if actor_role in ('admin', 'manager') then
     update public.orders
-    set status = next_status
+    set
+      status = next_status,
+      fulfillment_status = case
+        when next_status = 'accepted' then 'confirmed'
+        when next_status = 'preparing' then 'processing'
+        when next_status = 'picked_up' then 'delivered'
+        when next_status = 'rejected' then 'cancelled'
+        else fulfillment_status
+      end,
+      payment_status = case
+        when next_status = 'rejected' then 'failed'
+        else payment_status
+      end,
+      paid_at = case
+        when next_status = 'rejected' then null
+        else paid_at
+      end
     where id = target_order_id
     returning * into target_order;
 
@@ -892,7 +908,9 @@ begin
 
   if actor_role = 'staff' and target_order.assigned_staff_user_id = auth.uid() and next_status = 'ready' then
     update public.orders
-    set status = next_status
+    set
+      status = next_status,
+      fulfillment_status = 'processing'
     where id = target_order_id
     returning * into target_order;
 

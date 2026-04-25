@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 import { supabase } from '@/lib/supabase';
 import type { AdminOrderRecord, Shop } from '@/types';
@@ -69,10 +70,48 @@ async function fetchAdminOrders(shopId: string | null, isSuperAdmin: boolean): P
 }
 
 export function useAdminOrders(shopId: string | null, isSuperAdmin = false) {
+  const scopeKey = isSuperAdmin ? 'all-shops' : (shopId ?? 'unassigned');
   return useQuery({
-    queryKey: queryKeys.adminOrders(isSuperAdmin ? 'all-shops' : (shopId ?? 'unassigned')),
+    queryKey: queryKeys.adminOrders(scopeKey),
     queryFn: () => fetchAdminOrders(shopId, isSuperAdmin),
     enabled: isSuperAdmin || Boolean(shopId),
-    refetchInterval: 15000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true,
   });
+}
+
+export function useAdminOrdersRealtime(shopId: string | null, isSuperAdmin = false) {
+  const scopeKey = isSuperAdmin ? 'all-shops' : (shopId ?? 'unassigned');
+  const queryResult = useAdminOrders(shopId, isSuperAdmin);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const client = supabase;
+
+    if (!client || (!isSuperAdmin && !shopId)) {
+      return;
+    }
+
+    const channel = client
+      .channel(`admin-orders:${scopeKey}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          ...(isSuperAdmin ? {} : { filter: `shop_id=eq.${shopId}` }),
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.adminOrders(scopeKey) });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [isSuperAdmin, queryClient, scopeKey, shopId]);
+
+  return queryResult;
 }

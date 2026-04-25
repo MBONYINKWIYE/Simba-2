@@ -41,26 +41,26 @@ export function ProductCard({ product }: { product: Product }) {
             </div>
           ) : (
             <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
-              Out
+              {t('availableOutOfStock')}
             </span>
           )}
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-2xl font-bold">{formatCurrency(product.price)}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xl font-bold sm:text-2xl">{formatCurrency(product.price)}</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {t('unit')}: {product.unit}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Link to={`/products/${product.slug}`}>
-              <Button variant="ghost" className="h-11 w-11 rounded-2xl p-0">
+              <Button variant="ghost" className="h-11 w-full rounded-2xl p-0 sm:w-11">
                 <Eye size={18} />
               </Button>
             </Link>
-            <Button onClick={() => addItem(product)} disabled={!product.inStock}>
+            <Button onClick={() => addItem(product)} disabled={!product.inStock} className="w-full sm:w-auto">
               <ShoppingBasket size={16} className="mr-2" />
-              {isInCart ? t('addedToCart') : t('addToCart')}
+              {isInCart ? t('addedToCartButton') : t('addToCartButton')}
             </Button>
           </div>
         </div>

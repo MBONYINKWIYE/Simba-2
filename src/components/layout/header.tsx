@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, LogOut, Menu, MoonStar, ShoppingBasket, SunMedium, X } from 'lucide-react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { BrandLogo } from '@/components/layout/brand-logo';
@@ -14,9 +14,13 @@ import { useUiStore } from '@/store/ui-store';
 
 export function Header() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const isLandingPage = location.pathname === '/';
   const { data } = useCatalog();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
   const cartItems = useCartStore((state) => state.items);
   const itemCount = Object.values(cartItems).reduce((sum, item) => sum + item.quantity, 0);
   const locale = usePreferencesStore((state) => state.locale);
@@ -32,11 +36,72 @@ export function Header() {
   );
 
   const navigate = useNavigate();
+  const hideThreshold = 72;
+  const showThreshold = 24;
+  const directionThreshold = 8;
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsLanguageMenuOpen(false);
   }, [locale, theme, user]);
+
+  useEffect(() => {
+    if (!isLandingPage) {
+      setIsVisible(true);
+      return;
+    }
+
+    lastScrollYRef.current = window.scrollY;
+    setIsVisible(true);
+
+    let ticking = false;
+
+    const updateVisibility = () => {
+      const currentScrollY = window.scrollY;
+      const scrollDelta = currentScrollY - lastScrollYRef.current;
+      const scrollingUp = scrollDelta < -directionThreshold;
+      const scrollingDown = scrollDelta > directionThreshold;
+      const atTop = currentScrollY < showThreshold;
+
+      if (atTop || isMobileMenuOpen) {
+        setIsVisible(true);
+      } else if (scrollingUp) {
+        setIsVisible(true);
+      } else if (scrollingDown && currentScrollY > hideThreshold) {
+        setIsVisible(false);
+      }
+
+      lastScrollYRef.current = currentScrollY;
+      ticking = false;
+    };
+
+    const onScroll = () => {
+      if (isMobileMenuOpen) {
+        return;
+      }
+
+      if (!ticking) {
+        window.requestAnimationFrame(updateVisibility);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, [isLandingPage, isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isLandingPage) {
+      return;
+    }
+
+    if (isMobileMenuOpen) {
+      setIsVisible(true);
+    }
+  }, [isLandingPage, isMobileMenuOpen]);
 
   const handleSignIn = () => {
     setIsMobileMenuOpen(false);
@@ -53,14 +118,15 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/50 bg-stone-50/85 backdrop-blur dark:border-white/10 dark:bg-slate-950/80">
-      <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3">
+    <header
+      className={`z-40 border-b border-white/50 bg-stone-50/85 backdrop-blur transition-transform duration-500 ease-out dark:border-white/10 dark:bg-slate-950/80 ${
+        isLandingPage ? 'fixed left-0 right-0 top-0' : 'sticky top-0'
+      } ${isLandingPage && !isVisible ? '-translate-y-full' : 'translate-y-0'}`}
+    >
+      <div className="container-shell flex flex-wrap items-center justify-between gap-2 py-4 md:gap-3">
         <div className="flex min-w-0 items-center gap-2 md:gap-3">
           <Link to="/" className="flex min-w-0 items-center gap-3">
-          <BrandLogo />
-          <div className="hidden min-[430px]:block">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{t('deliveryIn')}</p>
-          </div>
+            <BrandLogo />
           </Link>
         </div>
 
@@ -97,7 +163,7 @@ export function Header() {
           </NavLink>
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <div className="relative hidden lg:block">
             <Button
               variant="secondary"
@@ -168,7 +234,10 @@ export function Header() {
           <Button
             variant="ghost"
             className="h-11 w-11 shrink-0 rounded-2xl p-0 lg:hidden"
-            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            onClick={() => {
+              setIsMobileMenuOpen((open) => !open);
+              setIsVisible(true);
+            }}
             aria-label={isMobileMenuOpen ? t('closeNavigationMenu') : t('openNavigationMenu')}
             aria-expanded={isMobileMenuOpen}
             aria-controls="mobile-navigation"

@@ -5,6 +5,7 @@ import type { Product } from '@/types';
 type CartState = {
   items: Record<number, { product: Product; quantity: number }>;
   selectedShopId: string | null;
+  lastAddedItem: { productName: string; quantity: number; image: string } | null;
   addItem: (product: Product) => void;
   removeItem: (productId: number) => void;
   decrementItem: (productId: number) => void;
@@ -17,16 +18,23 @@ export const useCartStore = create<CartState>()(
     (set) => ({
       items: {},
       selectedShopId: null,
+      lastAddedItem: null,
       addItem: (product) =>
         set((state) => {
           const current = state.items[product.id];
+          const nextQuantity = current ? current.quantity + 1 : 1;
           return {
             items: {
               ...state.items,
               [product.id]: {
                 product,
-                quantity: current ? current.quantity + 1 : 1,
+                quantity: nextQuantity,
               },
+            },
+            lastAddedItem: {
+              productName: product.name,
+              quantity: nextQuantity,
+              image: product.image,
             },
           };
         }),

@@ -135,7 +135,7 @@ export type CreateCashOrderResult = {
 };
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled';
-export type ShopOrderStatus = 'pending' | 'preparing' | 'ready' | 'picked_up';
+export type ShopOrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'rejected';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
@@ -152,6 +152,9 @@ export type OrderHistoryRecord = {
   created_at: string;
   pickup_time?: string | null;
   total_rwf: number;
+  subtotal_rwf: number;
+  delivery_fee_rwf: number;
+  service_fee_rwf: number;
   payment_method: 'momo' | 'cash';
   payment_status: PaymentStatus;
   status?: ShopOrderStatus | null;
@@ -163,6 +166,11 @@ export type OrderHistoryRecord = {
   shops?: Pick<Shop, 'id' | 'name' | 'address' | 'phone'> | null;
   order_items: OrderHistoryItem[];
   review?: ReviewRecord | null;
+  momo_reference?: string | null;
+  momo_status?: string | null;
+  payment_provider?: string | null;
+  payment_payload?: unknown;
+  paid_at?: string | null;
 };
 
 export type ReviewRecord = {
@@ -201,6 +209,11 @@ export type AdminOrderRecord = {
   assigned_staff_user_id?: string | null;
   shops?: Pick<Shop, 'id' | 'name' | 'address' | 'phone'> | null;
   order_items: OrderHistoryItem[];
+  momo_reference?: string | null;
+  momo_status?: string | null;
+  payment_provider?: string | null;
+  payment_payload?: unknown;
+  paid_at?: string | null;
 };
 
 export type CatalogAiSearchResult = {

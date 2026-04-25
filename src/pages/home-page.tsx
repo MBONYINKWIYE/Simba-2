@@ -274,7 +274,7 @@ export function HomePage() {
                 </p>
                 {isNearest && (
                   <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700 uppercase tracking-wider">
-                    Nearest
+                    {t('nearest')}
                   </span>
                 )}
               </div>
@@ -340,7 +340,7 @@ export function HomePage() {
                   <div>
                     <h2 className="text-2xl font-bold">{category}</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Showing {products.length} featured products from this category
+                      {t('showingCategoryProducts', { count: products.length })}
                     </p>
                   </div>
                 </div>

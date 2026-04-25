@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Clock3, Star, ShoppingBasket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -74,6 +74,7 @@ function buildPickupSlots() {
 
 export function CheckoutPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const itemsMap = useCartStore((state) => state.items);
   const items = Object.values(itemsMap);
   const clearCart = useCartStore((state) => state.clearCart);
@@ -86,6 +87,8 @@ export function CheckoutPage() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState('');
+  const [pendingPayment, setPendingPayment] = useState<{ orderId: string; referenceId: string } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const { user, isLoading: isAuthLoading, isConfigured } = useAuth();
@@ -186,12 +189,71 @@ export function CheckoutPage() {
     });
   }, [pickupSlots]);
 
+  const pollMomoPayment = async (referenceId: string, orderId: string) => {
+    setIsSubmitting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    setPaymentNotice(t('momoAwaitingConfirmation'));
+    setPaymentStatus('PENDING');
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+
+      try {
+        const statusResult = await getRequestToPayStatus(referenceId);
+        const nextStatus = statusResult?.payload?.status ?? 'PENDING';
+        setPaymentStatus(nextStatus);
+
+        if (nextStatus === 'SUCCESSFUL') {
+          clearCart();
+          setPendingPayment(null);
+          setPaymentNotice(t('momoAuthorized'));
+          setIsSubmitting(false);
+          navigate(`/checkout/confirmation/${orderId}`, {
+            replace: true,
+            state: {
+              orderId,
+              referenceId,
+              paymentMethod: 'momo',
+            },
+          });
+          return;
+        }
+
+        if (nextStatus === 'FAILED') {
+          setPaymentNotice(t('momoFailed'));
+          setErrorMessage(t('momoFailed'));
+          setPendingPayment(null);
+          setIsSubmitting(false);
+          return;
+        }
+
+        setPaymentNotice(t('momoPending'));
+      } catch (error) {
+        if (attempt < 7) {
+          setPaymentNotice(t('momoRetryingStatus'));
+          continue;
+        }
+
+        setErrorMessage(error instanceof Error ? error.message : t('failedToStartMomo'));
+        setPaymentNotice(t('momoCheckAgain'));
+        setPendingPayment(null);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    setIsSubmitting(false);
+    setPaymentNotice(t('momoPending'));
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSuccessMessage('');
     setErrorMessage('');
     setPaymentReference('');
     setPaymentStatus('');
+    setPaymentNotice('');
 
     if (items.length === 0) {
       setErrorMessage(t('emptyCartError'));
@@ -221,16 +283,25 @@ export function CheckoutPage() {
     if (formValues.paymentMethod === 'cash') {
       try {
         setIsSubmitting(true);
-        await createCashOrder(requestPayload);
+        const result = await createCashOrder(requestPayload);
+        if (!result.orderId) {
+          throw new Error(t('failedToCreateCashOrder'));
+        }
         clearCart();
         setFormValues({ ...DEFAULT_CHECKOUT_VALUES });
-        setSuccessMessage(t('cashOrderSaved'));
+        setIsSubmitting(false);
+        navigate(`/checkout/confirmation/${result.orderId}`, {
+          replace: true,
+          state: {
+            orderId: result.orderId,
+            paymentMethod: 'cash',
+          },
+        });
         return;
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : t('failedToCreateCashOrder'));
-        return;
-      } finally {
         setIsSubmitting(false);
+        return;
       }
     }
 
@@ -238,42 +309,36 @@ export function CheckoutPage() {
       setIsSubmitting(true);
       const payment = await requestToPay(requestPayload);
 
-      if (!payment.referenceId) {
+      if (!payment.referenceId || !payment.orderId) {
         throw new Error(t('momoNoReference'));
       }
 
       setPaymentReference(payment.referenceId);
       setPaymentStatus('PENDING');
-
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 2500));
-        const statusResult = await getRequestToPayStatus(payment.referenceId);
-        const nextStatus = statusResult?.payload?.status ?? 'PENDING';
-        setPaymentStatus(nextStatus);
-
-        if (nextStatus === 'SUCCESSFUL') {
-          clearCart();
-          setFormValues({ ...DEFAULT_CHECKOUT_VALUES });
-          setSuccessMessage(t('momoAuthorized'));
-          return;
-        }
-
-        if (nextStatus === 'FAILED') {
-          setErrorMessage(t('momoFailed'));
-          return;
-        }
-      }
-
-      setSuccessMessage(t('momoPending'));
+      setPendingPayment({
+        orderId: payment.orderId,
+        referenceId: payment.referenceId,
+      });
+      await pollMomoPayment(payment.referenceId, payment.orderId);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t('failedToStartMomo'));
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   if (isConfigured && isAuthLoading) {
-    return <div className="glass-panel p-6">{t('loadingCheckout')}</div>;
+    return (
+      <div className="glass-panel p-6">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-8 w-1/2 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+          <div className="h-4 w-3/4 rounded-full bg-slate-200 dark:bg-slate-800" />
+          <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="h-96 rounded-3xl bg-slate-200 dark:bg-slate-800" />
+            <div className="h-96 rounded-3xl bg-slate-200 dark:bg-slate-800" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (isConfigured && !user) {
@@ -284,7 +349,7 @@ export function CheckoutPage() {
             <ShoppingBasket className="text-white" size={32} />
           </div>
         </div>
-        <h1 className="text-3xl font-bold">{t('checkout')}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('checkout')}</h1>
         <p className="mt-3 text-slate-500 dark:text-slate-400 max-w-md mx-auto">
           {t('signInCheckoutPrompt')}
         </p>
@@ -308,7 +373,7 @@ export function CheckoutPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
       <form className="glass-panel p-6" onSubmit={handleSubmit}>
-        <h1 className="text-3xl font-bold">{t('checkout')}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('checkout')}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           {t('checkoutIntro')}
         </p>
@@ -431,6 +496,7 @@ export function CheckoutPage() {
             required
             value={formValues.fullName}
             onChange={(event) => setFormValues((current) => ({ ...current, fullName: event.target.value }))}
+            autoComplete="name"
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
             placeholder={t('fullName')}
           />
@@ -438,6 +504,7 @@ export function CheckoutPage() {
             required
             value={formValues.phone}
             onChange={(event) => setFormValues((current) => ({ ...current, phone: event.target.value }))}
+            autoComplete="tel"
             className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
             placeholder={t('phoneNumber')}
           />
@@ -445,6 +512,7 @@ export function CheckoutPage() {
             required
             value={formValues.address}
             onChange={(event) => setFormValues((current) => ({ ...current, address: event.target.value }))}
+            autoComplete="street-address"
             className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
             placeholder={t('deliveryAddress')}
           />
@@ -479,13 +547,43 @@ export function CheckoutPage() {
           type="submit"
           className="mt-6"
           fullWidth
-          disabled={items.length === 0 || isSubmitting || !selectedShopId || rankedShops.length === 0}
+          disabled={
+            items.length === 0 ||
+            isSubmitting ||
+            !selectedShopId ||
+            rankedShops.length === 0 ||
+            (pendingPayment !== null && paymentStatus === 'PENDING')
+          }
         >
-          {t('placeOrder')}
+          {isSubmitting ? t('processingOrder') : t('placeOrder')}
         </Button>
+        {pendingPayment && paymentStatus === 'PENDING' ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-3"
+            fullWidth
+            disabled={isSubmitting}
+            onClick={() => void pollMomoPayment(pendingPayment.referenceId, pendingPayment.orderId)}
+          >
+            {t('checkPaymentAgain')}
+          </Button>
+        ) : null}
         {paymentReference ? (
-          <p className="mt-4 rounded-2xl bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
-            {t('referenceLabel')}: {paymentReference} {paymentStatus ? `(${paymentStatus})` : ''}
+          <div className="mt-4 rounded-2xl bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 dark:bg-sky-900/20 dark:text-sky-300" aria-live="polite">
+            <p>
+              {t('referenceLabel')}: {paymentReference}
+            </p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em]">
+              {paymentStatus
+                ? `${t('paymentStatus')}: ${paymentStatus === 'SUCCESSFUL' ? t('paid') : paymentStatus === 'FAILED' ? t('failed') : t('pending')}`
+                : t('momoAwaitingConfirmation')}
+            </p>
+          </div>
+        ) : null}
+        {paymentNotice ? (
+          <p className="mt-4 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:bg-brand-900/20 dark:text-brand-200" aria-live="polite">
+            {paymentNotice}
           </p>
         ) : null}
         {successMessage ? (

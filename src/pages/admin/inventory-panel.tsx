@@ -193,7 +193,7 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
         {(inventoryQuery.data ?? []).length === 0 ? (
           <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-white/60 p-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
             <p className="text-base font-semibold text-slate-700 dark:text-slate-200">{t('inventoryDashboard')}</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">No inventory entries yet. Add a product above to start stocking this shop.</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('noInventoryEntriesYet')}</p>
           </div>
         ) : (
           (inventoryQuery.data ?? []).map((entry) => (

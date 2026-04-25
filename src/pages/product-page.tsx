@@ -36,8 +36,8 @@ export function ProductPage() {
         <img src={product.image} alt={product.name} className="h-full min-h-80 w-full rounded-3xl object-cover" />
         <div className="flex flex-col justify-center">
           <Badge>{product.normalizedCategory}</Badge>
-          <h1 className="mt-4 text-3xl font-bold sm:text-4xl">{product.name}</h1>
-          <p className="mt-3 text-3xl font-bold text-brand-600 dark:text-brand-300">{formatCurrency(product.price)}</p>
+          <h1 className="mt-4 text-2xl font-bold sm:text-4xl">{product.name}</h1>
+          <p className="mt-3 text-2xl font-bold text-brand-600 dark:text-brand-300 sm:text-3xl">{formatCurrency(product.price)}</p>
           <div className="mt-6 grid gap-4 rounded-3xl bg-stone-100 p-5 dark:bg-slate-900">
             <div className="flex justify-between">
               <span className="text-slate-500">{t('availability')}</span>
@@ -57,7 +57,7 @@ export function ProductPage() {
           </p>
           <Button className="mt-6 w-full sm:w-fit" onClick={() => addItem(product)} disabled={!product.inStock}>
             <ShoppingBasket size={16} className="mr-2" />
-            {isInCart ? t('addedToCart') : t('addToCart')}
+            {isInCart ? t('addedToCartButton') : t('addToCartButton')}
           </Button>
         </div>
       </div>

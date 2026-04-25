@@ -14,7 +14,15 @@ export function AdminRoute({ children }: PropsWithChildren) {
   }
 
   if (isLoading || (user && authRoleQuery.isLoading)) {
-    return <div className="glass-panel p-6">{t('loadingAccount')}</div>;
+    return (
+      <div className="glass-panel p-6">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-8 w-1/2 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+          <div className="h-4 w-3/4 rounded-full bg-slate-200 dark:bg-slate-800" />
+          <div className="h-40 rounded-3xl bg-slate-200 dark:bg-slate-800" />
+        </div>
+      </div>
+    );
   }
 
   if (!user) {

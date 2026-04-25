@@ -100,7 +100,7 @@ export function SearchFilterBar({
           onChange={(event) => onChange({ ...filters, sortBy: event.target.value as FilterState['sortBy'] })}
           className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
         >
-          <option value="default">{t('sortByPrice')}</option>
+          <option value="default">{t('sortDefault')}</option>
           <option value="price-asc">{t('lowToHigh')}</option>
           <option value="price-desc">{t('highToLow')}</option>
         </select>
@@ -118,7 +118,7 @@ export function SearchFilterBar({
 
       <div className="mt-4">
         <label className="mb-2 block text-sm text-slate-500 dark:text-slate-300">
-          Price: 0 RWF - {Math.min(filters.priceRange[1], maxPrice).toLocaleString()} RWF
+          {t('priceRange', { max: Math.min(filters.priceRange[1], maxPrice).toLocaleString() })}
         </label>
         <input
           type="range"

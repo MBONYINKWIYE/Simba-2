@@ -46,7 +46,7 @@ function getShopOrderStatus(orderStatus?: string | null, paymentStatus?: string)
 }
 
 function statusClassName(value: string) {
-  if (value === 'paid' || value === 'delivered' || value === 'ready' || value === 'picked_up') {
+  if (value === 'paid' || value === 'delivered' || value === 'ready' || value === 'picked_up' || value === 'accepted') {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   }
 
@@ -54,7 +54,7 @@ function statusClassName(value: string) {
     return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
   }
 
-  if (value === 'failed' || value === 'cancelled') {
+  if (value === 'failed' || value === 'cancelled' || value === 'rejected') {
     return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
   }
 
@@ -67,7 +67,7 @@ function OrdersHeader() {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 className="text-3xl font-bold">{t('myOrders')}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{t('myOrders')}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           {t('ordersHeaderCopy')}
         </p>

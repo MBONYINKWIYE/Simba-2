@@ -14,6 +14,9 @@ const CheckoutPage = lazy(() =>
   import('@/pages/checkout-page').then((module) => ({ default: module.CheckoutPage })),
 );
 const OrdersPage = lazy(() => import('@/pages/orders-page').then((module) => ({ default: module.OrdersPage })));
+const OrderConfirmationPage = lazy(() =>
+  import('@/pages/order-confirmation-page').then((module) => ({ default: module.OrderConfirmationPage })),
+);
 const AuthCallbackPage = lazy(() =>
   import('@/pages/auth-callback-page').then((module) => ({ default: module.AuthCallbackPage })),
 );
@@ -29,10 +32,23 @@ const AdminDashboardPage = lazy(() =>
 function RouteFallback() {
   const { t } = useTranslation();
 
-  return <div className="glass-panel p-8">{t('loading')}</div>;
+  return (
+    <div className="glass-panel p-8">
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-1/2 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+        <div className="h-4 w-3/4 rounded-full bg-slate-200 dark:bg-slate-800" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="h-48 rounded-3xl bg-slate-200 dark:bg-slate-800" />
+          <div className="h-48 rounded-3xl bg-slate-200 dark:bg-slate-800" />
+        </div>
+      </div>
+      <span className="sr-only">{t('loading')}</span>
+    </div>
+  );
 }
 
 function ErrorBoundary() {
+  const { t } = useTranslation();
   const error = useRouteError() as any;
 
   return (
@@ -44,18 +60,18 @@ function ErrorBoundary() {
               <AlertCircle size={32} />
             </div>
           </div>
-          <h1 className="text-3xl font-bold mb-4">Something went wrong</h1>
+          <h1 className="text-3xl font-bold mb-4">{t('somethingWentWrong')}</h1>
           <p className="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-            {error?.message || "An unexpected error occurred while navigating. Our team has been notified."}
+            {error?.message || t('unexpectedNavigationError')}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={() => window.location.reload()} className="px-8">
-              Try again
+              {t('tryAgain')}
             </Button>
             <Link to="/">
               <Button variant="secondary" className="w-full sm:w-auto px-8">
                 <Home size={18} className="mr-2" />
-                Back to home
+                {t('backToHome')}
               </Button>
             </Link>
           </div>
@@ -98,6 +114,16 @@ export const router = createBrowserRouter([
           <AppShell>
             <Suspense fallback={fallback}>
               <CheckoutPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'checkout/confirmation/:orderId',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <OrderConfirmationPage />
             </Suspense>
           </AppShell>
         ),

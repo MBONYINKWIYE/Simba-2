@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useAdminOrders } from '@/hooks/use-admin-orders';
+import { useAdminOrdersRealtime } from '@/hooks/use-admin-orders';
 import { useShopAdmins } from '@/hooks/use-shop-admins';
 import { useShops } from '@/hooks/use-shops';
 import { useAssignShopAdmin, useCreateShop } from '@/hooks/use-super-admin-management';
@@ -21,8 +21,12 @@ function statusClassName(value: ShopOrderStatus | string) {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   }
 
-  if (value === 'preparing') {
+  if (value === 'accepted' || value === 'preparing') {
     return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
+  }
+
+  if (value === 'rejected') {
+    return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
   }
 
   return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
@@ -68,26 +72,53 @@ function AdminOrderActions({
   };
 
   return (
-    <div className="mt-6 grid gap-3 sm:grid-cols-3">
-      {canManageOrders ? (
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {canManageOrders && order.status === 'pending' ? (
         <>
           <Button
+            type="button"
+            disabled={updateOrderStatus.isPending}
+            onClick={() => void runStatusUpdate('accepted')}
+            className="w-full"
+          >
+            {t('acceptOrder')}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={updateOrderStatus.isPending}
+            onClick={() => void runStatusUpdate('rejected')}
+            className="w-full"
+          >
+            {t('rejectOrder')}
+          </Button>
+        </>
+      ) : null}
+      {canManageOrders && order.status !== 'pending' && order.status !== 'rejected' ? (
+        <>
+          <Button
+            type="button"
             variant="secondary"
             disabled={order.status === 'preparing' || updateOrderStatus.isPending}
             onClick={() => void runStatusUpdate('preparing')}
+            className="w-full"
           >
             {t('markPreparing')}
           </Button>
           <Button
+            type="button"
             variant="secondary"
             disabled={order.status === 'ready' || updateOrderStatus.isPending}
             onClick={() => void runStatusUpdate('ready')}
+            className="w-full"
           >
             {t('markReady')}
           </Button>
           <Button
+            type="button"
             disabled={order.status === 'picked_up' || updateOrderStatus.isPending}
             onClick={() => void runStatusUpdate('picked_up')}
+            className="w-full"
           >
             {t('markPickedUp')}
           </Button>
@@ -95,21 +126,25 @@ function AdminOrderActions({
       ) : null}
       {!canManageOrders && isAssignedStaff ? (
         <Button
-          className="sm:col-span-3"
+          type="button"
+          className="sm:col-span-2 lg:col-span-3 w-full"
           disabled={order.status === 'ready' || order.status === 'picked_up' || updateOrderStatus.isPending}
           onClick={() => void runStatusUpdate('ready')}
         >
           {t('markReady')}
         </Button>
       ) : null}
+      {canManageOrders && order.status === 'rejected' ? (
+        <p className="sm:col-span-2 lg:col-span-3 text-sm text-rose-600 dark:text-rose-300">{t('orderRejectedNotice')}</p>
+      ) : null}
       {!canManageOrders && !isAssignedStaff ? (
-        <p className="sm:col-span-3 text-sm text-slate-500 dark:text-slate-400">{t('staffAssignmentRequired')}</p>
+        <p className="sm:col-span-2 lg:col-span-3 text-sm text-slate-500 dark:text-slate-400">{t('staffAssignmentRequired')}</p>
       ) : null}
       {updateOrderStatus.isSuccess ? (
-        <p className="sm:col-span-3 text-sm text-emerald-600 dark:text-emerald-300">{t('adminStatusUpdated')}</p>
+        <p className="sm:col-span-2 lg:col-span-3 text-sm text-emerald-600 dark:text-emerald-300">{t('adminStatusUpdated')}</p>
       ) : null}
       {updateOrderStatus.isError ? (
-        <p className="sm:col-span-3 text-sm text-rose-600 dark:text-rose-300">
+        <p className="sm:col-span-2 lg:col-span-3 text-sm text-rose-600 dark:text-rose-300">
           {updateOrderStatus.error instanceof Error ? updateOrderStatus.error.message : t('adminStatusUpdateFailed')}
         </p>
       ) : null}
@@ -165,24 +200,24 @@ function AdminOrderDetail({
     <section className="glass-panel p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">
+          <h2 className="text-2xl font-bold break-words">
             {t('orderLabel')} #{order.id.slice(0, 8)}
           </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
             {new Date(order.created_at).toLocaleString()}
           </p>
           {order.pickup_time ? (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
               {t('pickupTimeLabel')}: {new Date(order.pickup_time).toLocaleString()}
             </p>
           ) : null}
           {order.shops?.name ? (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
               {t('pickupShop')}: {order.shops.name}
             </p>
           ) : null}
           {assignedStaff ? (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
               {t('assignedStaffLabel')}: {assignedStaff.user_email}
             </p>
           ) : null}
@@ -222,13 +257,13 @@ function AdminOrderDetail({
             <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
               {t('customerInfo')}
             </h3>
-            <p className="mt-3 font-semibold">{order.full_name}</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{order.phone}</p>
+            <p className="mt-3 break-words font-semibold">{order.full_name}</p>
+            <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{order.phone}</p>
             {order.user_email ? (
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{order.user_email}</p>
+              <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{order.user_email}</p>
             ) : null}
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{order.delivery_address}</p>
-            {order.notes ? <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{order.notes}</p> : null}
+            <p className="mt-3 break-words text-sm text-slate-500 dark:text-slate-400">{order.delivery_address}</p>
+            {order.notes ? <p className="mt-3 break-words text-sm text-slate-500 dark:text-slate-400">{order.notes}</p> : null}
           </div>
 
           <div className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900">
@@ -499,7 +534,7 @@ export function AdminDashboardPage() {
   const shopId = authRoleQuery.data?.shopId ?? null;
   const scopeKey = isSuperAdmin ? 'all-shops' : (shopId ?? 'unassigned');
   const shopAdminsQuery = useShopAdmins(Boolean(isSuperAdmin || canManageOrders));
-  const ordersQuery = useAdminOrders(shopId, isSuperAdmin);
+  const ordersQuery = useAdminOrdersRealtime(shopId, isSuperAdmin);
   const shops = shopsQuery.data ?? [];
   const currentShop = shops.find((shop) => shop.id === shopId) ?? null;
 
@@ -525,7 +560,7 @@ export function AdminDashboardPage() {
       <section className="glass-panel p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{t('adminDashboard')}</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">{t('adminDashboard')}</h1>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
             {authRoleQuery.data?.shopName ? (
               <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">
