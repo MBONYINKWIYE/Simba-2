@@ -159,6 +159,11 @@ export default function SignupPage() {
             <span className="font-semibold">{t('googleSignIn')}</span>
           </button>
 
+          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
+            <p className="font-semibold">{t('authProviderHintTitle')}</p>
+            <p className="mt-1">{t('authProviderHintCopy')}</p>
+          </div>
+
           <p className="mt-8 text-center text-slate-500 dark:text-slate-400 text-sm">
             {t('haveAccount')}{' '}
             <Link to="/auth/login" className="text-brand-600 font-bold hover:underline">

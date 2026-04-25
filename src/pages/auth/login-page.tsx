@@ -96,9 +96,12 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex justify-between px-1">
                 <label className="text-sm font-medium">{t('password')}</label>
-                <button type="button" className="text-xs text-brand-600 hover:underline font-medium">
+                <Link
+                  to={`/auth/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}
+                  className="text-xs text-brand-600 hover:underline font-medium"
+                >
                   {t('forgotPassword')}
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -138,6 +141,11 @@ export default function LoginPage() {
             <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
             <span className="font-semibold">{t('googleSignIn')}</span>
           </button>
+
+          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
+            <p className="font-semibold">{t('authProviderHintTitle')}</p>
+            <p className="mt-1">{t('authProviderHintCopy')}</p>
+          </div>
 
           <p className="mt-8 text-center text-slate-500 dark:text-slate-400 text-sm">
             {t('noAccount')}{' '}

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router-dom';
 import { router } from '@/router';
 import { AuthProvider } from '@/providers/auth-provider';
+import { completeAuthSessionFromCurrentUrl } from '@/lib/auth';
 import '@/styles/index.css';
 import { initializeI18n } from '@/i18n';
 
@@ -19,6 +20,12 @@ const queryClient = new QueryClient({
 
 async function bootstrap() {
   await initializeI18n();
+
+  const handledAuthRedirect = await completeAuthSessionFromCurrentUrl();
+
+  if (handledAuthRedirect) {
+    return;
+  }
 
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

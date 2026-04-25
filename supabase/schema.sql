@@ -252,6 +252,13 @@ to authenticated
 using (auth.uid() = id)
 with check (auth.uid() = id);
 
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
+on public.profiles
+for insert
+to authenticated
+with check (auth.uid() = id);
+
 -- Function to handle new user creation
 create or replace function public.handle_new_user()
 returns trigger
@@ -260,13 +267,19 @@ security definer
 set search_path = public, auth
 as $$
 begin
-  insert into public.profiles (id, email, full_name, avatar_url)
+  insert into public.profiles (id, email, full_name, avatar_url, updated_at)
   values (
     new.id,
     new.email,
     new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'avatar_url'
-  );
+    new.raw_user_meta_data->>'avatar_url',
+    now()
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = excluded.full_name,
+    avatar_url = excluded.avatar_url,
+    updated_at = now();
   return new;
 end;
 $$;

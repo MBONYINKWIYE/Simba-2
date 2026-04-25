@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { AuthContext } from '@/providers/auth-context';
 import type { AuthContextValue } from '@/providers/auth-context';
+import { completeAuthSessionFromCurrentUrl, syncProfileRecord } from '@/lib/auth';
 import { hasSupabaseEnv, supabase } from '@/lib/supabase';
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -47,6 +48,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    void completeAuthSessionFromCurrentUrl();
+  }, []);
+
+  const currentUserId = user?.id ?? null;
+  const currentUserEmail = user?.email ?? null;
+  const currentUserFullName = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? null;
+  const currentUserAvatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null;
+
+  useEffect(() => {
+    if (!currentUserId) {
+      return;
+    }
+
+    void syncProfileRecord({
+      userId: currentUserId,
+      email: currentUserEmail,
+      fullName: currentUserFullName,
+      avatarUrl: currentUserAvatarUrl,
+    });
+  }, [currentUserAvatarUrl, currentUserEmail, currentUserFullName, currentUserId]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

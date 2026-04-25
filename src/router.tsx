@@ -22,6 +22,8 @@ const AuthCallbackPage = lazy(() =>
 );
 const LoginPage = lazy(() => import('@/pages/auth/login-page'));
 const SignupPage = lazy(() => import('@/pages/auth/signup-page'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password-page'));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/reset-password-page'));
 const AdminLoginPage = lazy(() =>
   import('@/pages/admin/admin-login-page').then((module) => ({ default: module.AdminLoginPage })),
 );
@@ -144,6 +146,26 @@ export const router = createBrowserRouter([
           <AppShell>
             <Suspense fallback={fallback}>
               <SignupPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'auth/forgot-password',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <ForgotPasswordPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'auth/reset-password',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <ResetPasswordPage />
             </Suspense>
           </AppShell>
         ),
