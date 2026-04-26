@@ -1,5 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
-import { corsHeaders } from '../_shared/cors.ts';
+
+// 1. Inlined CORS headers (Removes reliance on external files)
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 type CheckoutItem = {
   productId: number;
@@ -56,22 +62,11 @@ type AuthenticatedUser = {
   email: string | null;
 };
 
-type RequestBody =
-  | RequestToPayBody
-  | CreateCashOrderBody
-  | StatusBody;
+type RequestBody = | RequestToPayBody | CreateCashOrderBody | StatusBody;
 
 const baseUrl = 'https://payments.paypack.rw/api';
-const clientId = Deno.env.get('PAYPACK_CLIENT_ID') ?? '';
-const clientSecret = Deno.env.get('PAYPACK_CLIENT_SECRET') ?? '';
-const receiverNumber = Deno.env.get('PAYPACK_RECEIVER_NUMBER') ?? '0791509652';
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: { persistSession: false },
-});
-
+// Helper for JSON responses
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -82,94 +77,47 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+// Phone normalization logic
 function normalizeRwPhoneNumber(rawNumber: string) {
   const digits = rawNumber.replace(/\D/g, '');
-
-  if (digits.startsWith('250') && digits.length === 12) {
-    return `0${digits.slice(3)}`;
-  }
-
-  if (digits.startsWith('0') && digits.length === 10) {
-    return digits;
-  }
-
-  if (digits.length === 9 && digits.startsWith('7')) {
-    return `0${digits}`;
-  }
-
+  if (digits.startsWith('250') && digits.length === 12) return `0${digits.slice(3)}`;
+  if (digits.startsWith('0') && digits.length === 10) return digits;
+  if (digits.length === 9 && digits.startsWith('7')) return `0${digits}`;
   return digits;
 }
 
+// --- Helper Functions (Moved up to be available in Deno.serve) ---
+
 async function createAccessToken() {
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing Paypack configuration: PAYPACK_CLIENT_ID or PAYPACK_CLIENT_SECRET');
-  }
+  const clientId = Deno.env.get('PAYPACK_CLIENT_ID') ?? '';
+  const clientSecret = Deno.env.get('PAYPACK_CLIENT_SECRET') ?? '';
+  if (!clientId || !clientSecret) throw new Error('Missing Paypack credentials');
 
   const response = await fetch(`${baseUrl}/auth/agents/authorize`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create Paypack access token: ${response.status} ${errorText}`);
-  }
-
+  if (!response.ok) throw new Error('Paypack auth failed');
   const json = await response.json();
   return json.access as string;
 }
 
-async function getAuthenticatedUser(request: Request): Promise<AuthenticatedUser> {
-  const authorization = request.headers.get('Authorization') ?? '';
-  const token = authorization.replace(/^Bearer\s+/i, '').trim();
-
-  if (!token) {
-    throw new Error('Authentication is required to place an order.');
-  }
+async function getAuthenticatedUser(request: Request, supabaseAdmin: any): Promise<AuthenticatedUser> {
+  const authHeader = request.headers.get('Authorization') ?? '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) throw new Error('Auth token missing');
 
   const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user) throw new Error('Invalid user token');
 
-  if (error || !data.user) {
-    throw new Error('Unable to verify the authenticated user.');
-  }
-
-  return {
-    id: data.user.id,
-    email: data.user.email ?? null,
-  };
+  return { id: data.user.id, email: data.user.email ?? null };
 }
 
-async function assertOrderOwnership(referenceId: string, userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from('orders')
-    .select('id')
-    .eq('momo_reference', referenceId)
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to verify order ownership: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error('Order not found for the current user.');
-  }
-}
-
-async function insertOrder(
-  payload: RequestToPayBody,
-  user: AuthenticatedUser,
-  referenceId: string,
-  paypackStatus: string,
-) {
-  const paymentAmountRwf = payload.paymentAmountRwf ?? payload.totalRwf;
-  const balanceDueRwf = Math.max(payload.totalRwf - paymentAmountRwf, 0);
+async function insertOrder(payload: RequestToPayBody, user: AuthenticatedUser, referenceId: string, status: string, supabaseAdmin: any) {
+  const receiver = Deno.env.get('PAYPACK_RECEIVER_NUMBER') ?? '';
+  const amount = payload.paymentAmountRwf ?? payload.totalRwf;
 
   const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
     p_user_id: user.id,
@@ -190,28 +138,35 @@ async function insertOrder(
     p_notes: payload.checkout.notes ?? null,
     p_items: payload.items,
     p_momo_reference: referenceId,
-    p_momo_external_id: referenceId, // Paypack uses one ref
+    p_momo_external_id: referenceId,
     p_momo_account_holder_status: 'active',
-    p_momo_status: paypackStatus.toUpperCase(),
+    p_momo_status: status.toUpperCase(),
     p_payment_provider: 'paypack',
-    p_payment_payload: {
-      provider: 'paypack',
-      receiverNumber,
-      paymentPlan: payload.paymentPlan ?? 'momo',
-      paymentAmountRwf,
-      depositRwf: paymentAmountRwf,
-      balanceDueRwf,
-    },
+    p_payment_payload: { provider: 'paypack', receiver, paymentAmountRwf: amount },
   });
 
-  if (error || !data) {
-    throw new Error(`Failed to insert order: ${error?.message ?? 'unknown'}`);
-  }
-
-  return data as string;
+  if (error || !data) throw new Error(`DB Error: ${error?.message}`);
+  return data;
 }
 
-async function createCashOrder(payload: CreateCashOrderBody, user: AuthenticatedUser) {
+async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser, supabaseAdmin: any) {
+  const accessToken = await createAccessToken();
+  const amount = payload.paymentAmountRwf ?? payload.totalRwf;
+
+  const response = await fetch(`${baseUrl}/transactions/cashin`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount, number: normalizeRwPhoneNumber(payload.checkout.phone) }),
+  });
+
+  const responseData = await response.json();
+  if (!response.ok) return { ok: false, status: response.status, message: responseData?.message };
+
+  const orderId = await insertOrder(payload, user, responseData.ref, responseData.status, supabaseAdmin);
+  return { ok: true, orderId, referenceId: responseData.ref };
+}
+
+async function createCashOrder(payload: CreateCashOrderBody, user: AuthenticatedUser, supabaseAdmin: any) {
   const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
     p_user_id: user.id,
     p_user_email: user.email,
@@ -235,150 +190,82 @@ async function createCashOrder(payload: CreateCashOrderBody, user: Authenticated
     p_momo_account_holder_status: null,
     p_momo_status: null,
     p_payment_provider: 'cash-on-pickup',
-    p_payment_payload: {
-      mode: 'cash-on-pickup',
-    },
+    p_payment_payload: { mode: 'cash-on-pickup' },
   });
 
-  if (error || !data) {
-    throw new Error(`Failed to insert cash order: ${error?.message ?? 'unknown'}`);
-  }
-
-  return data as string;
+  if (error || !data) throw new Error(`DB Error: ${error?.message}`);
+  return data;
 }
 
-async function updateOrderStatus(referenceId: string, status: string, providerPayload: unknown) {
-  const normalizedStatus = status.toLowerCase();
-  const paymentSucceeded = normalizedStatus === 'success' || normalizedStatus === 'successful';
-  const paymentFailed = normalizedStatus === 'failed';
-  const paymentStatus = paymentSucceeded ? 'paid' : paymentFailed ? 'failed' : 'pending';
-  const { data: existingOrder } = await supabaseAdmin
-    .from('orders')
-    .select('payment_payload')
-    .eq('momo_reference', referenceId)
-    .maybeSingle();
+async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUser, supabaseAdmin: any) {
+  // Check ownership
+  const { data: order } = await supabaseAdmin.from('orders').select('id').eq('momo_reference', referenceId).eq('user_id', user.id).maybeSingle();
+  if (!order) throw new Error('Order not found or unauthorized');
 
-  const { error } = await supabaseAdmin
-    .from('orders')
-    .update({
-      momo_status: normalizedStatus.toUpperCase(),
-      payment_status: paymentStatus,
-      payment_payload: {
-        ...(existingOrder?.payment_payload && typeof existingOrder.payment_payload === 'object'
-          ? existingOrder.payment_payload
-          : {}),
-        providerResponse: providerPayload,
-      },
-      paid_at: paymentSucceeded ? new Date().toISOString() : null,
-    })
-    .eq('momo_reference', referenceId);
-
-  if (error) {
-    throw new Error(`Failed to update order status: ${error.message}`);
-  }
-}
-
-async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser) {
-  const accessToken = await createAccessToken();
-  const amount = payload.paymentAmountRwf ?? payload.totalRwf;
-
-  const response = await fetch(`${baseUrl}/transactions/cashin`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      amount,
-      number: normalizeRwPhoneNumber(payload.checkout.phone),
-    }),
-  });
-
-  const responseData = await response.json();
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      message: responseData?.message ?? 'Paypack cashin failed',
-      providerPayload: responseData,
-    };
-  }
-
-  const orderId = await insertOrder(payload, user, responseData.ref, responseData.status);
-
-  return {
-    ok: true,
-    status: response.status,
-    orderId,
-    referenceId: responseData.ref,
-    paymentAmountRwf: amount,
-    providerPayload: responseData,
-  };
-}
-
-async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUser) {
-  await assertOrderOwnership(referenceId, user.id);
   const accessToken = await createAccessToken();
   const response = await fetch(`${baseUrl}/transactions/find/${referenceId}`, {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const payload = await response.json();
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      payload,
-    };
-  }
+  if (!response.ok) return { ok: false, status: response.status, payload };
 
   const status = payload?.status ?? 'pending';
-  await updateOrderStatus(referenceId, status, payload);
+  
+  // Update DB
+  await supabaseAdmin.from('orders').update({
+    momo_status: status.toUpperCase(),
+    payment_status: status.toLowerCase() === 'success' ? 'paid' : 'pending',
+    paid_at: status.toLowerCase() === 'success' ? new Date().toISOString() : null,
+  }).eq('momo_reference', referenceId);
 
-  return {
-    ok: true,
-    status: response.status,
-    payload: {
-      status: status.toUpperCase() === 'SUCCESS' ? 'SUCCESSFUL' : status.toUpperCase() === 'FAILED' ? 'FAILED' : 'PENDING',
-      ...payload
-    },
-  };
+  return { ok: true, status: response.status, payload: { status: status.toUpperCase(), ...payload } };
 }
 
+// --- Main Handler ---
 Deno.serve(async (request) => {
+  // 1. Handle CORS preflight IMMEDIATELY
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {
+    // 2. Safely initialize constants inside the handler
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error('Missing Supabase environment variables.');
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    });
+
     const body = (await request.json()) as RequestBody;
 
     switch (body.action) {
       case 'requestToPay': {
-        const user = await getAuthenticatedUser(request);
-        const result = await requestToPay(body, user);
+        const user = await getAuthenticatedUser(request, supabaseAdmin);
+        const result = await requestToPay(body, user, supabaseAdmin);
         return jsonResponse(result, result.ok ? 200 : result.status);
       }
       case 'createCashOrder': {
-        const user = await getAuthenticatedUser(request);
-        const orderId = await createCashOrder(body, user);
+        const user = await getAuthenticatedUser(request, supabaseAdmin);
+        const orderId = await createCashOrder(body, user, supabaseAdmin);
         return jsonResponse({ ok: true, orderId }, 201);
       }
       case 'getRequestToPayStatus': {
-        const user = await getAuthenticatedUser(request);
-        const result = await getRequestToPayStatus(body.referenceId, user);
+        const user = await getAuthenticatedUser(request, supabaseAdmin);
+        const result = await getRequestToPayStatus(body.referenceId, user, supabaseAdmin);
         return jsonResponse(result, result.ok ? 200 : result.status);
       }
       default:
         return jsonResponse({ error: 'Unsupported action' }, 400);
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return jsonResponse({ error: message }, 500);
+    console.error('Function error:', error.message);
+    return jsonResponse({ error: error.message }, 500);
   }
 });
