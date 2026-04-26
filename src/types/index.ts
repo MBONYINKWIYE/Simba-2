@@ -128,6 +128,7 @@ export type RequestToPayResult = {
   accountHolderStatus?: string;
   providerPayload?: unknown;
   message?: string;
+  warning?: string;
 };
 
 export type RequestToPayStatusResult = {

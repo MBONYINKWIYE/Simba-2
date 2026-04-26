@@ -317,6 +317,13 @@ const translation = {
       keepTracking: 'Keep tracking',
       orderConfirmationTrackingCopy: 'Open My Orders any time to review payment and preparation progress.',
       checkPaymentAgain: 'Check payment again',
+      paymentAwaitingPrompt: 'Check your phone for the Mobile Money prompt.',
+      orderPlacedUnpaid: 'This order is placed but payment is still pending.',
+      payWithMomoNow: 'Pay now with MoMo',
+      paymentFailedRetry: 'Previous payment failed. You can try again below.',
+      customerName: 'Customer name',
+      phone: 'Phone',
+      notes: 'Notes',
       footerTitle: 'Built for faster grocery pickup',
       footerCopy:
         'Search products, choose the right branch, and complete checkout with a smoother path for MoMo or cash on pickup.',

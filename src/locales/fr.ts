@@ -306,6 +306,13 @@ const translation = {
       keepTracking: 'Suivi de la commande',
       orderConfirmationTrackingCopy: 'Ouvrez Mes commandes a tout moment pour suivre le paiement et la preparation.',
       checkPaymentAgain: 'Verifier le paiement a nouveau',
+      paymentAwaitingPrompt: 'Vérifiez votre téléphone pour l invite Mobile Money.',
+      orderPlacedUnpaid: 'Cette commande est passée mais le paiement est toujours en attente.',
+      payWithMomoNow: 'Payer maintenant avec MoMo',
+      paymentFailedRetry: 'Le paiement précédent a échoué. Vous pouvez réessayer ci-dessous.',
+      customerName: 'Nom du client',
+      phone: 'Téléphone',
+      notes: 'Notes',
       footerTitle: 'Concu pour un retrait plus rapide',
       footerCopy:
         'Recherchez les produits, choisissez la bonne branche et terminez le paiement plus facilement avec MoMo ou le paiement a la reception.',

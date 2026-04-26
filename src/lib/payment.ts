@@ -50,6 +50,27 @@ export async function getRequestToPayStatus(referenceId: string) {
   return data;
 }
 
+export async function initiatePayment(orderId: string, phone?: string) {
+  const client = requireSupabaseClient();
+  const { data, error } = await client.functions.invoke<RequestToPayResult>('payment-collection', {
+    body: {
+      action: 'initiatePayment',
+      orderId,
+      phone,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data?.ok) {
+    throw new Error(data?.message ?? 'Failed to initiate Mobile Money payment');
+  }
+
+  return data;
+}
+
 export async function createCashOrder(args: OrderCreatePayload) {
   const client = requireSupabaseClient();
   const { data, error } = await client.functions.invoke<CreateCashOrderResult>('payment-collection', {

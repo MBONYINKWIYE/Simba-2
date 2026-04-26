@@ -129,7 +129,7 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
           ) : null}
         </div>
 
-        <div className={`grid min-w-0 gap-3 ${isSuperAdmin ? 'xl:grid-cols-[0.9fr_1.1fr_1.2fr_0.7fr_auto]' : 'xl:grid-cols-[1.1fr_1.4fr_0.7fr_auto]'}`}>
+        <div className={`grid min-w-0 gap-3 ${isSuperAdmin ? 'lg:grid-cols-2 xl:grid-cols-[0.9fr_1.1fr_1.2fr_0.7fr_auto]' : 'md:grid-cols-2 lg:grid-cols-[1.1fr_1.4fr_0.7fr_auto]'}`}>
           {isSuperAdmin ? (
             <select
               value={selectedShopId}
@@ -162,21 +162,23 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
               </option>
             ))}
           </select>
-          <input
-            type="number"
-            min="0"
-            value={newQuantity}
-            onChange={(event) => setNewQuantity(event.target.value)}
-            className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-            placeholder={t('quantity')}
-          />
-          <Button
-            type="submit"
-            className="h-12 w-full"
-            disabled={upsertInventoryEntry.isPending || !(isSuperAdmin ? selectedShopId : scopeShopId) || !selectedProductId}
-          >
-            {t('addInventory')}
-          </Button>
+          <div className="flex gap-3 md:col-span-2 lg:col-auto">
+            <input
+              type="number"
+              min="0"
+              value={newQuantity}
+              onChange={(event) => setNewQuantity(event.target.value)}
+              className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              placeholder={t('quantity')}
+            />
+            <Button
+              type="submit"
+              className="h-12 w-full lg:w-auto px-6"
+              disabled={upsertInventoryEntry.isPending || !(isSuperAdmin ? selectedShopId : scopeShopId) || !selectedProductId}
+            >
+              {t('addInventory')}
+            </Button>
+          </div>
         </div>
       </form>
 
@@ -201,7 +203,7 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
               key={entry.inventory_id}
               className="min-w-0 rounded-[1.75rem] border border-slate-200 bg-white/85 p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition hover:-translate-y-0.5 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-brand-700"
             >
-              <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <p className="truncate text-lg font-semibold">{entry.product_name}</p>
@@ -213,7 +215,7 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
                     {isSuperAdmin ? entry.shop_name : t('inventoryUpdatedAt', { value: new Date(entry.updated_at).toLocaleString() })}
                   </p>
                 </div>
-                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center xl:flex-none">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center lg:flex-none">
                   <input
                     type="number"
                     min="0"
@@ -226,12 +228,14 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
                     }
                     className="h-12 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 sm:w-32 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
-                  <Button variant="secondary" onClick={() => void handleSaveQuantity(entry)} disabled={upsertInventoryEntry.isPending}>
-                    {t('saveQuantity')}
-                  </Button>
-                  <Button variant="ghost" onClick={() => void handleRemoveInventory(entry)} disabled={deleteInventoryEntry.isPending}>
-                    {t('remove')}
-                  </Button>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => void handleSaveQuantity(entry)} disabled={upsertInventoryEntry.isPending}>
+                      {t('saveQuantity')}
+                    </Button>
+                    <Button variant="ghost" className="flex-1 sm:flex-none" onClick={() => void handleRemoveInventory(entry)} disabled={deleteInventoryEntry.isPending}>
+                      {t('remove')}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

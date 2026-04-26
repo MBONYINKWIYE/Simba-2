@@ -1,13 +1,15 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Star } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useCreateReview } from '@/hooks/use-reviews';
 import { ordersQueryOptions } from '@/lib/orders';
+import { initiatePayment, getRequestToPayStatus } from '@/lib/payment';
+import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency } from '@/lib/utils';
 import type { OrderHistoryRecord } from '@/types';
 
@@ -59,6 +61,95 @@ function statusClassName(value: string) {
   }
 
   return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+}
+
+function OrderPaymentAction({ order }: { order: OrderHistoryRecord }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentNotice, setPaymentNotice] = useState('');
+  const [error, setError] = useState('');
+
+  const pollMomoPayment = async (referenceId: string) => {
+    setPaymentNotice(t('paymentAwaitingConfirmation'));
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+
+      try {
+        const statusResult = await getRequestToPayStatus(referenceId);
+        const status = statusResult?.payload?.status ?? 'PENDING';
+
+        if (status === 'SUCCESSFUL') {
+          setPaymentNotice(t('paymentAuthorized'));
+          setIsPaying(false);
+          void queryClient.invalidateQueries({ queryKey: queryKeys.orders(order.user_id) });
+          return;
+        }
+
+        if (status === 'FAILED') {
+          setError(t('paymentFailed'));
+          setIsPaying(false);
+          return;
+        }
+      } catch (err) {
+        // Continue polling on transient errors
+      }
+    }
+
+    setPaymentNotice(t('paymentCheckAgain'));
+    setIsPaying(false);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.orders(order.user_id) });
+  };
+
+  const handlePay = async () => {
+    setIsPaying(true);
+    setError('');
+    setPaymentNotice(t('paymentAwaitingPrompt'));
+
+    try {
+      const result = await initiatePayment(order.id);
+      if (result.referenceId) {
+        await pollMomoPayment(result.referenceId);
+      } else if (result.warning) {
+        setPaymentNotice(result.warning);
+        setIsPaying(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('failedToStartPayment'));
+      setIsPaying(false);
+    }
+  };
+
+  if (order.payment_status === 'paid' || order.status === 'rejected' || order.status === 'picked_up' || order.payment_method === 'cash') {
+    return null;
+  }
+
+  return (
+    <div className="mt-5 border-t border-slate-200 pt-5 dark:border-slate-800">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="mt-1 flex h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" />
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {order.payment_status === 'failed' ? t('paymentFailedRetry') : t('orderPlacedUnpaid')}
+          </p>
+        </div>
+        <Button onClick={handlePay} disabled={isPaying} className="w-full sm:w-auto px-6">
+          {isPaying ? t('processing') : t('payWithMomoNow')}
+        </Button>
+      </div>
+      {paymentNotice && !error && (
+        <p className="mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in slide-in-from-top-1">
+          {paymentNotice}
+        </p>
+      )}
+      {error && (
+        <p className="mt-3 text-sm font-medium text-rose-600 dark:text-rose-400 animate-in fade-in slide-in-from-top-1">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function OrdersHeader() {
@@ -288,6 +379,7 @@ export function OrdersPage() {
               <p className="text-sm text-slate-500 dark:text-slate-400">{t('paymentMethod')}: {formatStatusLabel(order.payment_method, t)}</p>
               <p className="text-lg font-bold">{formatCurrency(order.total_rwf)}</p>
             </div>
+            <OrderPaymentAction order={order} />
             <ReviewForm order={order} />
             </section>
           );

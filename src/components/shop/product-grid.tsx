@@ -14,7 +14,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
   }
 
   return (
-    <section className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+    <section className="mt-6 grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

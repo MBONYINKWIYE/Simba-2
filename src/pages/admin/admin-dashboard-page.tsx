@@ -165,15 +165,20 @@ function AdminOrderDetail({
   currentUserRole: 'admin' | 'manager' | 'staff' | 'super_admin';
   staffAssignments: ShopAdminAssignment[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const assignOrderToStaff = useAssignOrderToStaff();
   const [staffUserId, setStaffUserId] = useState('');
 
   if (!order) {
     return (
-      <section className="glass-panel p-6">
-        <h2 className="text-2xl font-bold">{t('adminOrderDetail')}</h2>
-        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{t('adminNoOrders')}</p>
+      <section className="glass-panel flex flex-col items-center justify-center p-12 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-900/50">
+          <svg className="h-8 w-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+        </div>
+        <h2 className="mt-4 text-xl font-bold">{t('adminOrderDetail')}</h2>
+        <p className="mt-2 max-w-[240px] text-sm text-slate-500 dark:text-slate-400">{t('adminNoOrders')}</p>
       </section>
     );
   }
@@ -204,11 +209,11 @@ function AdminOrderDetail({
             {t('orderLabel')} #{order.id.slice(0, 8)}
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
-            {new Date(order.created_at).toLocaleString()}
+            {new Date(order.created_at).toLocaleString(i18n.language)}
           </p>
           {order.pickup_time ? (
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
-              {t('pickupTimeLabel')}: {new Date(order.pickup_time).toLocaleString()}
+              {t('pickupTimeLabel')}: {new Date(order.pickup_time).toLocaleString(i18n.language)}
             </p>
           ) : null}
           {order.shops?.name ? (
@@ -253,17 +258,36 @@ function AdminOrderDetail({
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+          <div className="rounded-3xl bg-stone-50 p-5 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
               {t('customerInfo')}
             </h3>
-            <p className="mt-3 break-words font-semibold">{order.full_name}</p>
-            <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{order.phone}</p>
-            {order.user_email ? (
-              <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{order.user_email}</p>
-            ) : null}
-            <p className="mt-3 break-words text-sm text-slate-500 dark:text-slate-400">{order.delivery_address}</p>
-            {order.notes ? <p className="mt-3 break-words text-sm text-slate-500 dark:text-slate-400">{order.notes}</p> : null}
+            <div className="mt-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{order.full_name}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('customerName')}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{order.phone}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('phone')}</p>
+              </div>
+              {order.user_email ? (
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{order.user_email}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('email')}</p>
+                </div>
+              ) : null}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{order.delivery_address}</p>
+                <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('deliveryAddress')}</p>
+              </div>
+              {order.notes ? (
+                <div className="rounded-2xl bg-brand-50/50 p-3 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
+                  <p className="text-[10px] font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-1">{t('notes')}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{order.notes}</p>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900">
@@ -379,7 +403,7 @@ function SuperAdminPanel() {
         <Badge>{t('superAdminBadge')}</Badge>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleCreateShop}>
           <h3 className="text-lg font-semibold">{t('createShop')}</h3>
           <div className="mt-4 grid gap-3">
@@ -387,14 +411,14 @@ function SuperAdminPanel() {
               required
               value={shopForm.name}
               onChange={(event) => setShopForm((current) => ({ ...current, name: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopName')}
             />
             <input
               required
               value={shopForm.address}
               onChange={(event) => setShopForm((current) => ({ ...current, address: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopAddress')}
             />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -404,7 +428,7 @@ function SuperAdminPanel() {
                 step="any"
                 value={shopForm.latitude}
                 onChange={(event) => setShopForm((current) => ({ ...current, latitude: event.target.value }))}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
                 placeholder={t('latitude')}
               />
               <input
@@ -413,7 +437,7 @@ function SuperAdminPanel() {
                 step="any"
                 value={shopForm.longitude}
                 onChange={(event) => setShopForm((current) => ({ ...current, longitude: event.target.value }))}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
                 placeholder={t('longitude')}
               />
             </div>
@@ -421,11 +445,11 @@ function SuperAdminPanel() {
               required
               value={shopForm.phone}
               onChange={(event) => setShopForm((current) => ({ ...current, phone: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopPhone')}
             />
           </div>
-          <Button type="submit" className="mt-4" disabled={createShop.isPending}>
+          <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={createShop.isPending}>
             {t('createShop')}
           </Button>
           {createShop.isSuccess ? <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{t('shopCreated')}</p> : null}
@@ -444,14 +468,14 @@ function SuperAdminPanel() {
               type="email"
               value={assignmentForm.adminEmail}
               onChange={(event) => setAssignmentForm((current) => ({ ...current, adminEmail: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopAdminEmail')}
             />
             <select
               required
               value={assignmentForm.shopId}
               onChange={(event) => setAssignmentForm((current) => ({ ...current, shopId: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
             >
               <option value="">{t('selectShop')}</option>
               {(shopsQuery.data ?? []).map((shop) => (
@@ -465,14 +489,14 @@ function SuperAdminPanel() {
               onChange={(event) =>
                 setAssignmentForm((current) => ({ ...current, role: event.target.value as 'admin' | 'manager' | 'staff' }))
               }
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
             >
               <option value="admin">{t('admin')}</option>
               <option value="manager">{t('manager')}</option>
               <option value="staff">{t('staff')}</option>
             </select>
           </div>
-          <Button type="submit" className="mt-4" disabled={assignShopAdmin.isPending}>
+          <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={assignShopAdmin.isPending}>
             {t('assignShopAdmin')}
           </Button>
           {assignShopAdmin.isSuccess ? (
@@ -486,7 +510,7 @@ function SuperAdminPanel() {
         </form>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
           <h3 className="text-lg font-semibold">{t('registeredShops')}</h3>
           <div className="mt-4 space-y-3">
@@ -524,7 +548,7 @@ function SuperAdminPanel() {
 }
 
 export function AdminDashboardPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { orderId } = useParams();
   const authRoleQuery = useUserRole();
   const shopsQuery = useShops();
@@ -537,6 +561,8 @@ export function AdminDashboardPage() {
   const ordersQuery = useAdminOrdersRealtime(shopId, isSuperAdmin);
   const shops = shopsQuery.data ?? [];
   const currentShop = shops.find((shop) => shop.id === shopId) ?? null;
+
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   if (authRoleQuery.isLoading || ordersQuery.isLoading || shopsQuery.isLoading || shopAdminsQuery.isLoading) {
     return <div className="glass-panel p-6">{t('loadingOrders')}</div>;
@@ -552,7 +578,11 @@ export function AdminDashboardPage() {
     );
   }
 
-  const orders = ordersQuery.data ?? [];
+  const rawOrders = ordersQuery.data ?? [];
+  const orders = rawOrders
+    .filter((order) => (statusFilter === 'all' ? true : order.status === statusFilter))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
   const activeOrder = orders.find((order) => order.id === orderId) ?? orders[0] ?? null;
 
   return (
@@ -585,7 +615,7 @@ export function AdminDashboardPage() {
       {isSuperAdmin ? <SuperAdminPanel /> : null}
 
       {canManageOrders || isSuperAdmin ? (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <InventoryPanel
             scopeShopId={shopId}
             isSuperAdmin={isSuperAdmin}
@@ -601,15 +631,37 @@ export function AdminDashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <section className="glass-panel p-6">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold">{t('adminOrderQueue')}</h2>
-            <Badge>{orders.length}</Badge>
+      <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="glass-panel p-4 sm:p-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+              <h2 className="text-xl font-bold sm:text-2xl">{t('adminOrderQueue')}</h2>
+              <Badge className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
+                {orders.length}
+              </Badge>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {['all', 'pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                    statusFilter === status
+                      ? 'bg-brand-500 text-white shadow-lg'
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {status === 'all' ? t('allCategories') : formatStatusLabel(status, t)}
+                </button>
+              ))}
+            </div>
           </div>
 
           {orders.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('adminNoOrders')}</p>
+            <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+              {statusFilter === 'all' ? t('adminNoOrders') : t('noResults')}
+            </p>
           ) : (
             <div className="mt-5 space-y-3">
               {orders.map((order) => (
@@ -618,32 +670,31 @@ export function AdminDashboardPage() {
                   to={`/admin/orders/${order.id}`}
                   className={`block rounded-3xl border p-4 transition ${
                     activeOrder?.id === order.id
-                      ? 'border-brand-400 bg-brand-50 dark:border-brand-600 dark:bg-brand-900/20'
+                      ? 'border-brand-400 bg-brand-50 shadow-md dark:border-brand-600 dark:bg-brand-900/20'
                       : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">
-                        {order.full_name} #{order.id.slice(0, 8)}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-slate-900 dark:text-slate-100">
+                        {order.full_name}
                       </p>
-                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        {new Date(order.created_at).toLocaleString()}
+                      <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        #{order.id.slice(0, 8)} • {new Date(order.created_at).toLocaleString(i18n.language, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </p>
-                      {order.pickup_time ? (
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                          {new Date(order.pickup_time).toLocaleString()}
-                        </p>
-                      ) : null}
-                      {order.shops?.name ? (
-                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{order.shops.name}</p>
-                      ) : null}
                     </div>
-                    <Badge className={statusClassName(order.status)}>{formatStatusLabel(order.status, t)}</Badge>
+                    <Badge className={`${statusClassName(order.status)} text-[10px] uppercase tracking-wider`}>
+                      {formatStatusLabel(order.status, t)}
+                    </Badge>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-4 text-sm">
-                    <span className="text-slate-500 dark:text-slate-400">{order.phone}</span>
-                    <span className="font-semibold">{formatCurrency(order.total_rwf)}</span>
+                  <div className="mt-3 flex items-center justify-between gap-4">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{order.phone}</span>
+                    <span className="font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
                   </div>
                 </Link>
               ))}

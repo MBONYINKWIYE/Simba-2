@@ -323,17 +323,43 @@ export function CheckoutPage() {
       setIsSubmitting(true);
       const payment = await requestToPay(requestPayload);
 
-      if (!payment.referenceId || !payment.orderId) {
+      if (!payment.orderId) {
         throw new Error(t('paymentNoReference'));
       }
 
-      setPaymentReference(payment.referenceId);
-      setPaymentStatus('PENDING');
-      setPendingPayment({
-        orderId: payment.orderId,
-        referenceId: payment.referenceId,
-      });
-      await pollMomoPayment(payment.referenceId, payment.orderId, 'momo');
+      if (payment.warning) {
+        setPaymentNotice(payment.warning);
+        setIsSubmitting(false);
+        // Redirect to confirmation even with warning since order is created
+        navigate(`/checkout/confirmation/${payment.orderId}`, {
+          replace: true,
+          state: {
+            orderId: payment.orderId,
+            paymentMethod: 'momo',
+            warning: payment.warning
+          },
+        });
+        return;
+      }
+
+      if (payment.referenceId) {
+        setPaymentReference(payment.referenceId);
+        setPaymentStatus('PENDING');
+        setPendingPayment({
+          orderId: payment.orderId,
+          referenceId: payment.referenceId,
+        });
+        await pollMomoPayment(payment.referenceId, payment.orderId, 'momo');
+      } else {
+        // Just created order without reference
+        navigate(`/checkout/confirmation/${payment.orderId}`, {
+          replace: true,
+          state: {
+            orderId: payment.orderId,
+            paymentMethod: 'momo',
+          },
+        });
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
       setIsSubmitting(false);

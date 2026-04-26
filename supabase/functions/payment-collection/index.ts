@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 
-// 1. Inlined CORS headers (Removes reliance on external files)
+// 1. Inlined CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
@@ -57,16 +57,21 @@ type StatusBody = {
   referenceId: string;
 };
 
+type InitiatePaymentBody = {
+  action: 'initiatePayment';
+  orderId: string;
+  phone?: string; // Optional: allow paying with a different number
+};
+
 type AuthenticatedUser = {
   id: string;
   email: string | null;
 };
 
-type RequestBody = | RequestToPayBody | CreateCashOrderBody | StatusBody;
+type RequestBody = | RequestToPayBody | CreateCashOrderBody | StatusBody | InitiatePaymentBody;
 
 const baseUrl = 'https://payments.paypack.rw/api';
 
-// Helper for JSON responses
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -77,7 +82,6 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-// Phone normalization logic
 function normalizeRwPhoneNumber(rawNumber: string) {
   const digits = rawNumber.replace(/\D/g, '');
   if (digits.startsWith('250') && digits.length === 12) return `0${digits.slice(3)}`;
@@ -85,8 +89,6 @@ function normalizeRwPhoneNumber(rawNumber: string) {
   if (digits.length === 9 && digits.startsWith('7')) return `0${digits}`;
   return digits;
 }
-
-// --- Helper Functions (Moved up to be available in Deno.serve) ---
 
 async function createAccessToken() {
   const clientId = Deno.env.get('PAYPACK_CLIENT_ID') ?? '';
@@ -115,9 +117,16 @@ async function getAuthenticatedUser(request: Request, supabaseAdmin: any): Promi
   return { id: data.user.id, email: data.user.email ?? null };
 }
 
-async function insertOrder(payload: RequestToPayBody, user: AuthenticatedUser, referenceId: string, status: string, supabaseAdmin: any) {
+async function insertOrder(
+  payload: RequestToPayBody | CreateCashOrderBody,
+  user: AuthenticatedUser,
+  supabaseAdmin: any,
+  momoReference: string | null = null,
+  momoStatus: string | null = null
+) {
   const receiver = Deno.env.get('PAYPACK_RECEIVER_NUMBER') ?? '';
-  const amount = payload.paymentAmountRwf ?? payload.totalRwf;
+  const amount = (payload as any).paymentAmountRwf ?? payload.totalRwf;
+  const paymentPlan = (payload as any).paymentPlan ?? (payload.checkout.paymentMethod === 'momo' ? 'momo' : 'cash-on-pickup');
 
   const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
     p_user_id: user.id,
@@ -137,12 +146,17 @@ async function insertOrder(payload: RequestToPayBody, user: AuthenticatedUser, r
     p_total_rwf: payload.totalRwf,
     p_notes: payload.checkout.notes ?? null,
     p_items: payload.items,
-    p_momo_reference: referenceId,
-    p_momo_external_id: referenceId,
-    p_momo_account_holder_status: 'active',
-    p_momo_status: status.toUpperCase(),
+    p_momo_reference: momoReference,
+    p_momo_external_id: momoReference,
+    p_momo_account_holder_status: momoReference ? 'active' : null,
+    p_momo_status: momoStatus ? momoStatus.toUpperCase() : null,
     p_payment_provider: 'paypack',
-    p_payment_payload: { provider: 'paypack', receiver, paymentAmountRwf: amount },
+    p_payment_payload: { 
+      provider: 'paypack', 
+      receiver, 
+      paymentAmountRwf: amount,
+      paymentPlan
+    },
   });
 
   if (error || !data) throw new Error(`DB Error: ${error?.message}`);
@@ -150,55 +164,87 @@ async function insertOrder(payload: RequestToPayBody, user: AuthenticatedUser, r
 }
 
 async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser, supabaseAdmin: any) {
+  // 1. Always insert order first so it's in history even if payment initiation fails
+  const orderId = await insertOrder(payload, user, supabaseAdmin);
+  
+  try {
+    const accessToken = await createAccessToken();
+    const amount = payload.paymentAmountRwf ?? payload.totalRwf;
+
+    const response = await fetch(`${baseUrl}/transactions/cashin`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, number: normalizeRwPhoneNumber(payload.checkout.phone) }),
+    });
+
+    const responseData = await response.json();
+    
+    if (response.ok && responseData.ref) {
+      // Update order with reference
+      await supabaseAdmin.from('orders').update({
+        momo_reference: responseData.ref,
+        momo_external_id: responseData.ref,
+        momo_status: responseData.status?.toUpperCase() ?? 'PENDING',
+        momo_account_holder_status: 'active'
+      }).eq('id', orderId);
+
+      return { ok: true, orderId, referenceId: responseData.ref };
+    } else {
+      return { 
+        ok: true, // Still true because order was created
+        orderId, 
+        warning: 'Payment initiation failed, but order was placed. You can pay from your order history.',
+        message: responseData?.message 
+      };
+    }
+  } catch (error) {
+    return { 
+      ok: true, 
+      orderId, 
+      warning: 'Order placed but payment initiation encountered an error. You can pay from your order history.' 
+    };
+  }
+}
+
+async function initiatePayment(orderId: string, phone: string | undefined, user: AuthenticatedUser, supabaseAdmin: any) {
+  // 1. Fetch order details
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (orderError || !order) throw new Error('Order not found or unauthorized');
+  if (order.payment_status === 'paid') throw new Error('Order is already paid');
+
   const accessToken = await createAccessToken();
-  const amount = payload.paymentAmountRwf ?? payload.totalRwf;
+  const paymentPayload = order.payment_payload || {};
+  const amount = paymentPayload.paymentAmountRwf ?? order.total_rwf;
+  const targetPhone = phone || order.phone;
 
   const response = await fetch(`${baseUrl}/transactions/cashin`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount, number: normalizeRwPhoneNumber(payload.checkout.phone) }),
+    body: JSON.stringify({ amount, number: normalizeRwPhoneNumber(targetPhone) }),
   });
 
   const responseData = await response.json();
   if (!response.ok) return { ok: false, status: response.status, message: responseData?.message };
 
-  const orderId = await insertOrder(payload, user, responseData.ref, responseData.status, supabaseAdmin);
+  // Update order with new reference
+  await supabaseAdmin.from('orders').update({
+    momo_reference: responseData.ref,
+    momo_external_id: responseData.ref,
+    momo_status: responseData.status?.toUpperCase() ?? 'PENDING',
+    momo_account_holder_status: 'active',
+    payment_method: 'momo' // Ensure method is updated if they switched from cash
+  }).eq('id', orderId);
+
   return { ok: true, orderId, referenceId: responseData.ref };
 }
 
-async function createCashOrder(payload: CreateCashOrderBody, user: AuthenticatedUser, supabaseAdmin: any) {
-  const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
-    p_user_id: user.id,
-    p_user_email: user.email,
-    p_shop_id: payload.shopId,
-    p_pickup_time: payload.checkout.pickupTime,
-    p_full_name: payload.checkout.fullName,
-    p_phone: payload.checkout.phone,
-    p_delivery_address: payload.checkout.address,
-    p_payment_method: payload.checkout.paymentMethod,
-    p_payment_status: 'pending',
-    p_status: 'pending',
-    p_fulfillment_status: 'pending',
-    p_subtotal_rwf: payload.subtotalRwf,
-    p_delivery_fee_rwf: payload.deliveryFeeRwf,
-    p_service_fee_rwf: payload.serviceFeeRwf,
-    p_total_rwf: payload.totalRwf,
-    p_notes: payload.checkout.notes ?? null,
-    p_items: payload.items,
-    p_momo_reference: null,
-    p_momo_external_id: null,
-    p_momo_account_holder_status: null,
-    p_momo_status: null,
-    p_payment_provider: 'cash-on-pickup',
-    p_payment_payload: { mode: 'cash-on-pickup' },
-  });
-
-  if (error || !data) throw new Error(`DB Error: ${error?.message}`);
-  return data;
-}
-
 async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUser, supabaseAdmin: any) {
-  // Check ownership
   const { data: order } = await supabaseAdmin.from('orders').select('id').eq('momo_reference', referenceId).eq('user_id', user.id).maybeSingle();
   if (!order) throw new Error('Order not found or unauthorized');
 
@@ -213,7 +259,6 @@ async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUse
 
   const status = payload?.status ?? 'pending';
   
-  // Update DB
   await supabaseAdmin.from('orders').update({
     momo_status: status.toUpperCase(),
     payment_status: status.toLowerCase() === 'success' ? 'paid' : 'pending',
@@ -223,15 +268,12 @@ async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUse
   return { ok: true, status: response.status, payload: { status: status.toUpperCase(), ...payload } };
 }
 
-// --- Main Handler ---
 Deno.serve(async (request) => {
-  // 1. Handle CORS preflight IMMEDIATELY
   if (request.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {
-    // 2. Safely initialize constants inside the handler
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
@@ -249,17 +291,22 @@ Deno.serve(async (request) => {
       case 'requestToPay': {
         const user = await getAuthenticatedUser(request, supabaseAdmin);
         const result = await requestToPay(body, user, supabaseAdmin);
-        return jsonResponse(result, result.ok ? 200 : result.status);
+        return jsonResponse(result, result.ok ? 200 : 500);
       }
       case 'createCashOrder': {
         const user = await getAuthenticatedUser(request, supabaseAdmin);
-        const orderId = await createCashOrder(body, user, supabaseAdmin);
+        const orderId = await insertOrder(body, user, supabaseAdmin);
         return jsonResponse({ ok: true, orderId }, 201);
       }
       case 'getRequestToPayStatus': {
         const user = await getAuthenticatedUser(request, supabaseAdmin);
         const result = await getRequestToPayStatus(body.referenceId, user, supabaseAdmin);
         return jsonResponse(result, result.ok ? 200 : result.status);
+      }
+      case 'initiatePayment': {
+        const user = await getAuthenticatedUser(request, supabaseAdmin);
+        const result = await initiatePayment(body.orderId, body.phone, user, supabaseAdmin);
+        return jsonResponse(result, result.ok ? 200 : 400);
       }
       default:
         return jsonResponse({ error: 'Unsupported action' }, 400);

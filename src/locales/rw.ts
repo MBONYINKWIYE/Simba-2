@@ -306,6 +306,13 @@ const translation = {
       keepTracking: 'Komeza kuyikurikirana',
       orderConfirmationTrackingCopy: 'Fungura Commande zanjye igihe cyose kugira ngo urebe uko ubwishyu no gutegura bigenda.',
       checkPaymentAgain: 'Ongera ugenzure ubwishyu',
+      paymentAwaitingPrompt: 'Reba kuri terefone yawe uburyo bwo kwishyura kuri MoMo.',
+      orderPlacedUnpaid: 'Iyi gahunda yakozwe ariko kwishyura ntibirangiye.',
+      payWithMomoNow: 'Ishyura noneho na MoMo',
+      paymentFailedRetry: 'Kwishyura kwabanje ntibyagenze neza. Ongera ugerageze.',
+      customerName: 'Izina ry umukiriya',
+      phone: 'Telefone',
+      notes: 'Icyitonderwa',
       footerTitle: 'Yubakiwe gufasha gufata ibicuruzwa vuba',
       footerCopy:
         'Shakisha ibicuruzwa, hitamo ishami rikwiye, kandi urangize kwishyura neza ukoresheje MoMo cyangwa kwishyura ufata ibicuruzwa.',
