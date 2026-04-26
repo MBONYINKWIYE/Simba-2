@@ -331,6 +331,13 @@ const translation = {
       footerTrackOrderLink: 'Kurikirana commande',
       footerRights: '© {{year}} Simba Supermarket. Guhaha i Kigali byoroshye kurushaho.',
       searchResults: 'Ibisubizo byo gushakisha',
+      for: 'kuri',
+      budget: 'ingengo y imari',
+      aiSearchNoTokens: 'Gerageza gusaba ibintu bisobonuye neza nko kuvuga ngo amata, umuceri, ibya mu gitondo, cyangwa ibikoresho by isuku.',
+      aiSearchNoMatches: 'Ntabwo nshoboye kubona igicuruzwa gihuye neza muri kataloge yacu ubu. Gerageza gukoresha izina ry ikirango, icyiciro, cyangwa amagambo yoroheje.',
+      aiSearchSingleMatch: 'Nasobanuye ko ushaka {{context}} maze mbona 1 gihuye neza na "{{query}}": {{name}}.',
+      aiSearchMultipleMatches: 'Nasobanuye ko ushaka {{context}} maze mbona ibihuye neza {{count}} na "{{query}}", harimo {{names}}.',
+      allOrders: 'Commande zose',
 };
 
 export default translation;

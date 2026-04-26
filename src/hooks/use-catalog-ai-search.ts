@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import type { CatalogAiSearchResult, CatalogSearchContext, Product } from '@/types';
 
@@ -135,7 +136,7 @@ function extractSearchContext(query: string): CatalogSearchContext {
   };
 }
 
-function buildContextSummary(context: CatalogSearchContext) {
+function buildContextSummary(context: CatalogSearchContext, t: (key: string, options?: any) => string) {
   const parts: string[] = [];
 
   if (context.occasion) {
@@ -143,7 +144,7 @@ function buildContextSummary(context: CatalogSearchContext) {
   }
 
   if (context.audience) {
-    parts.push(`for ${context.audience}`);
+    parts.push(`${t('for')} ${context.audience}`);
   }
 
   if (context.dietaryPreference) {
@@ -151,7 +152,7 @@ function buildContextSummary(context: CatalogSearchContext) {
   }
 
   if (context.budget) {
-    parts.push(`budget around ${context.budget}`);
+    parts.push(`${t('budget')} ${context.budget}`);
   }
 
   if (context.urgency) {
@@ -165,7 +166,7 @@ function buildContextSummary(context: CatalogSearchContext) {
   return `${context.intent}: ${parts.join(', ')}`;
 }
 
-function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): CatalogAiSearchResult {
+function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs, t: (key: string, options?: any) => string): CatalogAiSearchResult {
   const context = extractSearchContext(query);
   const tokens = tokenize(query);
   const contextualTokens = tokenize([context.occasion, context.audience, context.dietaryPreference, context.urgency].filter(Boolean).join(' '));
@@ -173,7 +174,7 @@ function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): Catalog
 
   if (searchTokens.length === 0) {
     return {
-      answer: 'Try a more specific request like milk, rice, breakfast items, or cleaning supplies.',
+      answer: t('aiSearchNoTokens'),
       productIds: [],
     };
   }
@@ -209,28 +210,27 @@ function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): Catalog
 
   if (rankedProducts.length === 0) {
     return {
-      answer:
-        'I could not find a close product match in the current catalog. Try a brand, category, or simpler keywords.',
+      answer: t('aiSearchNoMatches'),
       productIds: [],
     };
   }
 
   const matchedNames = rankedProducts.slice(0, 3).map((entry) => entry.product.name).join(', ');
   const matchedCount = rankedProducts.length;
-  const contextSummary = buildContextSummary(context);
+  const contextSummary = buildContextSummary(context, t);
 
   return {
     answer:
       matchedCount === 1
-        ? `I inferred ${contextSummary} and found 1 close match for "${query}": ${matchedNames}.`
-        : `I inferred ${contextSummary} and found ${matchedCount} close matches for "${query}", including ${matchedNames}.`,
+        ? t('aiSearchSingleMatch', { context: contextSummary, query, name: matchedNames })
+        : t('aiSearchMultipleMatches', { context: contextSummary, query, count: matchedCount, names: matchedNames }),
     productIds: rankedProducts.map((entry) => entry.product.id),
   };
 }
 
-async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs): Promise<CatalogAiSearchResult> {
+async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs, t: (key: string, options?: any) => string): Promise<CatalogAiSearchResult> {
   if (!supabase) {
-    return buildLocalAiFallback({ query, products });
+    return buildLocalAiFallback({ query, products }, t);
   }
 
   const catalogContext = products.map((product) => ({
@@ -253,18 +253,19 @@ async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs): Pr
 
   if (error) {
     console.warn('AI search function failed; using local fallback instead.', error);
-    return buildLocalAiFallback({ query, products });
+    return buildLocalAiFallback({ query, products }, t);
   }
 
   if (!data) {
-    return buildLocalAiFallback({ query, products });
+    return buildLocalAiFallback({ query, products }, t);
   }
 
   return data;
 }
 
 export function useCatalogAiSearch() {
+  const { t } = useTranslation();
   return useMutation({
-    mutationFn: searchCatalogWithAi,
+    mutationFn: (args: CatalogAiSearchArgs) => searchCatalogWithAi(args, t),
   });
 }

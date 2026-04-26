@@ -163,6 +163,7 @@ export type OrderHistoryItem = {
 
 export type OrderHistoryRecord = {
   id: string;
+  user_id: string;
   created_at: string;
   pickup_time?: string | null;
   total_rwf: number;

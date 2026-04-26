@@ -594,7 +594,7 @@ export function AdminDashboardPage() {
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
             {authRoleQuery.data?.shopName ? (
               <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">
-                {t('adminShopLabel')}: {authRoleQuery.data.shopName}
+                {t('adminShopLabel')}: {authRoleQuery.data.shopName === 'All Simba shops' ? t('allOrders') : authRoleQuery.data.shopName}
               </p>
             ) : null}
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">

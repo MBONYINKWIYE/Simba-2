@@ -7,6 +7,7 @@ import { BrandLogo } from '@/components/layout/brand-logo';
 import { useAuth } from '@/hooks/use-auth';
 import { signOut } from '@/lib/auth';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useUserRole } from '@/hooks/use-user-role';
 import { LANGUAGES } from '@/lib/constants';
 import { useCartStore } from '@/store/cart-store';
 import { usePreferencesStore } from '@/store/preferences-store';
@@ -17,6 +18,9 @@ export function Header() {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
   const { data } = useCatalog();
+  const authRoleQuery = useUserRole();
+  const isAdmin = authRoleQuery.data?.role === 'shop_admin' || authRoleQuery.data?.role === 'super_admin';
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
@@ -161,6 +165,11 @@ export function Header() {
           <NavLink to="/orders" className="text-sm font-medium text-slate-600 dark:text-slate-300">
             {t('myOrders')}
           </NavLink>
+          {isAdmin ? (
+            <NavLink to="/admin" className="text-sm font-bold text-brand-600 dark:text-brand-400">
+              {t('adminDashboard')}
+            </NavLink>
+          ) : null}
         </nav>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -289,6 +298,15 @@ export function Header() {
               >
                 {t('myOrders')}
               </NavLink>
+              {isAdmin ? (
+                <NavLink
+                  to="/admin"
+                  className="rounded-2xl px-3 py-2 text-sm font-bold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {t('adminDashboard')}
+                </NavLink>
+              ) : null}
             </nav>
 
             <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
