@@ -6,8 +6,8 @@ import { Clock3, Star, ShoppingBasket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
-import { DEFAULT_CHECKOUT_VALUES } from '@/lib/constants';
-import { createCashOrder, requestToPay, getRequestToPayStatus } from '@/lib/payment';
+import { DEFAULT_CHECKOUT_VALUES, PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
+import { requestToPay, getRequestToPayStatus } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import { useOrderSummary } from '@/hooks/use-order-summary';
 import { useCartStore } from '@/store/cart-store';
@@ -70,6 +70,12 @@ function buildPickupSlots() {
   }
 
   return slots;
+}
+
+const CASH_ON_PICKUP_DEPOSIT_RATE = 0.1;
+
+function calculateCashOnPickupDeposit(totalRwf: number) {
+  return Math.max(1, Math.round(totalRwf * CASH_ON_PICKUP_DEPOSIT_RATE));
 }
 
 export function CheckoutPage() {
@@ -171,6 +177,13 @@ export function CheckoutPage() {
   }, [rankedShops, selectedShopId, setSelectedShop]);
 
   const selectedShop = rankedShops.find((shop) => shop.id === selectedShopId) ?? null;
+  const cashOnPickupDepositRwf = calculateCashOnPickupDeposit(summary.total);
+  const cashOnPickupBalanceDueRwf = Math.max(summary.total - cashOnPickupDepositRwf, 0);
+  const submitLabel = isSubmitting
+    ? t('processingOrder')
+    : formValues.paymentMethod === 'momo'
+      ? t('payNow')
+      : t('payDepositNow');
 
   useEffect(() => {
     if (pickupSlots.length === 0) {
@@ -189,11 +202,11 @@ export function CheckoutPage() {
     });
   }, [pickupSlots]);
 
-  const pollMomoPayment = async (referenceId: string, orderId: string) => {
+  const pollMomoPayment = async (referenceId: string, orderId: string, paymentMethod: 'cash' | 'momo') => {
     setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
-    setPaymentNotice(t('momoAwaitingConfirmation'));
+    setPaymentNotice(t('paymentAwaitingConfirmation'));
     setPaymentStatus('PENDING');
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -207,36 +220,36 @@ export function CheckoutPage() {
         if (nextStatus === 'SUCCESSFUL') {
           clearCart();
           setPendingPayment(null);
-          setPaymentNotice(t('momoAuthorized'));
+          setPaymentNotice(t('paymentAuthorized'));
           setIsSubmitting(false);
           navigate(`/checkout/confirmation/${orderId}`, {
             replace: true,
             state: {
               orderId,
               referenceId,
-              paymentMethod: 'momo',
+              paymentMethod,
             },
           });
           return;
         }
 
         if (nextStatus === 'FAILED') {
-          setPaymentNotice(t('momoFailed'));
-          setErrorMessage(t('momoFailed'));
+          setPaymentNotice(t('paymentFailed'));
+          setErrorMessage(t('paymentFailed'));
           setPendingPayment(null);
           setIsSubmitting(false);
           return;
         }
 
-        setPaymentNotice(t('momoPending'));
+        setPaymentNotice(t('paymentPending'));
       } catch (error) {
         if (attempt < 7) {
-          setPaymentNotice(t('momoRetryingStatus'));
+          setPaymentNotice(t('paymentRetryingStatus'));
           continue;
         }
 
-        setErrorMessage(error instanceof Error ? error.message : t('failedToStartMomo'));
-        setPaymentNotice(t('momoCheckAgain'));
+        setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
+        setPaymentNotice(t('paymentCheckAgain'));
         setPendingPayment(null);
         setIsSubmitting(false);
         return;
@@ -244,7 +257,7 @@ export function CheckoutPage() {
     }
 
     setIsSubmitting(false);
-    setPaymentNotice(t('momoPending'));
+    setPaymentNotice(t('paymentPending'));
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -283,23 +296,24 @@ export function CheckoutPage() {
     if (formValues.paymentMethod === 'cash') {
       try {
         setIsSubmitting(true);
-        const result = await createCashOrder(requestPayload);
-        if (!result.orderId) {
-          throw new Error(t('failedToCreateCashOrder'));
-        }
-        clearCart();
-        setFormValues({ ...DEFAULT_CHECKOUT_VALUES });
-        setIsSubmitting(false);
-        navigate(`/checkout/confirmation/${result.orderId}`, {
-          replace: true,
-          state: {
-            orderId: result.orderId,
-            paymentMethod: 'cash',
-          },
+        const result = await requestToPay({
+          ...requestPayload,
+          paymentAmountRwf: cashOnPickupDepositRwf,
+          paymentPlan: 'cash-on-pickup',
         });
+        if (!result.orderId || !result.referenceId) {
+          throw new Error(t('paymentNoReference'));
+        }
+        setPaymentReference(result.referenceId);
+        setPaymentStatus('PENDING');
+        setPendingPayment({
+          orderId: result.orderId,
+          referenceId: result.referenceId,
+        });
+        await pollMomoPayment(result.referenceId, result.orderId, 'cash');
         return;
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : t('failedToCreateCashOrder'));
+        setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
         setIsSubmitting(false);
         return;
       }
@@ -310,7 +324,7 @@ export function CheckoutPage() {
       const payment = await requestToPay(requestPayload);
 
       if (!payment.referenceId || !payment.orderId) {
-        throw new Error(t('momoNoReference'));
+        throw new Error(t('paymentNoReference'));
       }
 
       setPaymentReference(payment.referenceId);
@@ -319,9 +333,9 @@ export function CheckoutPage() {
         orderId: payment.orderId,
         referenceId: payment.referenceId,
       });
-      await pollMomoPayment(payment.referenceId, payment.orderId);
+      await pollMomoPayment(payment.referenceId, payment.orderId, 'momo');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('failedToStartMomo'));
+      setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
       setIsSubmitting(false);
     }
   };
@@ -542,6 +556,22 @@ export function CheckoutPage() {
               <span className="ml-3 font-semibold">{t('cash')}</span>
             </label>
           </div>
+          {formValues.paymentMethod === 'momo' ? (
+            <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
+              <p className="font-semibold">{t('momoCheckoutTitle')}</p>
+              <p className="mt-1">{t('momoCheckoutCopy', { receiverNumber: PAYPACK_RECEIVER_NUMBER })}</p>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
+              <p className="font-semibold">{t('cashOnPickupTitle')}</p>
+              <p className="mt-1">
+                {t('cashOnPickupCopy', {
+                  depositAmount: formatCurrency(cashOnPickupDepositRwf),
+                  balanceAmount: formatCurrency(cashOnPickupBalanceDueRwf),
+                })}
+              </p>
+            </div>
+          )}
         </div>
         <Button
           type="submit"
@@ -555,7 +585,7 @@ export function CheckoutPage() {
             (pendingPayment !== null && paymentStatus === 'PENDING')
           }
         >
-          {isSubmitting ? t('processingOrder') : t('placeOrder')}
+          {submitLabel}
         </Button>
         {pendingPayment && paymentStatus === 'PENDING' ? (
           <Button
@@ -564,7 +594,13 @@ export function CheckoutPage() {
             className="mt-3"
             fullWidth
             disabled={isSubmitting}
-            onClick={() => void pollMomoPayment(pendingPayment.referenceId, pendingPayment.orderId)}
+            onClick={() =>
+              void pollMomoPayment(
+                pendingPayment.referenceId,
+                pendingPayment.orderId,
+                formValues.paymentMethod,
+              )
+            }
           >
             {t('checkPaymentAgain')}
           </Button>
@@ -577,7 +613,7 @@ export function CheckoutPage() {
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em]">
               {paymentStatus
                 ? `${t('paymentStatus')}: ${paymentStatus === 'SUCCESSFUL' ? t('paid') : paymentStatus === 'FAILED' ? t('failed') : t('pending')}`
-                : t('momoAwaitingConfirmation')}
+                : t('paymentAwaitingConfirmation')}
             </p>
           </div>
         ) : null}

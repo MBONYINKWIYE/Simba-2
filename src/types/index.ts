@@ -104,6 +104,18 @@ export type OrderCreatePayload = {
   serviceFeeRwf: number;
   totalRwf: number;
   shopId: string;
+  paymentAmountRwf?: number;
+  paymentPlan?: 'momo' | 'cash-on-pickup';
+};
+
+export type OrderPaymentPayload = {
+  provider?: string;
+  receiverNumber?: string;
+  paymentPlan?: 'momo' | 'cash-on-pickup';
+  paymentAmountRwf?: number;
+  depositRwf?: number;
+  balanceDueRwf?: number;
+  [key: string]: unknown;
 };
 
 export type RequestToPayResult = {
@@ -112,6 +124,7 @@ export type RequestToPayResult = {
   orderId?: string;
   referenceId?: string;
   externalId?: string;
+  paymentAmountRwf?: number;
   accountHolderStatus?: string;
   providerPayload?: unknown;
   message?: string;
@@ -169,7 +182,7 @@ export type OrderHistoryRecord = {
   momo_reference?: string | null;
   momo_status?: string | null;
   payment_provider?: string | null;
-  payment_payload?: unknown;
+  payment_payload?: OrderPaymentPayload;
   paid_at?: string | null;
 };
 
@@ -212,11 +225,22 @@ export type AdminOrderRecord = {
   momo_reference?: string | null;
   momo_status?: string | null;
   payment_provider?: string | null;
-  payment_payload?: unknown;
+  payment_payload?: OrderPaymentPayload;
   paid_at?: string | null;
 };
 
 export type CatalogAiSearchResult = {
   answer: string;
   productIds: number[];
+};
+
+export type CatalogSearchContext = {
+  intent: string;
+  occasion: string | null;
+  audience: string | null;
+  budget: string | null;
+  urgency: string | null;
+  dietaryPreference: string | null;
+  productHints: string[];
+  normalizedQuery: string;
 };

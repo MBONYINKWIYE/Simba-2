@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import type { CatalogAiSearchResult, Product } from '@/types';
+import type { CatalogAiSearchResult, CatalogSearchContext, Product } from '@/types';
 
 type CatalogAiSearchArgs = {
   query: string;
@@ -29,6 +29,61 @@ const STOP_WORDS = new Set([
   'with',
 ]);
 
+const OCCASION_HINTS: Array<[RegExp, string]> = [
+  [/\bbreakfast\b|\bmorning\b/i, 'breakfast or morning meals'],
+  [/\blunch\b|\bmeal prep\b/i, 'lunch or meal prep'],
+  [/\bdinner\b|\bevening\b/i, 'dinner'],
+  [/\bguests?\b|\bparty\b|\bhanging out\b/i, 'hosting guests or a small gathering'],
+  [/\bbaby\b|\bkid(s)?\b|\bchildren\b/i, 'kids or family use'],
+  [/\btravel\b|\btrip\b|\broad trip\b/i, 'travel'],
+  [/\bclean(ing)?\b|\bhouse\b|\bkitchen\b/i, 'cleaning or household tasks'],
+  [/\boffice\b|\bwork\b/i, 'work or office needs'],
+  [/\bschool\b|\bstudent\b|\bback to school\b/i, 'school needs'],
+];
+
+const AUDIENCE_HINTS: Array<[RegExp, string]> = [
+  [/\bkids?\b|\bchildren\b/i, 'kids'],
+  [/\bfamily\b/i, 'family'],
+  [/\bguests?\b|\bparty\b/i, 'guests'],
+  [/\bone person\b|\bmyself\b/i, 'one person'],
+];
+
+const DIETARY_HINTS: Array<[RegExp, string]> = [
+  [/\bhealthy\b|\blight\b/i, 'healthier options'],
+  [/\bvegan\b/i, 'vegan-friendly options'],
+  [/\bvegetarian\b/i, 'vegetarian options'],
+  [/\bgluten[- ]free\b/i, 'gluten-free options'],
+  [/\bno sugar\b|\blow sugar\b|\bdiabetic\b/i, 'lower-sugar options'],
+];
+
+const URGENCY_HINTS: Array<[RegExp, string]> = [
+  [/\btonight\b|\bnow\b|\burgent\b|\bquick\b|\bfast\b/i, 'urgent'],
+  [/\btoday\b/i, 'for today'],
+  [/\bthis week\b/i, 'for this week'],
+];
+
+const PRODUCT_HINTS = [
+  'milk',
+  'bread',
+  'eggs',
+  'rice',
+  'pasta',
+  'oil',
+  'soap',
+  'detergent',
+  'water',
+  'snack',
+  'juice',
+  'tea',
+  'coffee',
+  'baby',
+  'diaper',
+  'cleaning',
+  'breakfast',
+  'lunch',
+  'dinner',
+];
+
 function tokenize(text: string) {
   return text
     .toLowerCase()
@@ -37,10 +92,86 @@ function tokenize(text: string) {
     .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
 }
 
-function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): CatalogAiSearchResult {
-  const tokens = tokenize(query);
+function detectHint(query: string, patterns: Array<[RegExp, string]>) {
+  for (const [pattern, value] of patterns) {
+    if (pattern.test(query)) {
+      return value;
+    }
+  }
 
-  if (tokens.length === 0) {
+  return null;
+}
+
+function extractSearchContext(query: string): CatalogSearchContext {
+  const normalizedQuery = query.trim().toLowerCase();
+  const tokens = tokenize(query);
+  const filteredHints = Array.from(new Set(tokens.filter((token) => PRODUCT_HINTS.some((hint) => hint.includes(token) || token.includes(hint)))));
+
+  const budgetMatch =
+    query.match(/\b(?:under|below|less than|around|about|budget(?: of)?)\s*(?:rwf\s*)?([\d,]+)\s*([kK]?)\b/) ??
+    query.match(/\b([\d,]+)\s*([kK])\b/);
+
+  const budget =
+    budgetMatch?.[1]
+      ? `${budgetMatch[1].replace(/,/g, '')}${budgetMatch[2]?.toLowerCase() === 'k' ? 'k' : ''} RWF`
+      : null;
+
+  const intent =
+    normalizedQuery.includes('recommend') || normalizedQuery.includes('suggest')
+      ? 'recommendation request'
+      : normalizedQuery.includes('need') || normalizedQuery.includes('want') || normalizedQuery.includes('looking for')
+        ? 'shopping request'
+        : 'shopping search';
+
+  return {
+    intent,
+    occasion: detectHint(query, OCCASION_HINTS),
+    audience: detectHint(query, AUDIENCE_HINTS),
+    budget,
+    urgency: detectHint(query, URGENCY_HINTS),
+    dietaryPreference: detectHint(query, DIETARY_HINTS),
+    productHints: filteredHints,
+    normalizedQuery,
+  };
+}
+
+function buildContextSummary(context: CatalogSearchContext) {
+  const parts: string[] = [];
+
+  if (context.occasion) {
+    parts.push(context.occasion);
+  }
+
+  if (context.audience) {
+    parts.push(`for ${context.audience}`);
+  }
+
+  if (context.dietaryPreference) {
+    parts.push(context.dietaryPreference);
+  }
+
+  if (context.budget) {
+    parts.push(`budget around ${context.budget}`);
+  }
+
+  if (context.urgency) {
+    parts.push(context.urgency);
+  }
+
+  if (parts.length === 0) {
+    return context.intent;
+  }
+
+  return `${context.intent}: ${parts.join(', ')}`;
+}
+
+function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): CatalogAiSearchResult {
+  const context = extractSearchContext(query);
+  const tokens = tokenize(query);
+  const contextualTokens = tokenize([context.occasion, context.audience, context.dietaryPreference, context.urgency].filter(Boolean).join(' '));
+  const searchTokens = Array.from(new Set([...tokens, ...contextualTokens, ...context.productHints]));
+
+  if (searchTokens.length === 0) {
     return {
       answer: 'Try a more specific request like milk, rice, breakfast items, or cleaning supplies.',
       productIds: [],
@@ -54,7 +185,7 @@ function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): Catalog
 
       let score = product.inStock ? 3 : 0;
 
-      for (const token of tokens) {
+      for (const token of searchTokens) {
         if (product.name.toLowerCase().includes(token)) {
           score += 8;
         } else if (searchableText.includes(token)) {
@@ -62,8 +193,12 @@ function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): Catalog
         }
       }
 
-      if (tokens.length > 1 && tokens.every((token) => searchableText.includes(token))) {
+      if (searchTokens.length > 1 && searchTokens.every((token) => searchableText.includes(token))) {
         score += 6;
+      }
+
+      if (context.occasion && searchableText.includes(context.occasion.split(' ')[0])) {
+        score += 2;
       }
 
       return { product, score };
@@ -82,12 +217,13 @@ function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs): Catalog
 
   const matchedNames = rankedProducts.slice(0, 3).map((entry) => entry.product.name).join(', ');
   const matchedCount = rankedProducts.length;
+  const contextSummary = buildContextSummary(context);
 
   return {
     answer:
       matchedCount === 1
-        ? `I found 1 close match for "${query}": ${matchedNames}.`
-        : `I found ${matchedCount} close matches for "${query}", including ${matchedNames}.`,
+        ? `I inferred ${contextSummary} and found 1 close match for "${query}": ${matchedNames}.`
+        : `I inferred ${contextSummary} and found ${matchedCount} close matches for "${query}", including ${matchedNames}.`,
     productIds: rankedProducts.map((entry) => entry.product.id),
   };
 }
@@ -105,11 +241,13 @@ async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs): Pr
     unit: product.unit,
     inStock: product.inStock,
   }));
+  const context = extractSearchContext(query);
 
   const { data, error } = await supabase.functions.invoke<CatalogAiSearchResult>('catalog-search', {
     body: {
       query,
       products: catalogContext,
+      context,
     },
   });
 

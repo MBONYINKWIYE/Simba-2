@@ -64,7 +64,7 @@ export async function createCashOrder(args: OrderCreatePayload) {
   }
 
   if (!data?.ok) {
-    throw new Error('Failed to create cash-on-delivery order');
+    throw new Error('Failed to create cash-on-pickup order');
   }
 
   return data;

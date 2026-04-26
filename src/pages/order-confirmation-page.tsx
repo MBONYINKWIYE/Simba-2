@@ -8,6 +8,7 @@ import { orderQueryOptions } from '@/lib/orders';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useQuery } from '@tanstack/react-query';
+import type { OrderPaymentPayload } from '@/types';
 
 type ConfirmationState = {
   orderId?: string;
@@ -44,13 +45,17 @@ export function OrderConfirmationPage() {
   });
 
   const order = orderQuery.data ?? null;
+  const paymentPayload = (order?.payment_payload ?? {}) as OrderPaymentPayload;
+  const orderTotalRwf = order?.total_rwf ?? 0;
+  const depositPaidRwf = paymentPayload.depositRwf ?? 0;
+  const balanceDueRwf = paymentPayload.balanceDueRwf ?? Math.max(orderTotalRwf - depositPaidRwf, 0);
 
   useEffect(() => {
     if (!order || confirmationState.orderId !== order.id) {
       return;
     }
 
-    if (confirmationState.paymentMethod === 'cash' || order.payment_status === 'paid') {
+    if (order.payment_status === 'paid') {
       clearCart();
     }
   }, [clearCart, confirmationState.orderId, confirmationState.paymentMethod, order]);
@@ -96,7 +101,7 @@ export function OrderConfirmationPage() {
     );
   }
 
-  const paymentComplete = order.payment_status === 'paid' || order.payment_method === 'cash';
+  const paymentComplete = order.payment_status === 'paid';
   const orderStatus = order.status ?? 'pending';
 
   return (
@@ -169,6 +174,20 @@ export function OrderConfirmationPage() {
                 </p>
               </div>
             </div>
+            {order.payment_method === 'cash' ? (
+              <div className="flex gap-3 rounded-3xl bg-white/70 p-4 dark:bg-slate-900/70">
+                <ShieldCheck className="mt-0.5 text-brand-600 dark:text-brand-300" size={18} />
+                <div className="min-w-0">
+                  <p className="font-semibold">{t('cashOnPickupTitle')}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {t('depositLine')}: {formatCurrency(depositPaidRwf)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {t('balanceDueOnPickup')}: {formatCurrency(balanceDueRwf)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

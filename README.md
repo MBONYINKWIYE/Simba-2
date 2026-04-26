@@ -138,6 +138,7 @@ VITE_SUPABASE_ANON_KEY=
 VITE_AUTH_REDIRECT_URL=http://localhost:5173/auth/callback
 SUPABASE_AUTH_CALLBACK_URL=https://your-project-ref.supabase.co/auth/v1/callback
 SUPABASE_SERVICE_ROLE_KEY=
+PAYPACK_RECEIVER_NUMBER=0791509652
 PAYPACK_CLIENT_ID=
 PAYPACK_CLIENT_SECRET=
 ```
@@ -146,6 +147,7 @@ Notes:
 
 - `VITE_*` values are exposed to the frontend
 - `SUPABASE_SERVICE_ROLE_KEY` must stay server-side only
+- `PAYPACK_RECEIVER_NUMBER` is the merchant number associated with the Paypack account and is used for checkout display and order records
 - Paypack secrets belong in Supabase Edge Function secrets, not the frontend
 
 ## Setup

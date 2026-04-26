@@ -24,6 +24,8 @@ type RequestToPayBody = {
   serviceFeeRwf: number;
   totalRwf: number;
   shopId: string;
+  paymentAmountRwf?: number;
+  paymentPlan?: 'momo' | 'cash-on-pickup';
 };
 
 type CreateCashOrderBody = {
@@ -62,6 +64,7 @@ type RequestBody =
 const baseUrl = 'https://payments.paypack.rw/api';
 const clientId = Deno.env.get('PAYPACK_CLIENT_ID') ?? '';
 const clientSecret = Deno.env.get('PAYPACK_CLIENT_SECRET') ?? '';
+const receiverNumber = Deno.env.get('PAYPACK_RECEIVER_NUMBER') ?? '0791509652';
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
@@ -77,6 +80,24 @@ function jsonResponse(body: unknown, status = 200) {
       'Content-Type': 'application/json',
     },
   });
+}
+
+function normalizeRwPhoneNumber(rawNumber: string) {
+  const digits = rawNumber.replace(/\D/g, '');
+
+  if (digits.startsWith('250') && digits.length === 12) {
+    return `0${digits.slice(3)}`;
+  }
+
+  if (digits.startsWith('0') && digits.length === 10) {
+    return digits;
+  }
+
+  if (digits.length === 9 && digits.startsWith('7')) {
+    return `0${digits}`;
+  }
+
+  return digits;
 }
 
 async function createAccessToken() {
@@ -147,6 +168,9 @@ async function insertOrder(
   referenceId: string,
   paypackStatus: string,
 ) {
+  const paymentAmountRwf = payload.paymentAmountRwf ?? payload.totalRwf;
+  const balanceDueRwf = Math.max(payload.totalRwf - paymentAmountRwf, 0);
+
   const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
     p_user_id: user.id,
     p_user_email: user.email,
@@ -170,7 +194,14 @@ async function insertOrder(
     p_momo_account_holder_status: 'active',
     p_momo_status: paypackStatus.toUpperCase(),
     p_payment_provider: 'paypack',
-    p_payment_payload: { provider: 'paypack' },
+    p_payment_payload: {
+      provider: 'paypack',
+      receiverNumber,
+      paymentPlan: payload.paymentPlan ?? 'momo',
+      paymentAmountRwf,
+      depositRwf: paymentAmountRwf,
+      balanceDueRwf,
+    },
   });
 
   if (error || !data) {
@@ -203,9 +234,9 @@ async function createCashOrder(payload: CreateCashOrderBody, user: Authenticated
     p_momo_external_id: null,
     p_momo_account_holder_status: null,
     p_momo_status: null,
-    p_payment_provider: 'cash',
+    p_payment_provider: 'cash-on-pickup',
     p_payment_payload: {
-      mode: 'cash-on-delivery',
+      mode: 'cash-on-pickup',
     },
   });
 
@@ -218,15 +249,27 @@ async function createCashOrder(payload: CreateCashOrderBody, user: Authenticated
 
 async function updateOrderStatus(referenceId: string, status: string, providerPayload: unknown) {
   const normalizedStatus = status.toLowerCase();
-  const paymentStatus = normalizedStatus === 'success' ? 'paid' : normalizedStatus === 'failed' ? 'failed' : 'pending';
+  const paymentSucceeded = normalizedStatus === 'success' || normalizedStatus === 'successful';
+  const paymentFailed = normalizedStatus === 'failed';
+  const paymentStatus = paymentSucceeded ? 'paid' : paymentFailed ? 'failed' : 'pending';
+  const { data: existingOrder } = await supabaseAdmin
+    .from('orders')
+    .select('payment_payload')
+    .eq('momo_reference', referenceId)
+    .maybeSingle();
 
   const { error } = await supabaseAdmin
     .from('orders')
     .update({
       momo_status: normalizedStatus.toUpperCase(),
       payment_status: paymentStatus,
-      payment_payload: providerPayload,
-      paid_at: normalizedStatus === 'success' ? new Date().toISOString() : null,
+      payment_payload: {
+        ...(existingOrder?.payment_payload && typeof existingOrder.payment_payload === 'object'
+          ? existingOrder.payment_payload
+          : {}),
+        providerResponse: providerPayload,
+      },
+      paid_at: paymentSucceeded ? new Date().toISOString() : null,
     })
     .eq('momo_reference', referenceId);
 
@@ -237,6 +280,7 @@ async function updateOrderStatus(referenceId: string, status: string, providerPa
 
 async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser) {
   const accessToken = await createAccessToken();
+  const amount = payload.paymentAmountRwf ?? payload.totalRwf;
 
   const response = await fetch(`${baseUrl}/transactions/cashin`, {
     method: 'POST',
@@ -245,8 +289,8 @@ async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser) 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      amount: payload.totalRwf,
-      number: payload.checkout.phone,
+      amount,
+      number: normalizeRwPhoneNumber(payload.checkout.phone),
     }),
   });
 
@@ -268,6 +312,7 @@ async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser) 
     status: response.status,
     orderId,
     referenceId: responseData.ref,
+    paymentAmountRwf: amount,
     providerPayload: responseData,
   };
 }

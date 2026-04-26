@@ -4,6 +4,43 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
+type CatalogSearchContext = {
+  intent: string;
+  occasion: string | null;
+  audience: string | null;
+  budget: string | null;
+  urgency: string | null;
+  dietaryPreference: string | null;
+  productHints: string[];
+  normalizedQuery: string;
+};
+
+function buildContextSummary(context: CatalogSearchContext) {
+  const parts: string[] = [];
+
+  if (context.occasion) {
+    parts.push(context.occasion);
+  }
+
+  if (context.audience) {
+    parts.push(`for ${context.audience}`);
+  }
+
+  if (context.dietaryPreference) {
+    parts.push(context.dietaryPreference);
+  }
+
+  if (context.budget) {
+    parts.push(`budget around ${context.budget}`);
+  }
+
+  if (context.urgency) {
+    parts.push(context.urgency);
+  }
+
+  return parts.length > 0 ? `${context.intent}: ${parts.join(', ')}` : context.intent;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS Preflight
   if (req.method === 'OPTIONS') {
@@ -19,10 +56,21 @@ Deno.serve(async (req) => {
       throw new Error('Missing GROQ_API_KEY secret.')
     }
 
-    const { query, products } = await req.json()
+    const { query, products, context } = await req.json()
 
     if (!query) {
       throw new Error('Search query is required.')
+    }
+
+    const safeContext: CatalogSearchContext = context ?? {
+      intent: 'shopping search',
+      occasion: null,
+      audience: null,
+      budget: null,
+      urgency: null,
+      dietaryPreference: null,
+      productHints: [],
+      normalizedQuery: String(query).trim().toLowerCase(),
     }
 
     // Prepare catalog context for the AI
@@ -42,14 +90,31 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        temperature: 0.2,
+        temperature: 0.35,
         response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
-            content: 'You are an expert personal shopper for Simba Supermarket. Analyze user intent and suggest products. Return strict JSON: {"answer": "reasoning (2 sentences)", "productIds": [ids]}'
+            content: [
+              'You are an expert personal shopper for Simba Supermarket.',
+              'Interpret the user query as a shopping mission, not just keywords.',
+              'If the user describes a situation, infer the likely need and suggest products that solve it.',
+              'Use the provided search context to understand occasion, audience, budget, urgency, and dietary preference.',
+              'If context is missing or vague, still make the best reasonable inference from the wording.',
+              'Return strict JSON: {"answer": "2 short sentences with the inferred need and suggestions", "productIds": [ids]}',
+            ].join(' '),
           },
-          { role: 'user', content: JSON.stringify({ query, catalog }) }
+          {
+            role: 'user',
+            content: JSON.stringify({
+              query,
+              context: {
+                ...safeContext,
+                summary: buildContextSummary(safeContext),
+              },
+              catalog,
+            }),
+          }
         ],
       }),
     })
@@ -62,7 +127,12 @@ Deno.serve(async (req) => {
     const data = await response.json()
     const aiContent = JSON.parse(data.choices[0].message.content)
 
-    return new Response(JSON.stringify(aiContent), {
+    return new Response(JSON.stringify({
+      answer: aiContent.answer,
+      productIds: Array.isArray(aiContent.productIds)
+        ? Array.from(new Set(aiContent.productIds.filter((id: unknown) => typeof id === 'number'))).slice(0, 8)
+        : [],
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

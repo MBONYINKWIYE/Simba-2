@@ -3,6 +3,7 @@ import type { Locale } from '@/types';
 export const DELIVERY_FEE = 2500;
 export const SERVICE_FEE = 700;
 export const ORDER_DEPOSIT_RWF = 1000;
+export const PAYPACK_RECEIVER_NUMBER = '0791509652';
 
 export const FEATURED_CATEGORY_ART = [
   {

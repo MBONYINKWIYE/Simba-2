@@ -39,7 +39,6 @@ export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [localQuery, setLocalQuery] = useState(filters.query);
-  const [aiQuery, setAiQuery] = useState('');
   const [aiAnswer, setAiAnswer] = useState('');
   const [aiProductIds, setAiProductIds] = useState<number[]>([]);
   const [aiError, setAiError] = useState('');
@@ -188,6 +187,7 @@ export function HomePage() {
     () => aiProductIds.map((id) => products.find((product) => product.id === id)).filter(Boolean) as Product[],
     [aiProductIds, products],
   );
+  const hasActiveSearch = debouncedQuery.trim().length > 0 || aiProducts.length > 0;
   const showCategorySections =
     aiProducts.length === 0 &&
     !filters.query &&
@@ -201,7 +201,7 @@ export function HomePage() {
 
     for (const product of sortedProducts) {
       const current = groups.get(product.normalizedCategory) ?? [];
-      if (current.length < 15) {
+      if (current.length < 6) {
         current.push(product);
       }
       groups.set(product.normalizedCategory, current);
@@ -215,10 +215,10 @@ export function HomePage() {
     (shopReviewSummaryQuery.data ?? []).map((entry) => [entry.shop_id, entry]),
   );
 
-  const handleAiSearch = async () => {
-    const query = aiQuery.trim();
+  const handleAiSearch = async (query: string) => {
+    const nextQuery = query.trim();
 
-    if (!query) {
+    if (!nextQuery) {
       return;
     }
 
@@ -227,23 +227,13 @@ export function HomePage() {
     setAiProductIds([]);
 
     try {
-      const result = await aiSearch.mutateAsync({ query, products });
+      const result = await aiSearch.mutateAsync({ query: nextQuery, products });
       setAiAnswer(result.answer);
       setAiProductIds(result.productIds);
       setFilters((current) => ({ ...current, query: '' }));
     } catch (error) {
       setAiError(t('aiSearchFallback'));
-      setFilters((current) => ({ ...current, query }));
-    }
-  };
-
-  const handleAiQueryChange = (value: string) => {
-    setAiQuery(value);
-
-    if (!value.trim()) {
-      setAiAnswer('');
-      setAiError('');
-      setAiProductIds([]);
+      setFilters((current) => ({ ...current, query: nextQuery }));
     }
   };
 
@@ -253,108 +243,124 @@ export function HomePage() {
         productCount={products.length}
         branchNames={(shopsQuery.data ?? []).map((shop) => shop.name)}
       />
-      <section className="grid gap-4 md:grid-cols-3">
-        {(shopsQuery.data ?? []).slice(0, 3).map((shop) => {
-          const reviewSummary = shopReviewSummary.get(shop.id);
-          const distance = coords ? haversineDistanceInKm(coords, shop) : null;
-          const isNearest = nearestShop?.id === shop.id;
-          const isSelected = selectedShopId === shop.id;
-
-          return (
-            <article
-              key={shop.id}
-              onClick={() => setSelectedShop(shop.id)}
-              className={`cursor-pointer transition-all glass-panel p-5 border-2 ${
-                isSelected ? 'border-brand-500 ring-2 ring-brand-200' : 'border-transparent'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-                  {t('branchCardLabel')}
-                </p>
-                {isNearest && (
-                  <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700 uppercase tracking-wider">
-                    {t('nearest')}
-                  </span>
-                )}
-              </div>
-              <h2 className="mt-3 text-xl font-bold">{shop.name}</h2>
-              <div className="mt-2 flex items-center justify-between">
-                <p className="text-sm text-slate-500 dark:text-slate-400">{shop.address}</p>
-                {distance !== null && (
-                  <span className="text-xs font-medium text-slate-400">
-                    {distance.toFixed(1)} km
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shop.phone}</p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-sm font-medium dark:bg-slate-800">
-                <Star size={14} className="fill-amber-400 text-amber-400" />
-                {reviewSummary
-                  ? t('shopRatingValue', { rating: Number(reviewSummary.average_rating).toFixed(1), count: reviewSummary.review_count })
-                  : t('shopRatingEmpty')}
-              </div>
-            </article>
-          );
-        })}
-      </section>
-      <section className="space-y-4">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
-          </div>
-        </div>
-        <ProductGrid products={featuredProducts} />
-      </section>
       {data ? (
-        <CategoryStrip
-          products={spotlightProducts}
-          selectedCategory={filters.category}
-          onCategorySelect={(category) => updateFilters({ ...filters, category })}
+        <SearchFilterBar
+          categories={catalogIndex.categories}
+          maxPrice={catalogIndex.maxPrice}
+          filters={{ ...filters, query: localQuery }}
+          onChange={(nextFilters) => {
+            setLocalQuery(nextFilters.query);
+            updateFilters(nextFilters);
+          }}
+          onAiSearch={(query) => void handleAiSearch(query)}
+          aiAnswer={aiAnswer}
+          aiError={aiError}
+          isAiSearching={aiSearch.isPending}
         />
       ) : null}
-      <SearchFilterBar
-        categories={catalogIndex.categories}
-        maxPrice={catalogIndex.maxPrice}
-        filters={{ ...filters, query: localQuery }}
-        onChange={(nextFilters) => {
-          setLocalQuery(nextFilters.query);
-          updateFilters(nextFilters);
-        }}
-        aiQuery={aiQuery}
-        onAiQueryChange={handleAiQueryChange}
-        onAiSearch={() => void handleAiSearch()}
-        aiAnswer={aiAnswer}
-        aiError={aiError}
-        isAiSearching={aiSearch.isPending}
-      />
-      {showCategorySections ? (
-        isLoading ? (
-          <SkeletonGrid />
-        ) : (
-          <div className="space-y-12">
-            {groupedProducts.map(([category, products]) => (
-              <section key={category} id={`category-${slugify(category)}`} className="space-y-4">
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold">{category}</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {t('showingCategoryProducts', { count: products.length })}
-                    </p>
-                  </div>
-                </div>
-                <ProductGrid products={products} />
-              </section>
-            ))}
-          </div>
-        )
-      ) : (
-        <>
-          <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            {t('productCount', { count: displayedProducts.length })}
+      {hasActiveSearch ? (
+        <section className="space-y-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">{t('searchResults')}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {t('productCount', { count: displayedProducts.length })}
+              </p>
+            </div>
           </div>
           {isLoading ? <SkeletonGrid /> : <ProductGrid products={displayedProducts} />}
+        </section>
+      ) : (
+        <>
+          <section className="grid gap-4 md:grid-cols-3">
+            {(shopsQuery.data ?? []).slice(0, 3).map((shop) => {
+              const reviewSummary = shopReviewSummary.get(shop.id);
+              const distance = coords ? haversineDistanceInKm(coords, shop) : null;
+              const isNearest = nearestShop?.id === shop.id;
+              const isSelected = selectedShopId === shop.id;
+
+              return (
+                <article
+                  key={shop.id}
+                  onClick={() => setSelectedShop(shop.id)}
+                  className={`cursor-pointer transition-all glass-panel p-5 border-2 ${
+                    isSelected ? 'border-brand-500 ring-2 ring-brand-200' : 'border-transparent'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+                      {t('branchCardLabel')}
+                    </p>
+                    {isNearest && (
+                      <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-700 uppercase tracking-wider">
+                        {t('nearest')}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="mt-3 text-xl font-bold">{shop.name}</h2>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{shop.address}</p>
+                    {distance !== null && (
+                      <span className="text-xs font-medium text-slate-400">
+                        {distance.toFixed(1)} km
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shop.phone}</p>
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-sm font-medium dark:bg-slate-800">
+                    <Star size={14} className="fill-amber-400 text-amber-400" />
+                    {reviewSummary
+                      ? t('shopRatingValue', { rating: Number(reviewSummary.average_rating).toFixed(1), count: reviewSummary.review_count })
+                      : t('shopRatingEmpty')}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+          <section className="space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
+              </div>
+            </div>
+            <ProductGrid products={featuredProducts} />
+          </section>
+          {data ? (
+            <CategoryStrip
+              products={spotlightProducts}
+              selectedCategory={filters.category}
+              onCategorySelect={(category) => updateFilters({ ...filters, category })}
+            />
+          ) : null}
+          {showCategorySections ? (
+            isLoading ? (
+              <SkeletonGrid />
+            ) : (
+              <div className="space-y-12">
+                {groupedProducts.map(([category, products]) => (
+                  <section key={category} id={`category-${slugify(category)}`} className="space-y-4">
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <h2 className="text-2xl font-bold">{category}</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                          {t('showingCategoryProducts', { count: products.length })}
+                        </p>
+                      </div>
+                    </div>
+                    <ProductGrid products={products} />
+                  </section>
+                ))}
+              </div>
+            )
+          ) : (
+            <>
+              <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                {t('productCount', { count: displayedProducts.length })}
+              </div>
+              {isLoading ? <SkeletonGrid /> : <ProductGrid products={displayedProducts} />}
+            </>
+          )}
         </>
       )}
     </div>
