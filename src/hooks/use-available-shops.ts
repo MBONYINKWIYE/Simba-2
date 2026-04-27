@@ -25,8 +25,11 @@ async function fetchAvailableShops(items: CartItemRpc[]): Promise<AvailableShop[
 
   return ((data ?? []) as AvailableShop[]).map((shop) => ({
     ...shop,
+    required_product_count: Number(shop.required_product_count ?? 0),
+    is_fully_available: Boolean(shop.is_fully_available),
     average_rating: Number(shop.average_rating ?? 0),
     review_count: Number(shop.review_count ?? 0),
+    missing_items: Array.isArray(shop.missing_items) ? shop.missing_items : [],
   }));
 }
 

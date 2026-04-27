@@ -8,12 +8,12 @@ import { orderQueryOptions } from '@/lib/orders';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useQuery } from '@tanstack/react-query';
-import type { OrderPaymentPayload } from '@/types';
 
 type ConfirmationState = {
   orderId?: string;
   paymentMethod?: 'cash' | 'momo';
   referenceId?: string;
+  ussdCode?: string;
 };
 
 function statusClassName(value: string) {
@@ -45,10 +45,6 @@ export function OrderConfirmationPage() {
   });
 
   const order = orderQuery.data ?? null;
-  const paymentPayload = (order?.payment_payload ?? {}) as OrderPaymentPayload;
-  const orderTotalRwf = order?.total_rwf ?? 0;
-  const depositPaidRwf = paymentPayload.depositRwf ?? 0;
-  const balanceDueRwf = paymentPayload.balanceDueRwf ?? Math.max(orderTotalRwf - depositPaidRwf, 0);
 
   useEffect(() => {
     if (!order || confirmationState.orderId !== order.id) {
@@ -121,7 +117,11 @@ export function OrderConfirmationPage() {
               </div>
             </div>
             <p className="max-w-2xl text-sm leading-7 text-slate-500 dark:text-slate-400">
-              {paymentComplete ? t('orderConfirmationSuccess') : t('orderConfirmationPending')}
+              {paymentComplete
+                ? t('orderConfirmationSuccess')
+                : order.payment_method === 'momo'
+                  ? t('orderConfirmationManualMomoPending')
+                  : t('orderConfirmationPending')}
             </p>
             <div className="flex flex-wrap gap-2">
               <Badge className="bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">{t(order.payment_method)}</Badge>
@@ -170,7 +170,7 @@ export function OrderConfirmationPage() {
               <div>
                 <p className="font-semibold">{t('referenceLabel')}</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {confirmationState.referenceId ?? order.momo_reference ?? t('notAvailable')}
+                  {confirmationState.ussdCode ?? confirmationState.referenceId ?? order.momo_reference ?? t('notAvailable')}
                 </p>
               </div>
             </div>
@@ -179,15 +179,18 @@ export function OrderConfirmationPage() {
                 <ShieldCheck className="mt-0.5 text-brand-600 dark:text-brand-300" size={18} />
                 <div className="min-w-0">
                   <p className="font-semibold">{t('cashOnPickupTitle')}</p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {t('depositLine')}: {formatCurrency(depositPaidRwf)}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {t('balanceDueOnPickup')}: {formatCurrency(balanceDueRwf)}
-                  </p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('cashOnPickupManualCopy')}</p>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="flex gap-3 rounded-3xl bg-white/70 p-4 dark:bg-slate-900/70">
+                <ShieldCheck className="mt-0.5 text-brand-600 dark:text-brand-300" size={18} />
+                <div className="min-w-0">
+                  <p className="font-semibold">{t('momoManualConfirmationTitle')}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('momoManualConfirmationCopy')}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

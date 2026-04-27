@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { ClipboardList, LayoutGrid, Settings2, ShieldCheck, Store } from 'lucide-react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,13 +63,19 @@ function AdminOrderActions({
 }) {
   const { t } = useTranslation();
   const updateOrderStatus = useUpdateOrderStatus();
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const runStatusUpdate = async (status: ShopOrderStatus) => {
     await updateOrderStatus.mutateAsync({
       orderId: order.id,
       scopeKey,
       status,
+      rejectionReason: status === 'rejected' ? rejectionReason : undefined,
     });
+
+    if (status === 'rejected') {
+      setRejectionReason('');
+    }
   };
 
   return (
@@ -83,15 +90,24 @@ function AdminOrderActions({
           >
             {t('acceptOrder')}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={updateOrderStatus.isPending}
-            onClick={() => void runStatusUpdate('rejected')}
-            className="w-full"
-          >
-            {t('rejectOrder')}
-          </Button>
+          <div className="sm:col-span-2 lg:col-span-2 rounded-3xl border border-rose-200 bg-rose-50/80 p-4 dark:border-rose-900/40 dark:bg-rose-900/10">
+            <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">{t('rejectOrder')}</p>
+            <textarea
+              value={rejectionReason}
+              onChange={(event) => setRejectionReason(event.target.value)}
+              className="mt-3 min-h-24 w-full rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm dark:border-rose-900/40 dark:bg-slate-950"
+              placeholder={t('rejectionReasonPlaceholder')}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={updateOrderStatus.isPending || !rejectionReason.trim()}
+              onClick={() => void runStatusUpdate('rejected')}
+              className="mt-3 w-full"
+            >
+              {t('sendRejection')}
+            </Button>
+          </div>
         </>
       ) : null}
       {canManageOrders && order.status !== 'pending' && order.status !== 'rejected' ? (
@@ -135,7 +151,10 @@ function AdminOrderActions({
         </Button>
       ) : null}
       {canManageOrders && order.status === 'rejected' ? (
-        <p className="sm:col-span-2 lg:col-span-3 text-sm text-rose-600 dark:text-rose-300">{t('orderRejectedNotice')}</p>
+        <div className="sm:col-span-2 lg:col-span-3 rounded-3xl border border-rose-200 bg-rose-50/80 p-4 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/10 dark:text-rose-300">
+          <p className="font-medium">{t('orderRejectedNotice')}</p>
+          {order.rejection_reason ? <p className="mt-2">{order.rejection_reason}</p> : null}
+        </div>
       ) : null}
       {!canManageOrders && !isAssignedStaff ? (
         <p className="sm:col-span-2 lg:col-span-3 text-sm text-slate-500 dark:text-slate-400">{t('staffAssignmentRequired')}</p>
@@ -550,6 +569,7 @@ function SuperAdminPanel() {
 export function AdminDashboardPage() {
   const { t, i18n } = useTranslation();
   const { orderId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const authRoleQuery = useUserRole();
   const shopsQuery = useShops();
   const isSuperAdmin = authRoleQuery.data?.role === 'super_admin';
@@ -584,6 +604,22 @@ export function AdminDashboardPage() {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const activeOrder = orders.find((order) => order.id === orderId) ?? orders[0] ?? null;
+  const availableSections = [
+    { key: 'orders', label: t('adminOrderQueue'), description: t('adminDashboardCopy'), icon: ClipboardList, visible: true },
+    { key: 'inventory', label: t('inventoryDashboard'), description: t('inventoryDashboardCopy'), icon: LayoutGrid, visible: canManageOrders || isSuperAdmin },
+    { key: 'settings', label: t('shopSettings'), description: t('shopSettingsCopy'), icon: Settings2, visible: canManageOrders || isSuperAdmin },
+    { key: 'platform', label: t('superAdminControls'), description: t('superAdminControlsCopy'), icon: ShieldCheck, visible: isSuperAdmin },
+  ].filter((section) => section.visible);
+  const requestedSection = searchParams.get('section');
+  const activeSection =
+    availableSections.find((section) => section.key === requestedSection)?.key ??
+    (orderId ? 'orders' : availableSections[0]?.key ?? 'orders');
+
+  const setActiveSection = (section: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('section', section);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   return (
     <div className="space-y-6">
@@ -612,27 +648,54 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      {isSuperAdmin ? <SuperAdminPanel /> : null}
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="glass-panel p-4 sm:p-5">
+          <div className="flex items-center gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+            <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
+              <Store size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{t('adminDashboard')}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {authRoleQuery.data?.shopName ?? t('adminShopLabel')}
+              </p>
+            </div>
+          </div>
 
-      {canManageOrders || isSuperAdmin ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <InventoryPanel
-            scopeShopId={shopId}
-            isSuperAdmin={isSuperAdmin}
-            shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
-          />
-          <ShopSettingsPanel
-            shopId={shopId}
-            shopName={currentShop?.name ?? authRoleQuery.data?.shopName ?? null}
-            phone={currentShop?.phone ?? ''}
-            shops={shops.map((shop) => ({ id: shop.id, name: shop.name, phone: shop.phone }))}
-            isSuperAdmin={isSuperAdmin}
-          />
-        </div>
-      ) : null}
+          <nav className="mt-4 space-y-2">
+            {availableSections.map((section) => {
+              const Icon = section.icon;
 
-      <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr] xl:grid-cols-[0.9fr_1.1fr]">
-        <section className="glass-panel p-4 sm:p-6">
+              return (
+                <button
+                  key={section.key}
+                  type="button"
+                  onClick={() => setActiveSection(section.key)}
+                  className={`w-full rounded-3xl border px-4 py-3 text-left transition ${
+                    activeSection === section.key
+                      ? 'border-brand-400 bg-brand-50 dark:border-brand-600 dark:bg-brand-900/20'
+                      : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 text-slate-500 dark:text-slate-400">
+                      <Icon size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold">{section.label}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{section.description}</p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <div className="min-w-0">
+          {activeSection === 'orders' ? (
+            <div className="grid gap-6 lg:grid-cols-[0.82fr_1.18fr] xl:grid-cols-[0.9fr_1.1fr]">
+              <section className="glass-panel p-4 sm:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
               <h2 className="text-xl font-bold sm:text-2xl">{t('adminOrderQueue')}</h2>
@@ -667,7 +730,7 @@ export function AdminDashboardPage() {
               {orders.map((order) => (
                 <Link
                   key={order.id}
-                  to={`/admin/orders/${order.id}`}
+                  to={`/admin/orders/${order.id}?section=orders`}
                   className={`block rounded-3xl border p-4 transition ${
                     activeOrder?.id === order.id
                       ? 'border-brand-400 bg-brand-50 shadow-md dark:border-brand-600 dark:bg-brand-900/20'
@@ -700,15 +763,38 @@ export function AdminDashboardPage() {
               ))}
             </div>
           )}
-        </section>
+              </section>
 
-        <AdminOrderDetail
-          order={activeOrder}
-          scopeKey={scopeKey}
-          canManageOrders={canManageOrders || isSuperAdmin}
-          currentUserRole={isSuperAdmin ? 'super_admin' : (adminRole ?? 'staff')}
-          staffAssignments={shopAdminsQuery.data ?? []}
-        />
+              <AdminOrderDetail
+                order={activeOrder}
+                scopeKey={scopeKey}
+                canManageOrders={canManageOrders || isSuperAdmin}
+                currentUserRole={isSuperAdmin ? 'super_admin' : (adminRole ?? 'staff')}
+                staffAssignments={shopAdminsQuery.data ?? []}
+              />
+            </div>
+          ) : null}
+
+          {activeSection === 'inventory' ? (
+            <InventoryPanel
+              scopeShopId={shopId}
+              isSuperAdmin={isSuperAdmin}
+              shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
+            />
+          ) : null}
+
+          {activeSection === 'settings' ? (
+            <ShopSettingsPanel
+              shopId={shopId}
+              shopName={currentShop?.name ?? authRoleQuery.data?.shopName ?? null}
+              phone={currentShop?.phone ?? ''}
+              shops={shops.map((shop) => ({ id: shop.id, name: shop.name, phone: shop.phone }))}
+              isSuperAdmin={isSuperAdmin}
+            />
+          ) : null}
+
+          {activeSection === 'platform' && isSuperAdmin ? <SuperAdminPanel /> : null}
+        </div>
       </div>
     </div>
   );

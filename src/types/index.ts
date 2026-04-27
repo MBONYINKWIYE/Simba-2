@@ -56,8 +56,16 @@ export type Shop = {
 
 export type AvailableShop = Shop & {
   available_product_count: number;
+  required_product_count: number;
+  is_fully_available: boolean;
   average_rating: number;
   review_count: number;
+  missing_items: {
+    productId: number;
+    productName: string;
+    requestedQuantity: number;
+    availableQuantity: number;
+  }[];
 };
 
 export type ShopAdminAssignment = {
@@ -186,6 +194,7 @@ export type OrderHistoryRecord = {
   payment_provider?: string | null;
   payment_payload?: OrderPaymentPayload;
   paid_at?: string | null;
+  rejection_reason?: string | null;
 };
 
 export type ReviewRecord = {
@@ -229,6 +238,7 @@ export type AdminOrderRecord = {
   payment_provider?: string | null;
   payment_payload?: OrderPaymentPayload;
   paid_at?: string | null;
+  rejection_reason?: string | null;
 };
 
 export type CatalogAiSearchResult = {

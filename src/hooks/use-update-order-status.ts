@@ -7,6 +7,7 @@ type UpdateOrderStatusArgs = {
   orderId: string;
   scopeKey: string;
   status: ShopOrderStatus;
+  rejectionReason?: string;
 };
 
 type AssignOrderToStaffArgs = {
@@ -15,7 +16,7 @@ type AssignOrderToStaffArgs = {
   staffUserId: string;
 };
 
-async function updateOrderStatus({ orderId, status }: UpdateOrderStatusArgs) {
+async function updateOrderStatus({ orderId, status, rejectionReason }: UpdateOrderStatusArgs) {
   if (!supabase) {
     throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   }
@@ -23,6 +24,7 @@ async function updateOrderStatus({ orderId, status }: UpdateOrderStatusArgs) {
   const { error } = await supabase.rpc('update_shop_order_status', {
     target_order_id: orderId,
     next_status: status,
+    rejection_note: status === 'rejected' ? rejectionReason ?? null : null,
   });
 
   if (error) {

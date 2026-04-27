@@ -59,6 +59,7 @@ create table if not exists public.orders (
   payment_status text not null default 'pending',
   status text not null default 'pending',
   fulfillment_status text not null default 'pending',
+  rejection_reason text,
   subtotal_rwf integer not null,
   delivery_fee_rwf integer not null,
   service_fee_rwf integer not null,
@@ -101,6 +102,7 @@ alter table public.orders add column if not exists pickup_time timestamptz;
 alter table public.orders add column if not exists payment_status text not null default 'pending';
 alter table public.orders add column if not exists status text not null default 'pending';
 alter table public.orders add column if not exists fulfillment_status text not null default 'pending';
+alter table public.orders add column if not exists rejection_reason text;
 
 do $$
 begin
@@ -593,8 +595,11 @@ returns table (
   phone text,
   created_at timestamptz,
   available_product_count integer,
+  required_product_count integer,
+  is_fully_available boolean,
   average_rating numeric,
-  review_count integer
+  review_count integer,
+  missing_items jsonb
 )
 language sql
 stable
@@ -608,6 +613,43 @@ as $$
   item_count as (
     select count(*)::integer as total
     from input_items
+  ),
+  inventory_matches as (
+    select
+      s.id as shop_id,
+      ii."productId" as product_id,
+      ii.quantity as requested_quantity,
+      coalesce(inv.quantity, 0) as available_quantity
+    from public.shops s
+    cross join input_items ii
+    left join public.inventory inv
+      on inv.shop_id = s.id
+     and inv.product_id = ii."productId"
+  ),
+  shop_totals as (
+    select
+      im.shop_id,
+      count(*) filter (where im.available_quantity >= im.requested_quantity)::integer as available_product_count,
+      count(*)::integer as required_product_count,
+      bool_and(im.available_quantity >= im.requested_quantity) as is_fully_available
+    from inventory_matches im
+    group by im.shop_id
+  ),
+  missing_items as (
+    select
+      im.shop_id,
+      jsonb_agg(
+        jsonb_build_object(
+          'productId', im.product_id,
+          'productName', p.name,
+          'requestedQuantity', im.requested_quantity,
+          'availableQuantity', im.available_quantity
+        )
+        order by p.name
+      ) filter (where im.available_quantity < im.requested_quantity) as missing_items
+    from inventory_matches im
+    join public.products p on p.id = im.product_id
+    group by im.shop_id
   ),
   review_summary as (
     select shop_id,
@@ -623,18 +665,21 @@ as $$
     s.longitude,
     s.phone,
     s.created_at,
-    count(ii."productId")::integer as available_product_count,
+    coalesce(st.available_product_count, 0) as available_product_count,
+    coalesce(st.required_product_count, ic.total) as required_product_count,
+    coalesce(st.is_fully_available, false) as is_fully_available,
     coalesce(rs.average_rating, 0) as average_rating,
-    coalesce(rs.review_count, 0) as review_count
+    coalesce(rs.review_count, 0) as review_count,
+    coalesce(mi.missing_items, '[]'::jsonb) as missing_items
   from public.shops s
-  join public.inventory inv on inv.shop_id = s.id
-  join input_items ii on ii."productId" = inv.product_id
   cross join item_count ic
+  left join shop_totals st on st.shop_id = s.id
+  left join missing_items mi on mi.shop_id = s.id
   left join review_summary rs on rs.shop_id = s.id
-  where inv.quantity >= ii.quantity
-  group by s.id, s.name, s.address, s.latitude, s.longitude, s.phone, s.created_at, ic.total, rs.average_rating, rs.review_count
-  having count(ii."productId") = ic.total
-  order by s.created_at asc
+  order by
+    coalesce(st.is_fully_available, false) desc,
+    case when coalesce(st.is_fully_available, false) then coalesce(st.available_product_count, 0) else -1 end desc,
+    s.created_at asc
 $$;
 
 drop function if exists public.list_shop_review_summary();
@@ -854,7 +899,8 @@ $$;
 
 create or replace function public.update_shop_order_status(
   target_order_id uuid,
-  next_status text
+  next_status text,
+  rejection_note text default null
 )
 returns public.orders
 language plpgsql
@@ -869,6 +915,10 @@ begin
     raise exception 'Invalid order status';
   end if;
 
+  if next_status = 'rejected' and coalesce(nullif(trim(rejection_note), ''), '') = '' then
+    raise exception 'Rejection reason is required';
+  end if;
+
   select *
   into target_order
   from public.orders
@@ -880,7 +930,13 @@ begin
 
   if public.is_super_admin() then
     update public.orders
-    set status = next_status
+    set
+      status = next_status,
+      rejection_reason = case
+        when next_status = 'rejected' then trim(rejection_note)
+        when next_status = 'accepted' then null
+        else rejection_reason
+      end
     where id = target_order_id
     returning * into target_order;
 
@@ -898,6 +954,11 @@ begin
     update public.orders
     set
       status = next_status,
+      rejection_reason = case
+        when next_status = 'rejected' then trim(rejection_note)
+        when next_status = 'accepted' then null
+        else rejection_reason
+      end,
       fulfillment_status = case
         when next_status = 'accepted' then 'confirmed'
         when next_status = 'preparing' then 'processing'

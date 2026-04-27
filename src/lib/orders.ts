@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { OrderHistoryRecord, ReviewRecord, Shop } from '@/types';
 
 const baseOrderSelect =
-  'id, created_at, pickup_time, subtotal_rwf, delivery_fee_rwf, service_fee_rwf, total_rwf, payment_method, payment_status, delivery_address, full_name, phone, shop_id, status, momo_reference, momo_status, payment_provider, payment_payload, paid_at, order_items(id, product_id, product_name, quantity, unit_price_rwf)';
+  'id, created_at, pickup_time, subtotal_rwf, delivery_fee_rwf, service_fee_rwf, total_rwf, payment_method, payment_status, delivery_address, full_name, phone, shop_id, status, rejection_reason, momo_reference, momo_status, payment_provider, payment_payload, paid_at, order_items(id, product_id, product_name, quantity, unit_price_rwf)';
 
 async function attachShops(records: OrderHistoryRecord[]) {
   if (!supabase || records.length === 0) {

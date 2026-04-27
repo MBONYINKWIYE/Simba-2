@@ -22,6 +22,7 @@ const adminOrderSelect = `
   user_email,
   shop_id,
   assigned_staff_user_id,
+  rejection_reason,
   order_items(id, product_id, product_name, quantity, unit_price_rwf)
 `;
 

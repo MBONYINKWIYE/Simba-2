@@ -1,15 +1,14 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Star } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, Star } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useCreateReview } from '@/hooks/use-reviews';
 import { ordersQueryOptions } from '@/lib/orders';
-import { initiatePayment, getRequestToPayStatus } from '@/lib/payment';
-import { queryKeys } from '@/lib/query-keys';
+import { openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import type { OrderHistoryRecord } from '@/types';
 
@@ -65,60 +64,14 @@ function statusClassName(value: string) {
 
 function OrderPaymentAction({ order }: { order: OrderHistoryRecord }) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [isPaying, setIsPaying] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState('');
-  const [error, setError] = useState('');
-
-  const pollMomoPayment = async (referenceId: string) => {
-    setPaymentNotice(t('paymentAwaitingConfirmation'));
-
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, 3000));
-
-      try {
-        const statusResult = await getRequestToPayStatus(referenceId);
-        const status = statusResult?.payload?.status ?? 'PENDING';
-
-        if (status === 'SUCCESSFUL') {
-          setPaymentNotice(t('paymentAuthorized'));
-          setIsPaying(false);
-          void queryClient.invalidateQueries({ queryKey: queryKeys.orders(order.user_id) });
-          return;
-        }
-
-        if (status === 'FAILED') {
-          setError(t('paymentFailed'));
-          setIsPaying(false);
-          return;
-        }
-      } catch (err) {
-        // Continue polling on transient errors
-      }
-    }
-
-    setPaymentNotice(t('paymentCheckAgain'));
-    setIsPaying(false);
-    void queryClient.invalidateQueries({ queryKey: queryKeys.orders(order.user_id) });
-  };
 
   const handlePay = async () => {
-    setIsPaying(true);
-    setError('');
-    setPaymentNotice(t('paymentAwaitingPrompt'));
-
-    try {
-      const result = await initiatePayment(order.id);
-      if (result.referenceId) {
-        await pollMomoPayment(result.referenceId);
-      } else if (result.warning) {
-        setPaymentNotice(result.warning);
-        setIsPaying(false);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('failedToStartPayment'));
-      setIsPaying(false);
-    }
+    setIsOpening(true);
+    openMomoDialer(order.total_rwf);
+    setPaymentNotice(t('manualPaymentOpened'));
+    setIsOpening(false);
   };
 
   if (order.payment_status === 'paid' || order.status === 'rejected' || order.status === 'picked_up' || order.payment_method === 'cash') {
@@ -131,21 +84,16 @@ function OrderPaymentAction({ order }: { order: OrderHistoryRecord }) {
         <div className="flex items-start gap-3">
           <div className="mt-1 flex h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-pulse" />
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {order.payment_status === 'failed' ? t('paymentFailedRetry') : t('orderPlacedUnpaid')}
+            {t('orderPlacedUnpaid')}
           </p>
         </div>
-        <Button onClick={handlePay} disabled={isPaying} className="w-full sm:w-auto px-6">
-          {isPaying ? t('processing') : t('payWithMomoNow')}
+        <Button onClick={handlePay} disabled={isOpening} className="w-full sm:w-auto px-6">
+          {isOpening ? t('processing') : t('openMomoApp')}
         </Button>
       </div>
-      {paymentNotice && !error && (
+      {paymentNotice && (
         <p className="mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in slide-in-from-top-1">
           {paymentNotice}
-        </p>
-      )}
-      {error && (
-        <p className="mt-3 text-sm font-medium text-rose-600 dark:text-rose-400 animate-in fade-in slide-in-from-top-1">
-          {error}
         </p>
       )}
     </div>
@@ -254,10 +202,17 @@ function ReviewForm({ order }: { order: OrderHistoryRecord }) {
 export function OrdersPage() {
   const { t } = useTranslation();
   const { user, isLoading, isConfigured } = useAuth();
+  const [expandedOrderIds, setExpandedOrderIds] = useState<string[]>([]);
   const ordersQuery = useQuery({
     ...(user ? ordersQueryOptions(user.id) : ordersQueryOptions('guest')),
     enabled: Boolean(user),
   });
+
+  const toggleOrderExpanded = (orderId: string) => {
+    setExpandedOrderIds((current) =>
+      current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId],
+    );
+  };
 
   if (!isConfigured) {
     return (
@@ -320,67 +275,97 @@ export function OrdersPage() {
       ) : (
         orders.map((order) => {
           const orderStatus = getShopOrderStatus(order.status, order.payment_status);
+          const isExpanded = expandedOrderIds.includes(order.id);
 
           return (
             <section key={order.id} className="glass-panel p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h2 className="text-xl font-bold">{t('orderLabel')} #{order.id.slice(0, 8)}</h2>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {new Date(order.created_at).toLocaleString()}
-                </p>
-                {order.pickup_time ? (
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {t('pickupTimeLabel')}: {new Date(order.pickup_time).toLocaleString()}
-                  </p>
-                ) : null}
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{order.delivery_address}</p>
-                {order.shops?.name ? (
-                  <>
+              <button
+                type="button"
+                onClick={() => toggleOrderExpanded(order.id)}
+                className="w-full text-left"
+                aria-expanded={isExpanded}
+              >
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-bold">{t('orderLabel')} #{order.id.slice(0, 8)}</h2>
+                      <ChevronDown
+                        size={18}
+                        className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                      />
+                    </div>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {t('pickupShop')}: {order.shops.name}
+                      {new Date(order.created_at).toLocaleString()}
                     </p>
-                    {order.shops.phone ? (
+                    {order.pickup_time ? (
                       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        {t('shopPhone')}: {order.shops.phone}
+                        {t('pickupTimeLabel')}: {new Date(order.pickup_time).toLocaleString()}
                       </p>
                     ) : null}
-                  </>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(orderStatus)}`}>
-                  {formatStatusLabel(orderStatus, t)}
-                </span>
-                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(order.payment_status)}`}>
-                  {t('payment')}: {formatStatusLabel(order.payment_status, t)}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {order.order_items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between gap-4 rounded-2xl bg-white/60 px-4 py-3 dark:bg-slate-900/60"
-                >
-                  <div>
-                    <p className="font-semibold">{item.product_name}</p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {item.quantity} x {formatCurrency(item.unit_price_rwf)}
+                      {order.delivery_address}
                     </p>
+                    {order.shops?.name ? (
+                      <>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                          {t('pickupShop')}: {order.shops.name}
+                        </p>
+                        {order.shops.phone ? (
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            {t('shopPhone')}: {order.shops.phone}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : null}
                   </div>
-                  <p className="font-semibold">{formatCurrency(item.quantity * item.unit_price_rwf)}</p>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(orderStatus)}`}>
+                      {formatStatusLabel(orderStatus, t)}
+                    </span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(order.payment_status)}`}>
+                      {t('payment')}: {formatStatusLabel(order.payment_status, t)}
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </button>
 
-            <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
-              <p className="text-sm text-slate-500 dark:text-slate-400">{t('paymentMethod')}: {formatStatusLabel(order.payment_method, t)}</p>
-              <p className="text-lg font-bold">{formatCurrency(order.total_rwf)}</p>
-            </div>
-            <OrderPaymentAction order={order} />
-            <ReviewForm order={order} />
+              {isExpanded ? (
+                <>
+                  {order.status === 'rejected' && order.rejection_reason ? (
+                    <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50/80 p-4 dark:border-rose-900/40 dark:bg-rose-900/10">
+                      <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">{t('rejectionReasonTitle')}</p>
+                      <p className="mt-2 text-sm text-rose-700 dark:text-rose-200">{order.rejection_reason}</p>
+                    </div>
+                  ) : null}
+                  <div className="mt-5 space-y-3">
+                    {order.order_items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-4 rounded-2xl bg-white/60 px-4 py-3 dark:bg-slate-900/60"
+                      >
+                        <div>
+                          <p className="font-semibold">{item.product_name}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {item.quantity} x {formatCurrency(item.unit_price_rwf)}
+                          </p>
+                        </div>
+                        <p className="font-semibold">{formatCurrency(item.quantity * item.unit_price_rwf)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('paymentMethod')}: {formatStatusLabel(order.payment_method, t)}</p>
+                    <p className="text-lg font-bold">{formatCurrency(order.total_rwf)}</p>
+                  </div>
+                  <OrderPaymentAction order={order} />
+                  <ReviewForm order={order} />
+                </>
+              ) : (
+                <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{t('paymentMethod')}: {formatStatusLabel(order.payment_method, t)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(order.total_rwf)}</p>
+                </div>
+              )}
             </section>
           );
         })

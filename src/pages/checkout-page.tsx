@@ -2,14 +2,14 @@ import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Clock3, Star, ShoppingBasket } from 'lucide-react';
+import { ChevronDown, Clock3, Star, ShoppingBasket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
+import { useShops } from '@/hooks/use-shops';
 import { DEFAULT_CHECKOUT_VALUES, PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
-import { requestToPay, getRequestToPayStatus } from '@/lib/payment';
+import { buildMomoUssdCode, createManualPaymentOrder, openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
-import { useOrderSummary } from '@/hooks/use-order-summary';
 import { useCartStore } from '@/store/cart-store';
 import type { AvailableShop, CheckoutFormValues } from '@/types';
 
@@ -17,6 +17,9 @@ type Coordinates = {
   latitude: number;
   longitude: number;
 };
+
+type TravelMode = 'walk' | 'drive';
+type RankedShop = AvailableShop & { distanceKm: number | null };
 
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
@@ -53,6 +56,15 @@ function roundUpToHalfHour(date: Date) {
   return next;
 }
 
+function estimateTravelMinutes(distanceKm: number | null, mode: TravelMode) {
+  if (distanceKm === null) {
+    return null;
+  }
+
+  const speedKmPerHour = mode === 'walk' ? 4.5 : 28;
+  return Math.max(1, Math.round((distanceKm / speedKmPerHour) * 60));
+}
+
 function buildPickupSlots() {
   const slots: { value: string; label: string }[] = [];
   const start = roundUpToHalfHour(new Date());
@@ -72,12 +84,6 @@ function buildPickupSlots() {
   return slots;
 }
 
-const CASH_ON_PICKUP_DEPOSIT_RATE = 0.1;
-
-function calculateCashOnPickupDeposit(totalRwf: number) {
-  return Math.max(1, Math.round(totalRwf * CASH_ON_PICKUP_DEPOSIT_RATE));
-}
-
 export function CheckoutPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -86,17 +92,14 @@ export function CheckoutPage() {
   const clearCart = useCartStore((state) => state.clearCart);
   const selectedShopId = useCartStore((state) => state.selectedShopId);
   const setSelectedShop = useCartStore((state) => state.setSelectedShop);
-  const summary = useOrderSummary();
   const [formValues, setFormValues] = useState<CheckoutFormValues>({ ...DEFAULT_CHECKOUT_VALUES });
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState('');
-  const [pendingPayment, setPendingPayment] = useState<{ orderId: string; referenceId: string } | null>(null);
   const [locationError, setLocationError] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
+  const [travelMode, setTravelMode] = useState<TravelMode>('drive');
   const { user, isLoading: isAuthLoading, isConfigured } = useAuth();
   const pickupSlots = useMemo(() => buildPickupSlots(), []);
 
@@ -111,6 +114,7 @@ export function CheckoutPage() {
     [items],
   );
   const availableShopsQuery = useAvailableShops(checkoutItems);
+  const shopsQuery = useShops();
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -137,13 +141,27 @@ export function CheckoutPage() {
   }, [t]);
 
   const rankedShops = useMemo(() => {
-    const shops = availableShopsQuery.data ?? [];
+    const availabilityMap = new Map((availableShopsQuery.data ?? []).map((shop) => [shop.id, shop]));
+    const shops = shopsQuery.data ?? [];
 
     return [...shops]
       .map((shop) => ({
         ...shop,
+        available_product_count: availabilityMap.get(shop.id)?.available_product_count ?? 0,
+        required_product_count: availabilityMap.get(shop.id)?.required_product_count ?? checkoutItems.length,
+        is_fully_available: availabilityMap.get(shop.id)?.is_fully_available ?? false,
+        average_rating: availabilityMap.get(shop.id)?.average_rating ?? 0,
+        review_count: availabilityMap.get(shop.id)?.review_count ?? 0,
+        missing_items:
+          availabilityMap.get(shop.id)?.missing_items ??
+          checkoutItems.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            requestedQuantity: item.quantity,
+            availableQuantity: 0,
+          })),
         distanceKm: coordinates ? haversineDistanceInKm(coordinates, shop) : null,
-      }))
+      }) satisfies RankedShop)
       .sort((left, right) => {
         if (left.distanceKm === null && right.distanceKm === null) {
           return left.name.localeCompare(right.name);
@@ -159,31 +177,66 @@ export function CheckoutPage() {
 
         return left.distanceKm - right.distanceKm;
       });
-  }, [availableShopsQuery.data, coordinates]);
+  }, [availableShopsQuery.data, shopsQuery.data, coordinates, checkoutItems.length, checkoutItems]);
+
+  const selectableShops = useMemo(
+    () => rankedShops,
+    [rankedShops],
+  );
 
   useEffect(() => {
-    if (rankedShops.length === 0) {
+    if (selectableShops.length === 0) {
       if (selectedShopId) {
         setSelectedShop(null);
       }
       return;
     }
 
-    const hasSelectedShop = rankedShops.some((shop) => shop.id === selectedShopId);
+    const hasSelectedShop = selectableShops.some((shop) => shop.id === selectedShopId);
 
     if (!hasSelectedShop) {
-      setSelectedShop(rankedShops[0].id);
+      setSelectedShop(selectableShops[0].id);
     }
-  }, [rankedShops, selectedShopId, setSelectedShop]);
+  }, [selectableShops, selectedShopId, setSelectedShop]);
 
-  const selectedShop = rankedShops.find((shop) => shop.id === selectedShopId) ?? null;
-  const cashOnPickupDepositRwf = calculateCashOnPickupDeposit(summary.total);
-  const cashOnPickupBalanceDueRwf = Math.max(summary.total - cashOnPickupDepositRwf, 0);
+  const selectedShop = selectableShops.find((shop) => shop.id === selectedShopId) ?? null;
+  const selectedShopTravelMinutes = estimateTravelMinutes(selectedShop?.distanceKm ?? null, travelMode);
+  const missingProductIds = useMemo(
+    () => new Set((selectedShop?.missing_items ?? []).map((item) => item.productId)),
+    [selectedShop],
+  );
+  const branchAvailableItems = useMemo(
+    () => items.filter((item) => !missingProductIds.has(item.product.id)),
+    [items, missingProductIds],
+  );
+  const branchUnavailableItems = useMemo(
+    () => items.filter((item) => missingProductIds.has(item.product.id)),
+    [items, missingProductIds],
+  );
+  const branchCheckoutItems = useMemo(
+    () =>
+      branchAvailableItems.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitPriceRwf: item.product.price,
+      })),
+    [branchAvailableItems],
+  );
+  const branchSubtotal = useMemo(
+    () => branchAvailableItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+    [branchAvailableItems],
+  );
+  const excludedSubtotal = useMemo(
+    () => branchUnavailableItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+    [branchUnavailableItems],
+  );
+  const branchTotal = branchSubtotal;
   const submitLabel = isSubmitting
     ? t('processingOrder')
     : formValues.paymentMethod === 'momo'
       ? t('payNow')
-      : t('payDepositNow');
+      : t('placeOrder');
 
   useEffect(() => {
     if (pickupSlots.length === 0) {
@@ -202,70 +255,10 @@ export function CheckoutPage() {
     });
   }, [pickupSlots]);
 
-  const pollMomoPayment = async (referenceId: string, orderId: string, paymentMethod: 'cash' | 'momo') => {
-    setIsSubmitting(true);
-    setErrorMessage('');
-    setSuccessMessage('');
-    setPaymentNotice(t('paymentAwaitingConfirmation'));
-    setPaymentStatus('PENDING');
-
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, 2500));
-
-      try {
-        const statusResult = await getRequestToPayStatus(referenceId);
-        const nextStatus = statusResult?.payload?.status ?? 'PENDING';
-        setPaymentStatus(nextStatus);
-
-        if (nextStatus === 'SUCCESSFUL') {
-          clearCart();
-          setPendingPayment(null);
-          setPaymentNotice(t('paymentAuthorized'));
-          setIsSubmitting(false);
-          navigate(`/checkout/confirmation/${orderId}`, {
-            replace: true,
-            state: {
-              orderId,
-              referenceId,
-              paymentMethod,
-            },
-          });
-          return;
-        }
-
-        if (nextStatus === 'FAILED') {
-          setPaymentNotice(t('paymentFailed'));
-          setErrorMessage(t('paymentFailed'));
-          setPendingPayment(null);
-          setIsSubmitting(false);
-          return;
-        }
-
-        setPaymentNotice(t('paymentPending'));
-      } catch (error) {
-        if (attempt < 7) {
-          setPaymentNotice(t('paymentRetryingStatus'));
-          continue;
-        }
-
-        setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
-        setPaymentNotice(t('paymentCheckAgain'));
-        setPendingPayment(null);
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
-    setIsSubmitting(false);
-    setPaymentNotice(t('paymentPending'));
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSuccessMessage('');
     setErrorMessage('');
-    setPaymentReference('');
-    setPaymentStatus('');
     setPaymentNotice('');
 
     if (items.length === 0) {
@@ -278,6 +271,11 @@ export function CheckoutPage() {
       return;
     }
 
+    if (branchCheckoutItems.length === 0) {
+      setErrorMessage(t('noAvailableItemsForShop'));
+      return;
+    }
+
     if (!formValues.pickupTime) {
       setErrorMessage(t('pickupTimeRequired'));
       return;
@@ -285,85 +283,50 @@ export function CheckoutPage() {
 
     const requestPayload = {
       checkout: formValues,
-      items: checkoutItems,
-      subtotalRwf: summary.subtotal,
+      items: branchCheckoutItems,
+      subtotalRwf: branchSubtotal,
       deliveryFeeRwf: 0,
       serviceFeeRwf: 0,
-      totalRwf: summary.total,
+      totalRwf: branchTotal,
       shopId: selectedShopId,
     };
 
-    if (formValues.paymentMethod === 'cash') {
-      try {
-        setIsSubmitting(true);
-        const result = await requestToPay({
-          ...requestPayload,
-          paymentAmountRwf: cashOnPickupDepositRwf,
-          paymentPlan: 'cash-on-pickup',
-        });
-        if (!result.orderId || !result.referenceId) {
-          throw new Error(t('paymentNoReference'));
-        }
-        setPaymentReference(result.referenceId);
-        setPaymentStatus('PENDING');
-        setPendingPayment({
-          orderId: result.orderId,
-          referenceId: result.referenceId,
-        });
-        await pollMomoPayment(result.referenceId, result.orderId, 'cash');
-        return;
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
     try {
       setIsSubmitting(true);
-      const payment = await requestToPay(requestPayload);
-
-      if (!payment.orderId) {
-        throw new Error(t('paymentNoReference'));
+      if (!user) {
+        throw new Error(t('signInCheckoutPrompt'));
       }
 
-      if (payment.warning) {
-        setPaymentNotice(payment.warning);
-        setIsSubmitting(false);
-        // Redirect to confirmation even with warning since order is created
-        navigate(`/checkout/confirmation/${payment.orderId}`, {
-          replace: true,
-          state: {
-            orderId: payment.orderId,
-            paymentMethod: 'momo',
-            warning: payment.warning
-          },
-        });
-        return;
+      const result = await createManualPaymentOrder({
+        userId: user.id,
+        userEmail: user.email,
+        order: requestPayload,
+      });
+
+      if (!result.orderId) {
+        throw new Error(t('failedToCreateOrder'));
       }
 
-      if (payment.referenceId) {
-        setPaymentReference(payment.referenceId);
-        setPaymentStatus('PENDING');
-        setPendingPayment({
-          orderId: payment.orderId,
-          referenceId: payment.referenceId,
-        });
-        await pollMomoPayment(payment.referenceId, payment.orderId, 'momo');
-      } else {
-        // Just created order without reference
-        navigate(`/checkout/confirmation/${payment.orderId}`, {
-          replace: true,
-          state: {
-            orderId: payment.orderId,
-            paymentMethod: 'momo',
-          },
-        });
+      if (formValues.paymentMethod === 'momo') {
+        openMomoDialer(branchTotal);
       }
+
+      clearCart();
+      navigate(`/checkout/confirmation/${result.orderId}`, {
+        replace: true,
+        state: {
+          orderId: result.orderId,
+          paymentMethod: formValues.paymentMethod,
+          ussdCode: formValues.paymentMethod === 'momo' ? buildMomoUssdCode(branchTotal) : undefined,
+        },
+      });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : t('failedToStartPayment'));
+      setErrorMessage(error instanceof Error ? error.message : t('failedToCreateOrder'));
       setIsSubmitting(false);
+      return;
     }
+
+    setIsSubmitting(false);
   };
 
   if (isConfigured && isAuthLoading) {
@@ -433,13 +396,17 @@ export function CheckoutPage() {
             ) : null}
           </div>
 
-          {availableShopsQuery.isLoading && checkoutItems.length > 0 ? (
+          {(availableShopsQuery.isLoading || shopsQuery.isLoading) && checkoutItems.length > 0 ? (
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('validatingInventory')}</p>
           ) : null}
 
-          {availableShopsQuery.isError ? (
+          {availableShopsQuery.isError || shopsQuery.isError ? (
             <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-              {availableShopsQuery.error instanceof Error ? availableShopsQuery.error.message : t('failedToLoadShops')}
+              {availableShopsQuery.error instanceof Error
+                ? availableShopsQuery.error.message
+                : shopsQuery.error instanceof Error
+                  ? shopsQuery.error.message
+                  : t('failedToLoadShops')}
             </p>
           ) : null}
 
@@ -453,57 +420,112 @@ export function CheckoutPage() {
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('emptyCart')}</p>
           ) : null}
 
-          {checkoutItems.length > 0 && !availableShopsQuery.isLoading && rankedShops.length === 0 ? (
-            <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-              {t('noShopCanFulfillCart')}
-            </p>
-          ) : null}
+          {selectableShops.length > 0 ? (
+            <div className="mt-4 space-y-4">
+              <div className="relative">
+                <select
+                  value={selectedShopId ?? ''}
+                  onChange={(event) => setSelectedShop(event.target.value || null)}
+                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <option value="">{t('selectShop')}</option>
+                  {selectableShops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name} · {shop.distanceKm === null ? t('distanceUnavailable') : t('distanceKm', { value: shop.distanceKm.toFixed(1) })}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              </div>
 
-          <div className="mt-4 grid gap-3">
-            {rankedShops.map((shop) => (
-              <label
-                key={shop.id}
-                className={`rounded-3xl border p-4 transition ${
-                  selectedShopId === shop.id
-                    ? 'border-brand-400 bg-brand-50 dark:border-brand-600 dark:bg-brand-900/20'
-                    : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <input
-                    type="radio"
-                    name="pickupShop"
-                    checked={selectedShopId === shop.id}
-                    onChange={() => setSelectedShop(shop.id)}
-                    className="mt-1"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="font-semibold">{shop.name}</p>
-                      <span className="text-sm text-slate-500 dark:text-slate-400">
-                        {shop.distanceKm === null
-                          ? t('distanceUnavailable')
-                          : t('distanceKm', { value: shop.distanceKm.toFixed(1) })}
-                      </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTravelMode('drive')}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    travelMode === 'drive'
+                      ? 'bg-brand-500 text-white'
+                      : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                  }`}
+                >
+                  {t('driveMode')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTravelMode('walk')}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    travelMode === 'walk'
+                      ? 'bg-brand-500 text-white'
+                      : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                  }`}
+                >
+                  {t('walkMode')}
+                </button>
+                {selectedShop ? (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                    {selectedShopTravelMinutes === null
+                      ? t('travelTimeUnavailable')
+                      : t('travelTimeMinutes', { mode: t(travelMode === 'drive' ? 'driveMode' : 'walkMode'), minutes: selectedShopTravelMinutes })}
+                  </span>
+                ) : null}
+              </div>
+
+              {selectedShop ? (
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="font-semibold">{selectedShop.name}</p>
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                          {selectedShop.distanceKm === null
+                            ? t('distanceUnavailable')
+                            : t('distanceKm', { value: selectedShop.distanceKm.toFixed(1) })}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{selectedShop.address}</p>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{selectedShop.phone}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                        <span className="inline-flex items-center gap-1">
+                          <Star size={14} className="fill-amber-400 text-amber-400" />
+                          {selectedShop.review_count > 0
+                            ? t('shopRatingValue', { rating: Number(selectedShop.average_rating).toFixed(1), count: selectedShop.review_count })
+                            : t('shopRatingEmpty')}
+                        </span>
+                      </div>
+                      <p className={`mt-2 text-xs font-semibold uppercase tracking-[0.22em] ${
+                        selectedShop.is_fully_available
+                          ? 'text-brand-600 dark:text-brand-300'
+                          : 'text-amber-600 dark:text-amber-300'
+                      }`}>
+                        {selectedShop.is_fully_available ? t('inventoryReadyForCart') : t('branchSelectionWillAdjustTotal')}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shop.address}</p>
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shop.phone}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-                      <span className="inline-flex items-center gap-1">
-                        <Star size={14} className="fill-amber-400 text-amber-400" />
-                        {shop.review_count > 0
-                          ? t('shopRatingValue', { rating: Number(shop.average_rating).toFixed(1), count: shop.review_count })
-                          : t('shopRatingEmpty')}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
-                      {t('inventoryReadyForCart')}
-                    </p>
                   </div>
                 </div>
-              </label>
-            ))}
-          </div>
+              ) : null}
+
+              {selectedShop && selectedShop.missing_items.length > 0 ? (
+                <div className="rounded-3xl border border-amber-200 bg-amber-50/90 p-4 dark:border-amber-900/60 dark:bg-amber-900/10">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                    {t('missingCartItemsTitle')}
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm text-amber-900 dark:text-amber-100">
+                    {selectedShop.missing_items.map((item) => (
+                      <div key={`${selectedShop.id}-${item.productId}`} className="flex items-start justify-between gap-3 rounded-2xl bg-white/70 px-3 py-2 dark:bg-slate-950/40">
+                        <span className="min-w-0 flex-1">{item.productName}</span>
+                        <span className="shrink-0 text-xs font-medium uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                          {t('missingCartItemStock', {
+                            available: item.availableQuantity,
+                            requested: item.requestedQuantity,
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
@@ -585,17 +607,12 @@ export function CheckoutPage() {
           {formValues.paymentMethod === 'momo' ? (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
               <p className="font-semibold">{t('momoCheckoutTitle')}</p>
-              <p className="mt-1">{t('momoCheckoutCopy', { receiverNumber: PAYPACK_RECEIVER_NUMBER })}</p>
+              <p className="mt-1">{t('momoManualCheckoutCopy', { receiverNumber: PAYPACK_RECEIVER_NUMBER, ussdCode: buildMomoUssdCode(branchTotal) })}</p>
             </div>
           ) : (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
               <p className="font-semibold">{t('cashOnPickupTitle')}</p>
-              <p className="mt-1">
-                {t('cashOnPickupCopy', {
-                  depositAmount: formatCurrency(cashOnPickupDepositRwf),
-                  balanceAmount: formatCurrency(cashOnPickupBalanceDueRwf),
-                })}
-              </p>
+              <p className="mt-1">{t('cashOnPickupManualCopy')}</p>
             </div>
           )}
         </div>
@@ -607,42 +624,12 @@ export function CheckoutPage() {
             items.length === 0 ||
             isSubmitting ||
             !selectedShopId ||
-            rankedShops.length === 0 ||
-            (pendingPayment !== null && paymentStatus === 'PENDING')
+            selectableShops.length === 0 ||
+            branchCheckoutItems.length === 0
           }
         >
           {submitLabel}
         </Button>
-        {pendingPayment && paymentStatus === 'PENDING' ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className="mt-3"
-            fullWidth
-            disabled={isSubmitting}
-            onClick={() =>
-              void pollMomoPayment(
-                pendingPayment.referenceId,
-                pendingPayment.orderId,
-                formValues.paymentMethod,
-              )
-            }
-          >
-            {t('checkPaymentAgain')}
-          </Button>
-        ) : null}
-        {paymentReference ? (
-          <div className="mt-4 rounded-2xl bg-sky-50 px-4 py-3 text-sm font-medium text-sky-700 dark:bg-sky-900/20 dark:text-sky-300" aria-live="polite">
-            <p>
-              {t('referenceLabel')}: {paymentReference}
-            </p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em]">
-              {paymentStatus
-                ? `${t('paymentStatus')}: ${paymentStatus === 'SUCCESSFUL' ? t('paid') : paymentStatus === 'FAILED' ? t('failed') : t('pending')}`
-                : t('paymentAwaitingConfirmation')}
-            </p>
-          </div>
-        ) : null}
         {paymentNotice ? (
           <p className="mt-4 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:bg-brand-900/20 dark:text-brand-200" aria-live="polite">
             {paymentNotice}
@@ -695,27 +682,56 @@ export function CheckoutPage() {
           {items.length === 0 ? (
             <p className="text-slate-500 dark:text-slate-400">{t('emptyCart')}</p>
           ) : (
-            items.map(({ product, quantity }) => (
-              <div key={product.id} className="flex items-center gap-3 rounded-3xl bg-stone-100 p-3 dark:bg-slate-900">
+            items.map(({ product, quantity }) => {
+              const isUnavailable = missingProductIds.has(product.id);
+
+              return (
+              <div
+                key={product.id}
+                className={`flex items-center gap-3 rounded-3xl p-3 ${
+                  isUnavailable ? 'bg-amber-50 dark:bg-amber-900/10' : 'bg-stone-100 dark:bg-slate-900'
+                }`}
+              >
                 <img src={product.image} alt={product.name} className="h-16 w-16 rounded-2xl object-cover" />
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 font-semibold">{product.name}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="line-clamp-2 font-semibold">{product.name}</p>
+                    {isUnavailable ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+                        {t('notAvailableInBranch')}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className={`text-sm ${isUnavailable ? 'text-amber-700 dark:text-amber-200' : 'text-slate-500 dark:text-slate-400'}`}>
                     {quantity} x {formatCurrency(product.price)}
                   </p>
+                  {isUnavailable ? (
+                    <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-200">
+                      {t('itemExcludedFromTotal')}
+                    </p>
+                  ) : null}
+                </div>
+                <div className={`text-sm font-semibold ${isUnavailable ? 'text-amber-700 line-through dark:text-amber-200' : ''}`}>
+                  {formatCurrency(product.price * quantity)}
                 </div>
               </div>
-            ))
+            )})
           )}
         </div>
         <div className="mt-6 space-y-3 border-t border-slate-200 pt-4 text-sm dark:border-slate-800">
           <div className="flex justify-between">
             <span>{t('subtotal')}</span>
-            <span>{formatCurrency(summary.subtotal)}</span>
+            <span>{formatCurrency(branchSubtotal)}</span>
           </div>
+          {excludedSubtotal > 0 ? (
+            <div className="flex justify-between text-amber-700 dark:text-amber-200">
+              <span>{t('unavailableItemsDeducted')}</span>
+              <span>-{formatCurrency(excludedSubtotal)}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between text-lg font-bold">
             <span>{t('total')}</span>
-            <span>{formatCurrency(summary.total)}</span>
+            <span>{formatCurrency(branchTotal)}</span>
           </div>
         </div>
       </aside>
