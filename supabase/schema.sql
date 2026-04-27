@@ -608,7 +608,7 @@ set search_path = public
 as $$
   with input_items as (
     select *
-    from jsonb_to_recordset(cart_items) as item("productId" bigint, quantity integer)
+    from jsonb_to_recordset(cart_items) as item("productId" bigint, "productName" text, quantity integer)
   ),
   item_count as (
     select count(*)::integer as total
@@ -618,6 +618,7 @@ as $$
     select
       s.id as shop_id,
       ii."productId" as product_id,
+      ii."productName" as product_name,
       ii.quantity as requested_quantity,
       coalesce(inv.quantity, 0) as available_quantity
     from public.shops s
@@ -641,14 +642,13 @@ as $$
       jsonb_agg(
         jsonb_build_object(
           'productId', im.product_id,
-          'productName', p.name,
+          'productName', im.product_name,
           'requestedQuantity', im.requested_quantity,
           'availableQuantity', im.available_quantity
         )
-        order by p.name
+        order by im.product_name
       ) filter (where im.available_quantity < im.requested_quantity) as missing_items
     from inventory_matches im
-    join public.products p on p.id = im.product_id
     group by im.shop_id
   ),
   review_summary as (

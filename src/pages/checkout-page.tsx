@@ -84,6 +84,12 @@ function buildPickupSlots() {
   return slots;
 }
 
+const CASH_ON_PICKUP_DEPOSIT_RATE = 0.1;
+
+function calculateCashOnPickupDeposit(totalRwf: number) {
+  return Math.max(1, Math.round(totalRwf * CASH_ON_PICKUP_DEPOSIT_RATE));
+}
+
 export function CheckoutPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -232,11 +238,13 @@ export function CheckoutPage() {
     [branchUnavailableItems],
   );
   const branchTotal = branchSubtotal;
+  const cashOnPickupDepositRwf = calculateCashOnPickupDeposit(branchTotal);
+  const cashOnPickupBalanceDueRwf = Math.max(branchTotal - cashOnPickupDepositRwf, 0);
   const submitLabel = isSubmitting
     ? t('processingOrder')
     : formValues.paymentMethod === 'momo'
       ? t('payNow')
-      : t('placeOrder');
+      : t('payDepositNow');
 
   useEffect(() => {
     if (pickupSlots.length === 0) {
@@ -301,15 +309,14 @@ export function CheckoutPage() {
         userId: user.id,
         userEmail: user.email,
         order: requestPayload,
+        paymentAmountRwf: formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal,
       });
 
       if (!result.orderId) {
         throw new Error(t('failedToCreateOrder'));
       }
 
-      if (formValues.paymentMethod === 'momo') {
-        openMomoDialer(branchTotal);
-      }
+      openMomoDialer(formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal);
 
       clearCart();
       navigate(`/checkout/confirmation/${result.orderId}`, {
@@ -317,7 +324,9 @@ export function CheckoutPage() {
         state: {
           orderId: result.orderId,
           paymentMethod: formValues.paymentMethod,
-          ussdCode: formValues.paymentMethod === 'momo' ? buildMomoUssdCode(branchTotal) : undefined,
+          ussdCode: buildMomoUssdCode(
+            formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal,
+          ),
         },
       });
     } catch (error) {
@@ -612,7 +621,12 @@ export function CheckoutPage() {
           ) : (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
               <p className="font-semibold">{t('cashOnPickupTitle')}</p>
-              <p className="mt-1">{t('cashOnPickupManualCopy')}</p>
+              <p className="mt-1">
+                {t('cashOnPickupCopy', {
+                  depositAmount: formatCurrency(cashOnPickupDepositRwf),
+                  balanceAmount: formatCurrency(cashOnPickupBalanceDueRwf),
+                })}
+              </p>
             </div>
           )}
         </div>

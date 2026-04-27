@@ -7,6 +7,7 @@ import type { AvailableShop, CheckoutItemPayload } from '@/types';
 
 type CartItemRpc = {
   productId: number;
+  productName: string;
   quantity: number;
 };
 
@@ -39,6 +40,7 @@ export function useAvailableShops(items: CheckoutItemPayload[]) {
       items
         .map((item) => ({
           productId: item.productId,
+          productName: item.productName,
           quantity: item.quantity,
         }))
         .sort((left, right) => left.productId - right.productId),

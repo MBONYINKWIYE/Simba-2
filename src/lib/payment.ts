@@ -19,6 +19,7 @@ type CreateManualPaymentOrderArgs = {
   userId: string;
   userEmail: string | null | undefined;
   order: OrderCreatePayload;
+  paymentAmountRwf?: number;
 };
 
 function encodeUssdCode(ussdCode: string) {
@@ -41,9 +42,10 @@ export function openMomoDialer(totalAmountRwf: number) {
   window.location.href = buildMomoDialerUrl(totalAmountRwf);
 }
 
-export async function createManualPaymentOrder({ userId, userEmail, order }: CreateManualPaymentOrderArgs) {
+export async function createManualPaymentOrder({ userId, userEmail, order, paymentAmountRwf }: CreateManualPaymentOrderArgs) {
   const client = requireSupabaseClient();
   const isMomoOrder = order.checkout.paymentMethod === 'momo';
+  const effectivePaymentAmount = paymentAmountRwf ?? order.totalRwf;
   const { data, error } = await client.rpc('create_order_with_inventory', {
     p_user_id: userId,
     p_user_email: userEmail ?? '',
@@ -72,11 +74,17 @@ export async function createManualPaymentOrder({ userId, userEmail, order }: Cre
         ? {
             collectionMethod: 'ussd',
             receiverNumber: PAYPACK_RECEIVER_NUMBER,
-            ussdCode: buildMomoUssdCode(order.totalRwf),
+            ussdCode: buildMomoUssdCode(effectivePaymentAmount),
+            paymentAmountRwf: effectivePaymentAmount,
             paymentInstructions: 'Customer completes MoMo payment separately. Shop confirms after receiving payment.',
           }
         : {
             collectionMethod: 'cash-on-pickup',
+            paymentAmountRwf: effectivePaymentAmount,
+            depositRwf: effectivePaymentAmount,
+            balanceDueRwf: Math.max(order.totalRwf - effectivePaymentAmount, 0),
+            ussdCode: buildMomoUssdCode(effectivePaymentAmount),
+            receiverNumber: PAYPACK_RECEIVER_NUMBER,
             paymentInstructions: 'Customer pays at pickup after shop confirmation.',
           }),
     },

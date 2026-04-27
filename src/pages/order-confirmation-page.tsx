@@ -8,6 +8,7 @@ import { orderQueryOptions } from '@/lib/orders';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { useQuery } from '@tanstack/react-query';
+import type { OrderPaymentPayload } from '@/types';
 
 type ConfirmationState = {
   orderId?: string;
@@ -45,6 +46,9 @@ export function OrderConfirmationPage() {
   });
 
   const order = orderQuery.data ?? null;
+  const paymentPayload = (order?.payment_payload ?? {}) as OrderPaymentPayload;
+  const depositPaidRwf = paymentPayload.depositRwf ?? paymentPayload.paymentAmountRwf ?? 0;
+  const balanceDueRwf = paymentPayload.balanceDueRwf ?? Math.max((order?.total_rwf ?? 0) - depositPaidRwf, 0);
 
   useEffect(() => {
     if (!order || confirmationState.orderId !== order.id) {
@@ -179,7 +183,12 @@ export function OrderConfirmationPage() {
                 <ShieldCheck className="mt-0.5 text-brand-600 dark:text-brand-300" size={18} />
                 <div className="min-w-0">
                   <p className="font-semibold">{t('cashOnPickupTitle')}</p>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('cashOnPickupManualCopy')}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {t('depositLine')}: {formatCurrency(depositPaidRwf)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {t('balanceDueOnPickup')}: {formatCurrency(balanceDueRwf)}
+                  </p>
                 </div>
               </div>
             ) : (
