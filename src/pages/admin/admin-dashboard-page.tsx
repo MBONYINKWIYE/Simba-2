@@ -17,6 +17,16 @@ import { signOut } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import type { AdminOrderRecord, ShopAdminAssignment, ShopOrderStatus, UnassignedStaffProfile } from '@/types';
 
+function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
+  return (
+    <div className="rounded-[1.5rem] border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 text-3xl font-bold">{value}</p>
+      {hint ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{hint}</p> : null}
+    </div>
+  );
+}
+
 function statusClassName(value: ShopOrderStatus | string) {
   if (value === 'ready' || value === 'picked_up') {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
@@ -772,6 +782,11 @@ export function AdminDashboardPage() {
   const orders = rawOrders
     .filter((order) => (statusFilter === 'all' ? true : order.status === statusFilter))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const assignedOrdersCount = rawOrders.filter((order) => Boolean(order.assigned_staff_user_id)).length;
+  const preparingOrdersCount = rawOrders.filter((order) => order.status === 'preparing').length;
+  const readyOrdersCount = rawOrders.filter((order) => order.status === 'ready').length;
+  const pendingOrdersCount = rawOrders.filter((order) => order.status === 'pending').length;
+  const pickedUpOrdersCount = rawOrders.filter((order) => order.status === 'picked_up').length;
 
   const activeOrder = orders.find((order) => order.id === orderId) ?? orders[0] ?? null;
   const availableSections = [
@@ -808,15 +823,18 @@ export function AdminDashboardPage() {
               {t('dashboardRoleLabel')}: {formatStatusLabel(isSuperAdmin ? 'superAdminBadge' : (adminRole ?? 'staff'), t)}
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link to="/">
-              <Button variant="secondary">{t('keepShopping')}</Button>
-            </Link>
-            <Button variant="ghost" onClick={() => void signOut()}>
-              {t('signOut')}
-            </Button>
-          </div>
+          <Button variant="ghost" onClick={() => void signOut()}>
+            {t('signOut')}
+          </Button>
         </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
+        <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
+        <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
+        <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
+        <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">

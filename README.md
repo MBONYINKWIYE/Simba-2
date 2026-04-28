@@ -2,6 +2,37 @@
 
 Simba Supermarket is now a multi-shop grocery storefront with authenticated checkout, MTN MoMo payment support, customer order tracking, and a role-based admin dashboard for shop admins and super admins.
 
+## Reviewer Quick Path
+
+Use this path to verify the judged features quickly without exploring the full repo first:
+
+1. Open the storefront and confirm:
+- category browsing
+- cart updates
+- authenticated checkout
+- order history
+
+2. Switch language from the header:
+- English
+- French
+- Kinyarwanda
+
+3. Sign in with a shop admin account and open `/admin`:
+- check order summary cards for incoming, preparing, ready, and picked up states
+- open an order and update its status
+- assign the order to staff
+- open the inventory dashboard and confirm add/remove quantity behavior plus history
+
+4. Sign in with a staff account and open `/staff`:
+- verify only assigned orders are visible
+- mark an assigned order as `preparing`, `ready`, or `picked_up`
+
+5. Sign in with a super admin account and open `/admin?section=team`:
+- create shops
+- assign admin, manager, or staff roles
+- remove existing assignments
+- review unassigned staff accounts
+
 ## Current Product Scope
 
 The app currently includes:
@@ -41,6 +72,9 @@ Implemented routes in [src/router.tsx](C:\Users\frank\a2sv_projects\Simba-2\src\
 - `/admin/login`
 - `/admin`
 - `/admin/orders/:orderId`
+- `/staff/login`
+- `/staff`
+- `/staff/orders/:orderId`
 
 ## Auth And Roles
 
@@ -68,12 +102,15 @@ Recent auth behavior:
 - Update order status from `pending` to `preparing`, `ready`, and `picked_up`
 - Manage inventory quantities for assigned shops
 - Update shop phone number
+- Add and remove staff for their own shop
+- View unassigned staff accounts in the team management section
 
 ### Super Admin
 
 - Everything a shop admin can do
 - Create new shops
 - Assign shop admins and managers
+- Remove admin, manager, and staff assignments
 - View shop admin assignments across all shops
 - View and manage data across every shop
 
@@ -237,6 +274,15 @@ Current translated catalog files:
 ```
 
 ## Verification
+
+### Reviewer Checklist
+
+- Buyer flow: add products to cart, sign in, select a shop, and place an order
+- Admin flow: review incoming orders, assign staff, and move orders across statuses
+- Staff flow: open `/staff` and process only assigned orders
+- Inventory flow: use `Add` and `Remove` with an entered quantity and verify inventory history rows
+- Team flow: open `/admin?section=team` and verify assignment and removal actions
+- Language flow: switch between `en`, `fr`, and `rw` from the header on multiple pages
 
 Last verified in this repo state:
 

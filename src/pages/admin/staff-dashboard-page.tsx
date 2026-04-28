@@ -10,6 +10,16 @@ import { useUserRole } from '@/hooks/use-user-role';
 import { signOut } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 
+function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
+  return (
+    <div className="rounded-[1.5rem] border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 text-3xl font-bold">{value}</p>
+      {hint ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{hint}</p> : null}
+    </div>
+  );
+}
+
 function statusClassName(value: string) {
   if (value === 'ready' || value === 'picked_up') {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
@@ -42,6 +52,9 @@ export function StaffDashboardPage() {
     () => (ordersQuery.data ?? []).filter((order) => order.assigned_staff_user_id === user?.id),
     [ordersQuery.data, user?.id],
   );
+  const preparingOrdersCount = assignedOrders.filter((order) => order.status === 'preparing').length;
+  const readyOrdersCount = assignedOrders.filter((order) => order.status === 'ready').length;
+  const pickedUpOrdersCount = assignedOrders.filter((order) => order.status === 'picked_up').length;
 
   const activeOrder = assignedOrders.find((order) => order.id === orderId) ?? assignedOrders[0] ?? null;
 
@@ -84,15 +97,17 @@ export function StaffDashboardPage() {
               </p>
             ) : null}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link to="/">
-              <Button variant="secondary">{t('keepShopping')}</Button>
-            </Link>
-            <Button variant="ghost" onClick={() => void signOut()}>
-              {t('signOut')}
-            </Button>
-          </div>
+          <Button variant="ghost" onClick={() => void signOut()}>
+            {t('signOut')}
+          </Button>
         </div>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrders.length} hint={t('assignedOrdersMetricHint')} />
+        <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
+        <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
+        <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[0.86fr_1.14fr]">
