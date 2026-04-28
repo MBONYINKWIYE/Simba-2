@@ -310,6 +310,10 @@ export async function resolvePostSignInPath(userId: string, userEmail: string | 
 
   const roleProfile = await getUserRoleProfile(userId, userEmail);
 
+  if (roleProfile.role === 'shop_admin' && roleProfile.adminRole === 'staff') {
+    return '/staff';
+  }
+
   if (roleProfile.role === 'shop_admin' || roleProfile.role === 'super_admin') {
     return '/admin';
   }

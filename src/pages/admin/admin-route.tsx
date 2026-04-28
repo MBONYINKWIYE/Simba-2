@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuthRole } from '@/hooks/use-auth-role';
 
-export function AdminRoute({ children }: PropsWithChildren) {
+type AdminRouteProps = PropsWithChildren<{
+  requireStaff?: boolean;
+}>;
+
+export function AdminRoute({ children, requireStaff = false }: AdminRouteProps) {
   const { t } = useTranslation();
   const { user, isLoading, isConfigured } = useAuth();
   const authRoleQuery = useAuthRole();
@@ -26,11 +30,23 @@ export function AdminRoute({ children }: PropsWithChildren) {
   }
 
   if (!user) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={requireStaff ? '/staff/login' : '/admin/login'} replace />;
   }
 
   if (authRoleQuery.data?.role !== 'shop_admin' && authRoleQuery.data?.role !== 'super_admin') {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={requireStaff ? '/staff/login' : '/admin/login'} replace />;
+  }
+
+  if (requireStaff) {
+    if (authRoleQuery.data?.adminRole !== 'staff') {
+      return <Navigate to="/admin" replace />;
+    }
+
+    return <>{children}</>;
+  }
+
+  if (authRoleQuery.data?.role === 'shop_admin' && authRoleQuery.data?.adminRole === 'staff') {
+    return <Navigate to="/staff" replace />;
   }
 
   return <>{children}</>;

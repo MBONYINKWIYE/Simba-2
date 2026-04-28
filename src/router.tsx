@@ -30,6 +30,9 @@ const AdminLoginPage = lazy(() =>
 const AdminDashboardPage = lazy(() =>
   import('@/pages/admin/admin-dashboard-page').then((module) => ({ default: module.AdminDashboardPage })),
 );
+const StaffDashboardPage = lazy(() =>
+  import('@/pages/admin/staff-dashboard-page').then((module) => ({ default: module.StaffDashboardPage })),
+);
 
 function RouteFallback() {
   const { t } = useTranslation();
@@ -201,6 +204,16 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'staff/login',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <AdminLoginPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
         path: 'admin',
         element: (
           <AppShell>
@@ -213,12 +226,36 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'staff',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <AdminRoute requireStaff>
+                <StaffDashboardPage />
+              </AdminRoute>
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
         path: 'admin/orders/:orderId',
         element: (
           <AppShell>
             <Suspense fallback={fallback}>
               <AdminRoute>
                 <AdminDashboardPage />
+              </AdminRoute>
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'staff/orders/:orderId',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <AdminRoute requireStaff>
+                <StaffDashboardPage />
               </AdminRoute>
             </Suspense>
           </AppShell>

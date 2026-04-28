@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 import { supabase } from '@/lib/supabase';
-import type { InventoryRecord } from '@/types';
+import type { InventoryHistoryRecord, InventoryRecord } from '@/types';
 
 type UpsertInventoryArgs = {
   shopId: string;
@@ -19,6 +19,8 @@ type UpdateShopPhoneArgs = {
   phone: string;
 };
 
+type InventoryHistoryLimit = number | 'all';
+
 async function fetchInventory(scopeShopId: string | null, isSuperAdmin: boolean) {
   if (!supabase) {
     return [] as InventoryRecord[];
@@ -33,6 +35,23 @@ async function fetchInventory(scopeShopId: string | null, isSuperAdmin: boolean)
   }
 
   return (data ?? []) as InventoryRecord[];
+}
+
+async function fetchInventoryHistory(scopeShopId: string | null, isSuperAdmin: boolean, limit: InventoryHistoryLimit) {
+  if (!supabase) {
+    return [] as InventoryHistoryRecord[];
+  }
+
+  const { data, error } = await supabase.rpc('list_inventory_history', {
+    target_shop_id: isSuperAdmin ? scopeShopId : scopeShopId,
+    row_limit: limit === 'all' ? 10000 : limit,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as InventoryHistoryRecord[];
 }
 
 async function upsertInventoryEntry({ shopId, productId, quantity }: UpsertInventoryArgs) {
@@ -91,6 +110,17 @@ export function useInventory(scopeShopId: string | null, isSuperAdmin = false) {
   });
 }
 
+export function useInventoryHistory(scopeShopId: string | null, isSuperAdmin = false, limit: InventoryHistoryLimit = 20) {
+  const scopeKey = isSuperAdmin ? `super:${scopeShopId ?? 'all'}` : (scopeShopId ?? 'unassigned');
+
+  return useQuery({
+    queryKey: queryKeys.inventoryHistory(scopeKey, limit),
+    queryFn: () => fetchInventoryHistory(scopeShopId, isSuperAdmin, limit),
+    enabled: isSuperAdmin || Boolean(scopeShopId),
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useUpsertInventoryEntry() {
   const queryClient = useQueryClient();
 
@@ -101,6 +131,7 @@ export function useUpsertInventoryEntry() {
         queryClient.invalidateQueries({ queryKey: queryKeys.inventory(variables.shopId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.inventory(`super:${variables.shopId}`) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.inventory('super:all') }),
+        queryClient.invalidateQueries({ queryKey: ['inventory-history'] }),
         queryClient.invalidateQueries({ queryKey: ['available-shops'] }),
       ]);
     },
@@ -115,6 +146,7 @@ export function useDeleteInventoryEntry() {
     onSuccess: async (_data, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.inventory(variables.scopeKey) }),
+        queryClient.invalidateQueries({ queryKey: ['inventory-history'] }),
         queryClient.invalidateQueries({ queryKey: ['available-shops'] }),
       ]);
     },

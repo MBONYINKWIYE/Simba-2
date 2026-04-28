@@ -20,6 +20,9 @@ export function Header() {
   const { data } = useCatalog();
   const authRoleQuery = useUserRole();
   const isAdmin = authRoleQuery.data?.role === 'shop_admin' || authRoleQuery.data?.role === 'super_admin';
+  const isStaff = authRoleQuery.data?.role === 'shop_admin' && authRoleQuery.data?.adminRole === 'staff';
+  const dashboardPath = isStaff ? '/staff' : '/admin';
+  const dashboardLabel = isStaff ? t('staffDashboard') : t('adminDashboard');
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
@@ -166,8 +169,8 @@ export function Header() {
             {t('myOrders')}
           </NavLink>
           {isAdmin ? (
-            <NavLink to="/admin" className="text-sm font-bold text-brand-600 dark:text-brand-400">
-              {t('adminDashboard')}
+            <NavLink to={dashboardPath} className="text-sm font-bold text-brand-600 dark:text-brand-400">
+              {dashboardLabel}
             </NavLink>
           ) : null}
         </nav>
@@ -300,11 +303,11 @@ export function Header() {
               </NavLink>
               {isAdmin ? (
                 <NavLink
-                  to="/admin"
+                  to={dashboardPath}
                   className="rounded-2xl px-3 py-2 text-sm font-bold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {t('adminDashboard')}
+                  {dashboardLabel}
                 </NavLink>
               ) : null}
             </nav>

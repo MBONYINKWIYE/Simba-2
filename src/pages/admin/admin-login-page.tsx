@@ -18,6 +18,10 @@ export function AdminLoginPage() {
     return <section className="glass-panel mx-auto max-w-2xl p-6">{t('loadingAccount')}</section>;
   }
 
+  if (user && authRoleQuery.data?.role === 'shop_admin' && authRoleQuery.data?.adminRole === 'staff') {
+    return <Navigate to="/staff" replace />;
+  }
+
   if (user && (authRoleQuery.data?.role === 'shop_admin' || authRoleQuery.data?.role === 'super_admin')) {
     return <Navigate to="/admin" replace />;
   }
@@ -27,7 +31,7 @@ export function AdminLoginPage() {
       <h1 className="text-3xl font-bold">{t('adminLoginTitle')}</h1>
       <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{t('adminLoginCopy')}</p>
 
-      {user && authRoleQuery.data?.role !== 'shop_admin' ? (
+      {user && authRoleQuery.data?.role !== 'shop_admin' && authRoleQuery.data?.role !== 'super_admin' ? (
         <div className="mt-6 rounded-3xl bg-rose-50 p-4 text-sm text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
           <p>{t('adminUnauthorized')}</p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">

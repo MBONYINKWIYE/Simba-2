@@ -45,6 +45,18 @@ create table if not exists public.inventory (
   unique (shop_id, product_id)
 );
 
+create table if not exists public.inventory_history (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid not null references public.shops(id) on delete cascade,
+  product_id bigint not null references public.catalog_products(id) on delete cascade,
+  operation_type text not null check (operation_type in ('restock', 'sale')),
+  quantity_change integer not null,
+  previous_quantity integer not null,
+  total_quantity integer not null,
+  order_id uuid,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -221,6 +233,8 @@ create index if not exists shop_admins_shop_id_idx on public.shop_admins (shop_i
 create index if not exists inventory_shop_id_idx on public.inventory (shop_id);
 create index if not exists inventory_product_id_idx on public.inventory (product_id);
 create index if not exists inventory_shop_product_qty_idx on public.inventory (shop_id, product_id, quantity);
+create index if not exists inventory_history_shop_created_idx on public.inventory_history (shop_id, created_at desc);
+create index if not exists inventory_history_product_created_idx on public.inventory_history (product_id, created_at desc);
 create index if not exists orders_user_id_idx on public.orders (user_id);
 create index if not exists orders_shop_id_idx on public.orders (shop_id);
 create index if not exists orders_assigned_staff_user_id_idx on public.orders (assigned_staff_user_id);
@@ -495,6 +509,7 @@ set search_path = public, auth
 as $$
 declare
   saved_inventory public.inventory;
+  previous_quantity integer;
 begin
   if not public.can_manage_shop(target_shop_id) then
     raise exception 'You do not have permission to manage this shop inventory';
@@ -504,11 +519,37 @@ begin
     raise exception 'Inventory quantity cannot be negative';
   end if;
 
+  select coalesce(inv.quantity, 0)
+  into previous_quantity
+  from public.inventory inv
+  where inv.shop_id = target_shop_id
+    and inv.product_id = target_product_id
+  for update;
+
+  previous_quantity := coalesce(previous_quantity, 0);
+
   insert into public.inventory (shop_id, product_id, quantity, updated_at)
-  values (target_shop_id, target_product_id, target_quantity, now())
+  values (target_shop_id, target_product_id, previous_quantity + target_quantity, now())
   on conflict (shop_id, product_id)
-  do update set quantity = excluded.quantity, updated_at = now()
+  do update set quantity = public.inventory.quantity + excluded.quantity, updated_at = now()
   returning * into saved_inventory;
+
+  insert into public.inventory_history (
+    shop_id,
+    product_id,
+    operation_type,
+    quantity_change,
+    previous_quantity,
+    total_quantity
+  )
+  values (
+    target_shop_id,
+    target_product_id,
+    'restock',
+    target_quantity,
+    previous_quantity,
+    saved_inventory.quantity
+  );
 
   return saved_inventory;
 end
@@ -580,6 +621,55 @@ as $$
       and (target_shop_id is null or inv.shop_id = target_shop_id)
     )
   order by s.name, cp.name
+$$;
+
+create or replace function public.list_inventory_history(
+  target_shop_id uuid default null,
+  row_limit integer default 20
+)
+returns table (
+  history_id uuid,
+  shop_id uuid,
+  shop_name text,
+  product_id bigint,
+  product_name text,
+  operation_type text,
+  quantity_change integer,
+  previous_quantity integer,
+  total_quantity integer,
+  order_id uuid,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select hist.id as history_id,
+    hist.shop_id,
+    s.name as shop_name,
+    hist.product_id,
+    cp.name as product_name,
+    hist.operation_type,
+    hist.quantity_change,
+    hist.previous_quantity,
+    hist.total_quantity,
+    hist.order_id,
+    hist.created_at
+  from public.inventory_history hist
+  join public.shops s on s.id = hist.shop_id
+  join public.catalog_products cp on cp.id = hist.product_id
+  where (
+      public.is_super_admin()
+      and (target_shop_id is null or hist.shop_id = target_shop_id)
+    )
+    or (
+      not public.is_super_admin()
+      and hist.shop_id in (select public.current_shop_admin_shop_ids())
+      and (target_shop_id is null or hist.shop_id = target_shop_id)
+    )
+  order by hist.created_at desc
+  limit greatest(coalesce(row_limit, 20), 1)
 $$;
 
 drop function if exists public.get_available_shops_for_cart(jsonb);
@@ -847,6 +937,28 @@ begin
   where inv.shop_id = p_shop_id
     and inv.product_id = item."productId";
 
+  insert into public.inventory_history (
+    shop_id,
+    product_id,
+    operation_type,
+    quantity_change,
+    previous_quantity,
+    total_quantity,
+    order_id
+  )
+  select
+    p_shop_id,
+    inv.product_id,
+    'sale',
+    -item.quantity,
+    inv.quantity + item.quantity,
+    inv.quantity,
+    created_order_id
+  from public.inventory inv
+  join jsonb_to_recordset(p_items) as item("productId" bigint, "productName" text, quantity integer, "unitPriceRwf" integer)
+    on inv.product_id = item."productId"
+  where inv.shop_id = p_shop_id;
+
   return created_order_id;
 end
 $$;
@@ -980,11 +1092,16 @@ begin
     return target_order;
   end if;
 
-  if actor_role = 'staff' and target_order.assigned_staff_user_id = auth.uid() and next_status = 'ready' then
+  if actor_role = 'staff'
+    and target_order.assigned_staff_user_id = auth.uid()
+    and next_status in ('preparing', 'ready', 'picked_up') then
     update public.orders
     set
       status = next_status,
-      fulfillment_status = 'processing'
+      fulfillment_status = case
+        when next_status = 'picked_up' then 'delivered'
+        else 'processing'
+      end
     where id = target_order_id
     returning * into target_order;
 
@@ -1039,6 +1156,7 @@ alter table public.catalog_products enable row level security;
 alter table public.shops enable row level security;
 alter table public.shop_admins enable row level security;
 alter table public.inventory enable row level security;
+alter table public.inventory_history enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.reviews enable row level security;
@@ -1125,6 +1243,21 @@ to authenticated
 using (public.is_super_admin() or shop_id in (select public.current_shop_admin_shop_ids()))
 with check (public.is_super_admin() or shop_id in (select public.current_shop_admin_shop_ids()));
 
+drop policy if exists "Service role manages inventory history" on public.inventory_history;
+create policy "Service role manages inventory history"
+on public.inventory_history
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists "Shop admins can read inventory history" on public.inventory_history;
+create policy "Shop admins can read inventory history"
+on public.inventory_history
+for select
+to authenticated
+using (public.is_super_admin() or shop_id in (select public.current_shop_admin_shop_ids()));
+
 drop policy if exists "Service role manages orders" on public.orders;
 create policy "Service role manages orders"
 on public.orders
@@ -1209,40 +1342,44 @@ with check (auth.uid() = user_id);
 -- Seeding extra shops and inventory
 do $$
 declare
-  main_shop_id uuid;
-  other_shop_id uuid;
+  kisimenti_shop_id uuid;
+  sonatube_shop_id uuid;
   prod_id bigint;
+  kisimenti_qty integer;
+  sonatube_qty integer;
 begin
-  -- Ensure extra shops exist
-  if not exists (select 1 from public.shops where name = 'Simba Gikondo') then
+  -- Ensure the target branches exist
+  if not exists (select 1 from public.shops where name = 'Simba Kisimenti') then
     insert into public.shops (name, address, latitude, longitude, phone)
-    values ('Simba Gikondo', 'KK 31 St, Gikondo, Kigali', -1.9721, 30.0719, '+250788111111');
+    values ('Simba Kisimenti', 'KG 9 Ave, Kisimenti, Kigali', -1.9489, 30.1044, '+250788333333');
   end if;
 
-  if not exists (select 1 from public.shops where name = 'Simba Kimironko') then
+  if not exists (select 1 from public.shops where name = 'Simba Sonatube') then
     insert into public.shops (name, address, latitude, longitude, phone)
-    values ('Simba Kimironko', 'KG 11 St, Kimironko, Kigali', -1.9321, 30.1219, '+250788222222');
+    values ('Simba Sonatube', 'KN 5 Rd, Sonatube, Kigali', -1.9806, 30.1178, '+250788444444');
   end if;
 
-  -- Get main shop ID
-  select id into main_shop_id from public.shops where name = 'Simba Kigali Main' limit 1;
+  select id into kisimenti_shop_id from public.shops where name = 'Simba Kisimenti' limit 1;
+  select id into sonatube_shop_id from public.shops where name = 'Simba Sonatube' limit 1;
 
-  -- 1. All products for Simba Kigali Main (Large stock)
+  delete from public.inventory
+  where shop_id in (kisimenti_shop_id, sonatube_shop_id);
+
   for prod_id in select id from public.catalog_products loop
-    insert into public.inventory (shop_id, product_id, quantity)
-    values (main_shop_id, prod_id, 100)
-    on conflict (shop_id, product_id) do update set quantity = 100;
-  end loop;
+    kisimenti_qty := floor(random() * 321 + 3)::int;
+    sonatube_qty := floor(random() * 321 + 3)::int;
 
-  -- 2. Varied products for other shops (15-40 items per category)
-  for other_shop_id in select id from public.shops where id <> main_shop_id loop
-    -- Insert roughly 20 random products per shop to simulate varied inventory
+    if sonatube_qty = kisimenti_qty then
+      sonatube_qty := case
+        when sonatube_qty = 323 then 322
+        else sonatube_qty + 1
+      end;
+    end if;
+
     insert into public.inventory (shop_id, product_id, quantity)
-    select other_shop_id, id, floor(random() * 26 + 15)::int -- 15 to 40
-    from public.catalog_products
-    order by random()
-    limit 40
-    on conflict (shop_id, product_id) do nothing;
+    values
+      (kisimenti_shop_id, prod_id, kisimenti_qty),
+      (sonatube_shop_id, prod_id, sonatube_qty);
   end loop;
 end
 $$;

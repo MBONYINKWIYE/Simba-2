@@ -88,6 +88,20 @@ export type InventoryRecord = {
   updated_at: string;
 };
 
+export type InventoryHistoryRecord = {
+  history_id: string;
+  shop_id: string;
+  shop_name: string;
+  product_id: number;
+  product_name: string;
+  operation_type: 'restock' | 'sale';
+  quantity_change: number;
+  previous_quantity: number;
+  total_quantity: number;
+  order_id: string | null;
+  created_at: string;
+};
+
 export type UserRole = 'customer' | 'shop_admin' | 'super_admin';
 
 export type AuthRoleProfile = {

@@ -8,6 +8,7 @@ export const queryKeys = {
   shopAdmins: ['shop-admins'] as const,
   shopReviewSummary: ['shop-review-summary'] as const,
   inventory: (scope: string) => ['inventory', scope] as const,
+  inventoryHistory: (scope: string, limit: number | 'all') => ['inventory-history', scope, limit] as const,
   adminOrders: (shopId: string) => ['admin-orders', shopId] as const,
   order: (orderId: string) => ['order', orderId] as const,
   reviews: (userId: string) => ['reviews', userId] as const,
