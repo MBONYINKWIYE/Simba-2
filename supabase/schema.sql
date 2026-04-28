@@ -49,13 +49,32 @@ create table if not exists public.inventory_history (
   id uuid primary key default gen_random_uuid(),
   shop_id uuid not null references public.shops(id) on delete cascade,
   product_id bigint not null references public.catalog_products(id) on delete cascade,
-  operation_type text not null check (operation_type in ('restock', 'sale')),
+  operation_type text not null check (operation_type in ('restock', 'sale', 'removal')),
   quantity_change integer not null,
   previous_quantity integer not null,
   total_quantity integer not null,
   order_id uuid,
   created_at timestamptz not null default now()
 );
+
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'inventory_history_operation_type_check'
+      and conrelid = 'public.inventory_history'::regclass
+  ) then
+    alter table public.inventory_history drop constraint inventory_history_operation_type_check;
+  end if;
+
+  alter table public.inventory_history
+    add constraint inventory_history_operation_type_check
+    check (operation_type in ('restock', 'sale', 'removal'));
+exception
+  when duplicate_object then null;
+end
+$$;
 
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
@@ -468,6 +487,74 @@ as $$
   order by sa.created_at desc
 $$;
 
+create or replace function public.remove_shop_admin_assignment(
+  target_assignment_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  target_assignment public.shop_admins;
+begin
+  select *
+  into target_assignment
+  from public.shop_admins
+  where id = target_assignment_id;
+
+  if target_assignment.id is null then
+    raise exception 'Shop assignment not found';
+  end if;
+
+  if public.is_super_admin() then
+    delete from public.shop_admins
+    where id = target_assignment_id;
+    return;
+  end if;
+
+  if not public.can_manage_shop(target_assignment.shop_id) then
+    raise exception 'You do not have permission to remove this assignment';
+  end if;
+
+  if target_assignment.role <> 'staff' then
+    raise exception 'Only super admins can remove admin or manager roles';
+  end if;
+
+  delete from public.shop_admins
+  where id = target_assignment_id;
+end
+$$;
+
+create or replace function public.list_unassigned_staff_profiles()
+returns table (
+  id uuid,
+  email text,
+  full_name text,
+  avatar_url text
+)
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select p.id,
+    p.email,
+    p.full_name,
+    p.avatar_url
+  from public.profiles p
+  where (
+      public.is_super_admin()
+      or exists (select 1 from public.current_shop_admin_shop_ids())
+    )
+    and not exists (
+      select 1
+      from public.shop_admins sa
+      where sa.user_id = p.id
+    )
+  order by lower(coalesce(p.full_name, p.email))
+$$;
+
 create or replace function public.update_shop_phone(
   target_shop_id uuid,
   new_phone text
@@ -500,7 +587,8 @@ $$;
 create or replace function public.upsert_inventory_entry(
   target_shop_id uuid,
   target_product_id bigint,
-  target_quantity integer
+  target_quantity integer,
+  target_operation text default 'add'
 )
 returns public.inventory
 language plpgsql
@@ -510,13 +598,19 @@ as $$
 declare
   saved_inventory public.inventory;
   previous_quantity integer;
+  next_quantity integer;
+  history_operation text;
 begin
   if not public.can_manage_shop(target_shop_id) then
     raise exception 'You do not have permission to manage this shop inventory';
   end if;
 
-  if target_quantity < 0 then
-    raise exception 'Inventory quantity cannot be negative';
+  if target_quantity <= 0 then
+    raise exception 'Inventory quantity must be greater than zero';
+  end if;
+
+  if target_operation not in ('add', 'remove') then
+    raise exception 'Inventory operation must be add or remove';
   end if;
 
   select coalesce(inv.quantity, 0)
@@ -528,10 +622,22 @@ begin
 
   previous_quantity := coalesce(previous_quantity, 0);
 
+  if target_operation = 'remove' then
+    if previous_quantity < target_quantity then
+      raise exception 'Cannot remove more inventory than is currently available';
+    end if;
+
+    next_quantity := previous_quantity - target_quantity;
+    history_operation := 'removal';
+  else
+    next_quantity := previous_quantity + target_quantity;
+    history_operation := 'restock';
+  end if;
+
   insert into public.inventory (shop_id, product_id, quantity, updated_at)
-  values (target_shop_id, target_product_id, previous_quantity + target_quantity, now())
+  values (target_shop_id, target_product_id, next_quantity, now())
   on conflict (shop_id, product_id)
-  do update set quantity = public.inventory.quantity + excluded.quantity, updated_at = now()
+  do update set quantity = excluded.quantity, updated_at = now()
   returning * into saved_inventory;
 
   insert into public.inventory_history (
@@ -545,8 +651,8 @@ begin
   values (
     target_shop_id,
     target_product_id,
-    'restock',
-    target_quantity,
+    history_operation,
+    case when target_operation = 'remove' then -target_quantity else target_quantity end,
     previous_quantity,
     saved_inventory.quantity
   );

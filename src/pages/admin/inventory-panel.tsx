@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCatalog } from '@/hooks/use-catalog';
-import { useDeleteInventoryEntry, useInventory, useInventoryHistory, useUpsertInventoryEntry } from '@/hooks/use-inventory';
-import type { InventoryHistoryRecord, InventoryRecord } from '@/types';
+import { useInventory, useInventoryHistory, useUpsertInventoryEntry } from '@/hooks/use-inventory';
+import type { InventoryHistoryRecord } from '@/types';
 
 type InventoryPanelProps = {
   scopeShopId: string | null;
@@ -77,16 +77,15 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedShopId, setSelectedShopId] = useState(scopeShopId ?? '');
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [quantityToAdd, setQuantityToAdd] = useState('1');
+  const [quantityInput, setQuantityInput] = useState('1');
+  const [inventoryOperation, setInventoryOperation] = useState<'add' | 'remove'>('add');
   const [historyNameFilter, setHistoryNameFilter] = useState('');
   const [historyDateFilter, setHistoryDateFilter] = useState('');
-  const inventoryScopeKey = isSuperAdmin ? `super:${selectedShopId || 'all'}` : (scopeShopId ?? 'unassigned');
   const activeShopId = isSuperAdmin ? (selectedShopId || null) : scopeShopId;
   const inventoryQuery = useInventory(activeShopId, isSuperAdmin);
   const recentHistoryQuery = useInventoryHistory(activeShopId, isSuperAdmin, 20);
   const fullHistoryQuery = useInventoryHistory(activeShopId, isSuperAdmin, 'all');
   const upsertInventoryEntry = useUpsertInventoryEntry();
-  const deleteInventoryEntry = useDeleteInventoryEntry();
 
   useEffect(() => {
     if (!isSuperAdmin) {
@@ -146,10 +145,10 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
     });
   }, [historyDateFilter, historyNameFilter, recentHistoryQuery.data]);
 
-  const handleAddInventory = async (event: FormEvent<HTMLFormElement>) => {
+  const handleInventoryOperation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const targetShopId = activeShopId;
-    const parsedQuantity = Number(quantityToAdd);
+    const parsedQuantity = Number(quantityInput);
 
     if (!targetShopId || !selectedProductId || !Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
       return;
@@ -159,16 +158,10 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
       shopId: targetShopId,
       productId: Number(selectedProductId),
       quantity: parsedQuantity,
+      operation: inventoryOperation,
     });
 
-    setQuantityToAdd('1');
-  };
-
-  const handleRemoveInventory = async (entry: InventoryRecord) => {
-    await deleteInventoryEntry.mutateAsync({
-      inventoryId: entry.inventory_id,
-      scopeKey: inventoryScopeKey,
-    });
+    setQuantityInput('1');
   };
 
   const handleExportReport = () => {
@@ -243,7 +236,7 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
       </div>
 
       {selectedProduct ? (
-        <form className="mt-6 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/70" onSubmit={handleAddInventory}>
+        <form className="mt-6 overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/70" onSubmit={handleInventoryOperation}>
           <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div className="border-b border-slate-200 bg-stone-100/80 dark:border-slate-800 dark:bg-slate-900/70 lg:border-b-0 lg:border-r">
               <img src={selectedProduct.image} alt={selectedProduct.name} className="h-full min-h-56 w-full object-cover" />
@@ -266,41 +259,61 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
                   <p className="mt-2 text-2xl font-bold">{selectedInventory?.quantity ?? 0}</p>
                 </div>
                 <div className="rounded-3xl border border-slate-200 bg-stone-50/90 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{t('addedQty')}</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{t('quantityToApply')}</p>
                   <input
                     type="number"
                     min="1"
-                    value={quantityToAdd}
-                    onChange={(event) => setQuantityToAdd(event.target.value)}
+                    value={quantityInput}
+                    onChange={(event) => setQuantityInput(event.target.value)}
                     className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
                 </div>
                 <div className="rounded-3xl border border-slate-200 bg-stone-50/90 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                   <p className="text-xs uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{t('totalAvailableQty')}</p>
                   <p className="mt-2 text-2xl font-bold">
-                    {(selectedInventory?.quantity ?? 0) + (Number(quantityToAdd) > 0 ? Number(quantityToAdd) : 0)}
+                    {Math.max(
+                      0,
+                      (selectedInventory?.quantity ?? 0) +
+                        (inventoryOperation === 'add' ? 1 : -1) * (Number(quantityInput) > 0 ? Number(quantityInput) : 0),
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button
+                  type="button"
+                  variant={inventoryOperation === 'add' ? 'primary' : 'secondary'}
+                  className="h-12 px-6"
+                  onClick={() => setInventoryOperation('add')}
+                >
+                  {t('addOperation')}
+                </Button>
+                <Button
+                  type="button"
+                  variant={inventoryOperation === 'remove' ? 'primary' : 'secondary'}
+                  className="h-12 px-6"
+                  onClick={() => setInventoryOperation('remove')}
+                >
+                  {t('removeOperation')}
+                </Button>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button
                   type="submit"
                   className="h-12 px-6"
-                  disabled={upsertInventoryEntry.isPending || !activeShopId || !(Number(quantityToAdd) > 0)}
+                  disabled={
+                    upsertInventoryEntry.isPending ||
+                    !activeShopId ||
+                    !(Number(quantityInput) > 0) ||
+                    (inventoryOperation === 'remove' && Number(quantityInput) > (selectedInventory?.quantity ?? 0))
+                  }
                 >
-                  {t('addToInventory')}
+                  {inventoryOperation === 'add' ? t('addToInventory') : t('removeFromInventory')}
                 </Button>
-                {selectedInventory ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="h-12 px-6"
-                    disabled={deleteInventoryEntry.isPending}
-                    onClick={() => void handleRemoveInventory(selectedInventory)}
-                  >
-                    {t('remove')}
-                  </Button>
+                {inventoryOperation === 'remove' && Number(quantityInput) > (selectedInventory?.quantity ?? 0) ? (
+                  <p className="self-center text-sm text-rose-600 dark:text-rose-300">{t('inventoryRemoveTooMuch')}</p>
                 ) : null}
               </div>
             </div>
@@ -368,8 +381,18 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge className={entry.operation_type === 'sale' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' : ''}>
-                        {entry.operation_type === 'sale' ? t('saleOperation') : t('restockOperation')}
+                      <Badge
+                        className={
+                          entry.operation_type === 'sale' || entry.operation_type === 'removal'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                            : ''
+                        }
+                      >
+                        {entry.operation_type === 'sale'
+                          ? t('saleOperation')
+                          : entry.operation_type === 'removal'
+                            ? t('removeOperation')
+                            : t('restockOperation')}
                       </Badge>
                     </td>
                     <td className={`px-4 py-3 font-semibold ${entry.quantity_change < 0 ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-600 dark:text-emerald-300'}`}>
@@ -416,9 +439,6 @@ export function InventoryPanel({ scopeShopId, isSuperAdmin, shops }: InventoryPa
                   <Badge className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                     {t('currentInventory')}: {entry.quantity}
                   </Badge>
-                  <Button variant="ghost" onClick={() => void handleRemoveInventory(entry)} disabled={deleteInventoryEntry.isPending}>
-                    {t('remove')}
-                  </Button>
                 </div>
               </div>
             </div>

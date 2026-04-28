@@ -6,16 +6,16 @@ import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useAdminOrdersRealtime } from '@/hooks/use-admin-orders';
-import { useShopAdmins } from '@/hooks/use-shop-admins';
+import { useShopAdmins, useUnassignedStaff } from '@/hooks/use-shop-admins';
 import { useShops } from '@/hooks/use-shops';
-import { useAssignShopAdmin, useCreateShop } from '@/hooks/use-super-admin-management';
+import { useAssignShopAdmin, useCreateShop, useRemoveShopAdminAssignment } from '@/hooks/use-super-admin-management';
 import { useAssignOrderToStaff, useUpdateOrderStatus } from '@/hooks/use-update-order-status';
 import { useUserRole } from '@/hooks/use-user-role';
 import { InventoryPanel } from '@/pages/admin/inventory-panel';
 import { ShopSettingsPanel } from '@/pages/admin/shop-settings-panel';
 import { signOut } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
-import type { AdminOrderRecord, ShopAdminAssignment, ShopOrderStatus } from '@/types';
+import type { AdminOrderRecord, ShopAdminAssignment, ShopOrderStatus, UnassignedStaffProfile } from '@/types';
 
 function statusClassName(value: ShopOrderStatus | string) {
   if (value === 'ready' || value === 'picked_up') {
@@ -566,6 +566,174 @@ function SuperAdminPanel() {
   );
 }
 
+function TeamManagementPanel({
+  isSuperAdmin,
+  scopeShopId,
+  shops,
+  assignments,
+  unassignedStaff,
+}: {
+  isSuperAdmin: boolean;
+  scopeShopId: string | null;
+  shops: { id: string; name: string }[];
+  assignments: ShopAdminAssignment[];
+  unassignedStaff: UnassignedStaffProfile[];
+}) {
+  const { t } = useTranslation();
+  const assignShopAdmin = useAssignShopAdmin();
+  const removeShopAdminAssignment = useRemoveShopAdminAssignment();
+  const [selectedShopId, setSelectedShopId] = useState(scopeShopId ?? '');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'admin' | 'manager' | 'staff'>(isSuperAdmin ? 'admin' : 'staff');
+
+  const visibleAssignments = assignments.filter((assignment) =>
+    isSuperAdmin ? true : assignment.shop_id === scopeShopId && assignment.role === 'staff',
+  );
+
+  const handleAssign = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const targetShopId = isSuperAdmin ? selectedShopId : scopeShopId;
+
+    if (!targetShopId || !email.trim()) {
+      return;
+    }
+
+    await assignShopAdmin.mutateAsync({
+      adminEmail: email.trim(),
+      shopId: targetShopId,
+      role: isSuperAdmin ? role : 'staff',
+    });
+
+    setEmail('');
+    if (!isSuperAdmin) {
+      setRole('staff');
+    }
+  };
+
+  const handleRemove = async (assignmentId: string) => {
+    await removeShopAdminAssignment.mutateAsync({ assignmentId });
+  };
+
+  return (
+    <section className="glass-panel p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">{t('teamManagement')}</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            {isSuperAdmin ? t('teamManagementSuperAdminCopy') : t('teamManagementShopAdminCopy')}
+          </p>
+        </div>
+        <Badge>{visibleAssignments.length}</Badge>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleAssign}>
+          <h3 className="text-lg font-semibold">{isSuperAdmin ? t('assignShopAdmin') : t('addStaffMember')}</h3>
+          <div className="mt-4 grid gap-3">
+            <input
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('shopAdminEmail')}
+            />
+            {isSuperAdmin ? (
+              <>
+                <select
+                  required
+                  value={selectedShopId}
+                  onChange={(event) => setSelectedShopId(event.target.value)}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                >
+                  <option value="">{t('selectShop')}</option>
+                  {shops.map((shop) => (
+                    <option key={shop.id} value={shop.id}>
+                      {shop.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={role}
+                  onChange={(event) => setRole(event.target.value as 'admin' | 'manager' | 'staff')}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                >
+                  <option value="admin">{t('admin')}</option>
+                  <option value="manager">{t('manager')}</option>
+                  <option value="staff">{t('staff')}</option>
+                </select>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+                {shops.find((shop) => shop.id === scopeShopId)?.name ?? t('selectShop')}
+              </div>
+            )}
+          </div>
+          <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={assignShopAdmin.isPending}>
+            {isSuperAdmin ? t('assignShopAdmin') : t('addStaffMember')}
+          </Button>
+          {assignShopAdmin.isSuccess ? <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{t('shopAdminAssigned')}</p> : null}
+          {assignShopAdmin.isError ? (
+            <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
+              {assignShopAdmin.error instanceof Error ? assignShopAdmin.error.message : t('shopAdminAssignFailed')}
+            </p>
+          ) : null}
+        </form>
+
+        <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
+          <h3 className="text-lg font-semibold">{t('unassignedStaff')}</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('unassignedStaffCopy')}</p>
+          <div className="mt-4 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+            {unassignedStaff.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('noUnassignedStaff')}</p>
+            ) : (
+              unassignedStaff.map((profile) => (
+                <div key={profile.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{profile.full_name || profile.email}</p>
+                      <p className="truncate text-sm text-slate-500 dark:text-slate-400">{profile.email}</p>
+                    </div>
+                    <Button type="button" variant="secondary" onClick={() => setEmail(profile.email)}>
+                      {t('useEmail')}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
+        <h3 className="text-lg font-semibold">{isSuperAdmin ? t('shopAdminAssignments') : t('assignedStaffMembers')}</h3>
+        <div className="mt-4 space-y-3">
+          {visibleAssignments.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('noTeamAssignments')}</p>
+          ) : (
+            visibleAssignments.map((assignment) => (
+              <div key={assignment.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold">{assignment.user_email}</p>
+                      <Badge>{formatStatusLabel(assignment.role, t)}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{assignment.shop_name}</p>
+                  </div>
+                  <Button type="button" variant="ghost" onClick={() => void handleRemove(assignment.id)} disabled={removeShopAdminAssignment.isPending}>
+                    {t('remove')}
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AdminDashboardPage() {
   const { t, i18n } = useTranslation();
   const { orderId } = useParams();
@@ -575,16 +743,18 @@ export function AdminDashboardPage() {
   const isSuperAdmin = authRoleQuery.data?.role === 'super_admin';
   const adminRole = authRoleQuery.data?.adminRole ?? null;
   const canManageOrders = isSuperAdmin || adminRole === 'admin' || adminRole === 'manager';
+  const canManageTeam = isSuperAdmin || adminRole === 'admin';
   const shopId = authRoleQuery.data?.shopId ?? null;
   const scopeKey = isSuperAdmin ? 'all-shops' : (shopId ?? 'unassigned');
   const shopAdminsQuery = useShopAdmins(Boolean(isSuperAdmin || canManageOrders));
+  const unassignedStaffQuery = useUnassignedStaff(Boolean(canManageTeam));
   const ordersQuery = useAdminOrdersRealtime(shopId, isSuperAdmin);
   const shops = shopsQuery.data ?? [];
   const currentShop = shops.find((shop) => shop.id === shopId) ?? null;
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  if (authRoleQuery.isLoading || ordersQuery.isLoading || shopsQuery.isLoading || shopAdminsQuery.isLoading) {
+  if (authRoleQuery.isLoading || ordersQuery.isLoading || shopsQuery.isLoading || shopAdminsQuery.isLoading || (canManageTeam && unassignedStaffQuery.isLoading)) {
     return <div className="glass-panel p-6">{t('loadingOrders')}</div>;
   }
 
@@ -606,6 +776,7 @@ export function AdminDashboardPage() {
   const activeOrder = orders.find((order) => order.id === orderId) ?? orders[0] ?? null;
   const availableSections = [
     { key: 'orders', label: t('adminOrderQueue'), description: t('adminDashboardCopy'), icon: ClipboardList, visible: true },
+    { key: 'team', label: t('teamManagement'), description: isSuperAdmin ? t('teamManagementSuperAdminCopy') : t('teamManagementShopAdminCopy'), icon: ShieldCheck, visible: canManageTeam },
     { key: 'inventory', label: t('inventoryDashboard'), description: t('inventoryDashboardCopy'), icon: LayoutGrid, visible: canManageOrders || isSuperAdmin },
     { key: 'settings', label: t('shopSettings'), description: t('shopSettingsCopy'), icon: Settings2, visible: canManageOrders || isSuperAdmin },
     { key: 'platform', label: t('superAdminControls'), description: t('superAdminControlsCopy'), icon: ShieldCheck, visible: isSuperAdmin },
@@ -780,6 +951,16 @@ export function AdminDashboardPage() {
               scopeShopId={shopId}
               isSuperAdmin={isSuperAdmin}
               shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
+            />
+          ) : null}
+
+          {activeSection === 'team' && canManageTeam ? (
+            <TeamManagementPanel
+              isSuperAdmin={isSuperAdmin}
+              scopeShopId={shopId}
+              shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
+              assignments={shopAdminsQuery.data ?? []}
+              unassignedStaff={unassignedStaffQuery.data ?? []}
             />
           ) : null}
 

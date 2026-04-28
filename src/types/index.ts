@@ -78,6 +78,13 @@ export type ShopAdminAssignment = {
   created_at: string;
 };
 
+export type UnassignedStaffProfile = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
 export type InventoryRecord = {
   inventory_id: string;
   shop_id: string;
@@ -94,7 +101,7 @@ export type InventoryHistoryRecord = {
   shop_name: string;
   product_id: number;
   product_name: string;
-  operation_type: 'restock' | 'sale';
+  operation_type: 'restock' | 'sale' | 'removal';
   quantity_change: number;
   previous_quantity: number;
   total_quantity: number;

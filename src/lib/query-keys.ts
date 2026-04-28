@@ -6,6 +6,7 @@ export const queryKeys = {
   shops: ['shops'] as const,
   availableShops: (itemsKey: string) => ['available-shops', itemsKey] as const,
   shopAdmins: ['shop-admins'] as const,
+  unassignedStaff: ['unassigned-staff'] as const,
   shopReviewSummary: ['shop-review-summary'] as const,
   inventory: (scope: string) => ['inventory', scope] as const,
   inventoryHistory: (scope: string, limit: number | 'all') => ['inventory-history', scope, limit] as const,

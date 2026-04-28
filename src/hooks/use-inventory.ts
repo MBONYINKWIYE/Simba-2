@@ -7,6 +7,7 @@ type UpsertInventoryArgs = {
   shopId: string;
   productId: number;
   quantity: number;
+  operation: 'add' | 'remove';
 };
 
 type DeleteInventoryArgs = {
@@ -54,7 +55,7 @@ async function fetchInventoryHistory(scopeShopId: string | null, isSuperAdmin: b
   return (data ?? []) as InventoryHistoryRecord[];
 }
 
-async function upsertInventoryEntry({ shopId, productId, quantity }: UpsertInventoryArgs) {
+async function upsertInventoryEntry({ shopId, productId, quantity, operation }: UpsertInventoryArgs) {
   if (!supabase) {
     throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
   }
@@ -63,6 +64,7 @@ async function upsertInventoryEntry({ shopId, productId, quantity }: UpsertInven
     target_shop_id: shopId,
     target_product_id: productId,
     target_quantity: quantity,
+    target_operation: operation,
   });
 
   if (error) {

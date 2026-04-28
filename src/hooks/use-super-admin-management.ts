@@ -16,6 +16,10 @@ type AssignShopAdminArgs = {
   role: 'admin' | 'manager' | 'staff';
 };
 
+type RemoveShopAdminAssignmentArgs = {
+  assignmentId: string;
+};
+
 async function createShop(args: CreateShopArgs) {
   if (!supabase) {
     throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
@@ -50,6 +54,20 @@ async function assignShopAdmin(args: AssignShopAdminArgs) {
   }
 }
 
+async function removeShopAdminAssignment(args: RemoveShopAdminAssignmentArgs) {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  }
+
+  const { error } = await supabase.rpc('remove_shop_admin_assignment', {
+    target_assignment_id: args.assignmentId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export function useCreateShop() {
   const queryClient = useQueryClient();
 
@@ -70,6 +88,22 @@ export function useAssignShopAdmin() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.shopAdmins }),
         queryClient.invalidateQueries({ queryKey: queryKeys.shops }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.unassignedStaff }),
+      ]);
+    },
+  });
+}
+
+export function useRemoveShopAdminAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: removeShopAdminAssignment,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.shopAdmins }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.shops }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.unassignedStaff }),
       ]);
     },
   });
