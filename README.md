@@ -6,6 +6,18 @@ Simba Supermarket is now a multi-shop grocery storefront with authenticated chec
 
 Use this path to verify the judged features quickly without exploring the full repo first:
 
+### Demo Credentials
+
+- Shop admin
+  Email: `edisthonshuti14@gmail.com`
+  Password: `demosimba`
+- Staff
+  Email: `gadb5743@gmail.com`
+  Password: `demosimba`
+- Client
+  Email: `cfaidajosue@gmail.com`
+  Password: `demosimba`
+
 1. Open the storefront and confirm:
 - category browsing
 - cart updates
