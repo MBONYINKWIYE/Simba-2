@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, LogOut, Menu, MoonStar, ShoppingBasket, SunMedium, X } from 'lucide-react';
+import { ChevronDown, LayoutGrid, LogOut, MoonStar, ShoppingBasket, SunMedium, User, Search, Grid } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -12,11 +12,19 @@ import { LANGUAGES } from '@/lib/constants';
 import { useCartStore } from '@/store/cart-store';
 import { usePreferencesStore } from '@/store/preferences-store';
 import { useUiStore } from '@/store/ui-store';
+import { useSearchStore } from '@/store/search-store';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { HeaderSearch } from '@/components/layout/header-search';
 
 export function Header() {
   const { t } = useTranslation();
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
+  const hasActiveSearch = useSearchStore((state) => state.hasActiveSearch);
+  
+  const showHomeLink = location.pathname !== '/';
+  const showCheckoutLink = location.pathname !== '/checkout' && location.pathname !== '/checkout/confirmation/';
+  const showOrdersLink = location.pathname !== '/orders';
   const { data } = useCatalog();
   const authRoleQuery = useUserRole();
   const isAdmin = authRoleQuery.data?.role === 'shop_admin' || authRoleQuery.data?.role === 'super_admin';
@@ -24,8 +32,10 @@ export function Header() {
   const dashboardPath = isStaff ? '/staff' : '/admin';
   const dashboardLabel = isStaff ? t('staffDashboard') : t('adminDashboard');
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollYRef = useRef(0);
   const cartItems = useCartStore((state) => state.items);
@@ -36,6 +46,10 @@ export function Header() {
   const setTheme = usePreferencesStore((state) => state.setTheme);
   const openCart = useUiStore((state) => state.openCart);
   const { user, isConfigured } = useAuth();
+
+  const userDisplayName = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? t('account');
+  const userAvatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? null;
+
   const products = data?.products ?? [];
   const categories = useMemo(
     () => Array.from(new Set(products.map((p) => p.normalizedCategory))).sort(),
@@ -48,8 +62,8 @@ export function Header() {
   const directionThreshold = 8;
 
   useEffect(() => {
-    setIsMobileMenuOpen(false);
     setIsLanguageMenuOpen(false);
+    setIsUserMenuOpen(false);
   }, [locale, theme, user]);
 
   useEffect(() => {
@@ -70,7 +84,7 @@ export function Header() {
       const scrollingDown = scrollDelta > directionThreshold;
       const atTop = currentScrollY < showThreshold;
 
-      if (atTop || isMobileMenuOpen) {
+      if (atTop || isUserMenuOpen || isCategoryMenuOpen || hasActiveSearch) {
         setIsVisible(true);
       } else if (scrollingUp) {
         setIsVisible(true);
@@ -83,7 +97,7 @@ export function Header() {
     };
 
     const onScroll = () => {
-      if (isMobileMenuOpen) {
+      if (isUserMenuOpen || isCategoryMenuOpen || hasActiveSearch) {
         return;
       }
 
@@ -98,26 +112,38 @@ export function Header() {
     return () => {
       window.removeEventListener('scroll', onScroll);
     };
-  }, [isLandingPage, isMobileMenuOpen]);
+  }, [isLandingPage, isUserMenuOpen, isCategoryMenuOpen, hasActiveSearch]);
 
   useEffect(() => {
     if (!isLandingPage) {
       return;
     }
 
-    if (isMobileMenuOpen) {
+    if (isUserMenuOpen || isCategoryMenuOpen || hasActiveSearch) {
       setIsVisible(true);
     }
-  }, [isLandingPage, isMobileMenuOpen]);
+  }, [isLandingPage, isUserMenuOpen, isCategoryMenuOpen, hasActiveSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const categoryMenu = document.querySelector('[data-category-menu]');
+      if (categoryMenu && !categoryMenu.contains(target)) {
+        setIsCategoryMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleSignIn = () => {
-    setIsMobileMenuOpen(false);
+    setIsUserMenuOpen(false);
     navigate('/auth/login');
   };
 
   const handleSignOut = async () => {
     try {
-      setIsMobileMenuOpen(false);
+      setIsUserMenuOpen(false);
       await signOut();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : t('failedToSignOut'));
@@ -130,52 +156,79 @@ export function Header() {
         isLandingPage ? 'fixed left-0 right-0 top-0' : 'sticky top-0'
       } ${isLandingPage && !isVisible ? '-translate-y-full' : 'translate-y-0'}`}
     >
-      <div className="container-shell flex flex-wrap items-center justify-between gap-2 py-4 md:gap-3">
-        <div className="flex min-w-0 items-center gap-2 md:gap-3">
-          <Link to="/" className="flex min-w-0 items-center gap-3">
+      <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3">
+        <div className="flex shrink-0 items-center gap-2 md:gap-3">
+          <Link to="/" className="flex items-center gap-3">
             <BrandLogo />
           </Link>
         </div>
 
-        <nav className="hidden items-center gap-4 lg:flex xl:gap-5">
-          <NavLink to="/" className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            {t('home')}
-          </NavLink>
-          <div className="group relative">
-            <button className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-              {t('categories')}
-              <ChevronDown size={15} className="transition group-hover:rotate-180" />
-            </button>
-            <div className="pointer-events-none absolute left-0 top-full pt-3 opacity-0 transition group-hover:pointer-events-auto group-hover:opacity-100">
-              <div className="w-80 rounded-3xl border border-slate-200 bg-white p-3 shadow-soft dark:border-slate-700 dark:bg-slate-900">
-                <div className="grid max-h-96 grid-cols-1 gap-1 overflow-y-auto">
-                  {categories.map((category) => (
-                    <Link
-                      key={category}
-                      to={`/?category=${encodeURIComponent(category)}#catalog`}
-                      className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-                    >
-                      {category}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          <NavLink to="/checkout" className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            {t('checkout')}
-          </NavLink>
-          <NavLink to="/orders" className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            {t('myOrders')}
-          </NavLink>
-          {isAdmin ? (
-            <NavLink to={dashboardPath} className="text-sm font-bold text-brand-600 dark:text-brand-400">
-              {dashboardLabel}
-            </NavLink>
-          ) : null}
-        </nav>
+        <div className="hidden flex-1 justify-center lg:flex">
+          <HeaderSearch />
+        </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="relative hidden lg:block ml-4">
+          <Button
+            variant="secondary"
+            className="h-11 rounded-2xl px-3"
+            onClick={() => setIsCategoryMenuOpen((open) => !open)}
+            aria-expanded={isCategoryMenuOpen}
+            aria-haspopup="menu"
+          >
+            <Grid size={18} className="mr-2" />
+            <span className="max-w-24 truncate text-xs font-semibold uppercase tracking-[0.18em] hidden sm:inline">
+              {t('categories')}
+            </span>
+            <ChevronDown size={15} className={`ml-2 transition ${isCategoryMenuOpen ? 'rotate-180' : ''}`} />
+          </Button>
+          {isCategoryMenuOpen && (
+            <div data-category-menu className="absolute right-0 top-full z-20 mt-2 w-56 rounded-3xl border border-slate-200 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-900">
+              <button
+                onClick={() => {
+                  useSearchStore.getState().setFilters({ category: '' });
+                  setIsCategoryMenuOpen(false);
+                  navigate('/#catalog');
+                }}
+                className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm font-medium transition ${
+                  useSearchStore.getState().filters.category === ''
+                    ? 'bg-brand-500 text-white'
+                    : 'text-slate-600 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <span>{t('allCategories')}</span>
+                {useSearchStore.getState().filters.category === '' ? <span className="text-[11px] uppercase tracking-[0.16em]">{t('selected')}</span> : null}
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => {
+                    useSearchStore.getState().setFilters({ category });
+                    setIsCategoryMenuOpen(false);
+                    navigate('/#catalog');
+                  }}
+                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-2 text-left text-sm font-medium transition ${
+                    useSearchStore.getState().filters.category === category
+                      ? 'bg-brand-500 text-white'
+                      : 'text-slate-600 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  <span>{category}</span>
+                  {useSearchStore.getState().filters.category === category ? <span className="text-[11px] uppercase tracking-[0.16em]">{t('selected')}</span> : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-1 md:gap-2">
+          <Button
+            variant="ghost"
+            className="h-11 w-11 rounded-2xl p-0 lg:hidden"
+            onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+            aria-label={t('search')}
+          >
+            <Search size={18} />
+          </Button>
           <div className="relative hidden lg:block">
             <Button
               variant="secondary"
@@ -226,143 +279,183 @@ export function Header() {
             )}
           </Button>
           {isConfigured ? (
-            user ? (
-              <>
-                <Link to="/orders" className="hidden xl:block">
-                  <Button variant="secondary" className="h-11 rounded-2xl px-4">
-                    {user.user_metadata.full_name ?? user.email ?? t('account')}
-                  </Button>
-                </Link>
-                <Button variant="ghost" className="h-11 w-11 rounded-2xl p-0" onClick={handleSignOut} aria-label={t('signOut')}>
-                  <LogOut size={18} />
-                </Button>
-              </>
-            ) : (
-              <Button variant="secondary" className="h-11 rounded-2xl px-4" onClick={handleSignIn}>
-                {t('signIn')}
+            <div className="relative">
+              <Button
+                variant="secondary"
+                className={`h-11 rounded-2xl ${user ? 'pl-1 pr-3' : 'px-4'}`}
+                onClick={() => setIsUserMenuOpen((open) => !open)}
+                aria-expanded={isUserMenuOpen}
+                aria-haspopup="menu"
+              >
+                {user ? (
+                  <>
+                    <UserAvatar src={userAvatarUrl} name={userDisplayName} email={user.email} size="sm" className="mr-2" />
+                    <span className="max-w-[100px] truncate text-sm font-semibold hidden sm:inline">{userDisplayName}</span>
+                  </>
+                ) : (
+                  <>
+                    <User size={18} className="lg:hidden" />
+                    <span className="hidden lg:inline">{t('signIn')}</span>
+                    <span className="lg:hidden ml-2 text-sm font-semibold">{t('menu')}</span>
+                  </>
+                )}
+                <ChevronDown size={14} className={`ml-2 transition ${isUserMenuOpen ? 'rotate-180' : ''}`} />
               </Button>
-            )
+              {isUserMenuOpen ? (
+                <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-3xl border border-slate-200 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-900">
+                  {/* Mobile-only Navigation Links */}
+                  <div className="lg:hidden space-y-1 mb-2 border-b border-slate-100 pb-2 dark:border-slate-800">
+                    {showHomeLink && (
+                      <Link
+                        to="/"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('home')}
+                      </Link>
+                    )}
+                    <details className="group rounded-2xl border border-slate-100 px-3 py-2 dark:border-slate-800">
+                      <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {t('categories')}
+                        <ChevronDown size={14} className="transition group-open:rotate-180" />
+                      </summary>
+                      <div className="mt-2 grid gap-1 pl-2 border-l border-brand-100 dark:border-brand-900">
+                        {categories.map((category) => (
+                          <Link
+                            key={category}
+                            to={`/?category=${encodeURIComponent(category)}#catalog`}
+                            className="rounded-xl px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-stone-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            {category}
+                          </Link>
+                        ))}
+                      </div>
+                    </details>
+                    {showCheckoutLink && (
+                      <Link
+                        to="/checkout"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('checkout')}
+                      </Link>
+                    )}
+                    {showOrdersLink && !user && (
+                      <Link
+                        to="/orders"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('myOrders')}
+                      </Link>
+                    )}
+                    {isAdmin && !user && (
+                      <Link
+                        to={dashboardPath}
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-bold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {dashboardLabel}
+                      </Link>
+                    )}
+                    {/* Mobile Language Selector */}
+                    <div className="my-1 border-t border-slate-100 pt-1 dark:border-slate-800" />
+                    <details className="group px-3 py-1">
+                      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                        <span>{t('language')}</span>
+                        <ChevronDown size={12} className="transition group-open:rotate-180" />
+                      </summary>
+                      <div className="mt-2 grid grid-cols-1 gap-1">
+                        {LANGUAGES.map((language) => (
+                          <button
+                            key={language.value}
+                            className={`flex items-center justify-between rounded-xl px-3 py-1.5 text-xs font-medium transition ${
+                              locale === language.value
+                                ? 'bg-brand-500 text-white'
+                                : 'text-slate-600 hover:bg-stone-50 dark:text-slate-400 dark:hover:bg-slate-800'
+                            }`}
+                            onClick={() => {
+                              setLocale(language.value);
+                              setIsUserMenuOpen(false);
+                            }}
+                          >
+                            <span>{language.label}</span>
+                            {locale === language.value ? <span className="text-[10px] uppercase tracking-wider">{t('selected')}</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+
+                  {/* Account Section */}
+                  {user ? (
+                    <div className="space-y-1">
+                      <div className="px-3 py-2 mb-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">{t('account')}</p>
+                        <p className="truncate text-sm font-semibold">{userDisplayName}</p>
+                      </div>
+                      <Link
+                        to="/orders"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('myOrders')}
+                      </Link>
+                      <Link
+                        to="/orders"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('profileSettings')}
+                      </Link>
+                      {isAdmin ? (
+                        <Link
+                          to={dashboardPath}
+                          className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-bold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-brand-100 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400">
+                            <LayoutGrid size={16} />
+                          </div>
+                          {dashboardLabel}
+                        </Link>
+                      ) : null}
+                      <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                      <button
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                        onClick={handleSignOut}
+                      >
+                        <LogOut size={16} className="mr-2" />
+                        {t('signOut')}
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      className="w-full justify-start rounded-2xl px-3"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        navigate('/auth/login');
+                      }}
+                    >
+                      <User size={16} className="mr-2" />
+                      {t('signIn')}
+                    </Button>
+                  )}
+                </div>
+              ) : null}
+            </div>
           ) : null}
-          <Button
-            variant="ghost"
-            className="h-11 w-11 shrink-0 rounded-2xl p-0 lg:hidden"
-            onClick={() => {
-              setIsMobileMenuOpen((open) => !open);
-              setIsVisible(true);
-            }}
-            aria-label={isMobileMenuOpen ? t('closeNavigationMenu') : t('openNavigationMenu')}
-            aria-expanded={isMobileMenuOpen}
-            aria-controls="mobile-navigation"
-          >
-            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </Button>
         </div>
       </div>
-      {isMobileMenuOpen ? (
-        <div id="mobile-navigation" className="container-shell border-t border-slate-200/80 pb-4 lg:hidden dark:border-slate-800">
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-soft dark:border-slate-700 dark:bg-slate-900">
-            <nav className="flex flex-col gap-2">
-              <NavLink
-                to="/"
-                className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('home')}
-              </NavLink>
-              <details className="group rounded-2xl border border-slate-200 px-3 py-2 dark:border-slate-700">
-                <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {t('categories')}
-                  <ChevronDown size={15} className="transition group-open:rotate-180" />
-                </summary>
-                <div className="mt-3 grid gap-1">
-                  {categories.map((category) => (
-                    <Link
-                      key={category}
-                      to={`/?category=${encodeURIComponent(category)}#catalog`}
-                      className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {category}
-                    </Link>
-                  ))}
-                </div>
-              </details>
-              <NavLink
-                to="/checkout"
-                className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('checkout')}
-              </NavLink>
-              <NavLink
-                to="/orders"
-                className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {t('myOrders')}
-              </NavLink>
-              {isAdmin ? (
-                <NavLink
-                  to={dashboardPath}
-                  className="rounded-2xl px-3 py-2 text-sm font-bold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {dashboardLabel}
-                </NavLink>
-              ) : null}
-            </nav>
 
-            <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
-              <details className="group rounded-2xl border border-slate-200 px-3 py-2 dark:border-slate-700">
-                <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-200">
-                  <span>
-                    {t('language')}: {LANGUAGES.find((language) => language.value === locale)?.label ?? locale}
-                  </span>
-                  <ChevronDown size={15} className="transition group-open:rotate-180" />
-                </summary>
-                <div className="mt-3 grid gap-1">
-                  {LANGUAGES.map((language) => (
-                    <button
-                      key={language.value}
-                      className={`flex items-center justify-between rounded-2xl px-3 py-2 text-left text-sm font-medium transition ${
-                        locale === language.value
-                          ? 'bg-brand-500 text-white'
-                          : 'text-slate-600 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-                      }`}
-                      onClick={() => setLocale(language.value)}
-                    >
-                      <span>{language.label}</span>
-                      {locale === language.value ? <span className="text-[11px] uppercase tracking-[0.16em]">{t('selected')}</span> : null}
-                    </button>
-                  ))}
-                </div>
-              </details>
-            </div>
-
-            {isConfigured ? (
-              <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
-                {user ? (
-                  <div className="flex flex-col gap-2">
-                    <Link to="/orders" onClick={() => setIsMobileMenuOpen(false)}>
-                      <Button variant="secondary" className="h-11 w-full justify-start rounded-2xl px-4">
-                        {user.user_metadata.full_name ?? user.email ?? t('account')}
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      className="h-11 w-full justify-start rounded-2xl px-4"
-                      onClick={handleSignOut}
-                    >
-                      <LogOut size={18} />
-                      <span className="ml-2">{t('signOut')}</span>
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+      {/* Mobile Search Bar */}
+      {isMobileSearchOpen && (
+        <div className="container-shell pb-4 lg:hidden animate-in slide-in-from-top-2 duration-200">
+          <HeaderSearch />
         </div>
-      ) : null}
+      )}
     </header>
   );
 }

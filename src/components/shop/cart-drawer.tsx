@@ -1,9 +1,8 @@
 import { Minus, Plus, ShoppingBasket, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
-import { signInWithGoogle } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import { useOrderSummary } from '@/hooks/use-order-summary';
 import { useCartStore } from '@/store/cart-store';
@@ -20,14 +19,11 @@ export function CartDrawer() {
   const removeItem = useCartStore((state) => state.removeItem);
   const summary = useOrderSummary();
   const { user, isConfigured } = useAuth();
+  const navigate = useNavigate();
 
-  const handleGoogleSignIn = async () => {
-    try {
-      closeCart();
-      await signInWithGoogle('/checkout');
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : t('failedToStartGoogleSignIn'));
-    }
+  const handleSignInRedirect = () => {
+    closeCart();
+    navigate('/auth/login');
   };
 
   return (
@@ -109,7 +105,7 @@ export function CartDrawer() {
               </div>
               </div>
               {isConfigured && !user ? (
-                <Button fullWidth className="mt-4" onClick={handleGoogleSignIn}>
+                <Button fullWidth className="mt-4" onClick={handleSignInRedirect}>
                   {t('signInToCheckout')}
                 </Button>
               ) : (

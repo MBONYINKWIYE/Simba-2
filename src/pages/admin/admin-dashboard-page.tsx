@@ -252,7 +252,7 @@ function AdminOrderDetail({
           ) : null}
           {assignedStaff ? (
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
-              {t('assignedStaffLabel')}: {assignedStaff.user_email}
+              {t('assignedStaffLabel')}: {assignedStaff.user_full_name || assignedStaff.user_email}
             </p>
           ) : null}
         </div>
@@ -354,7 +354,7 @@ function AdminOrderDetail({
               <option value="">{t('selectStaff')}</option>
               {orderStaffAssignments.map((assignment) => (
                 <option key={assignment.user_id} value={assignment.user_id}>
-                  {assignment.user_email}
+                  {assignment.user_full_name || assignment.user_email}
                 </option>
               ))}
             </select>
@@ -562,7 +562,7 @@ function SuperAdminPanel() {
               {(shopAdminsQuery.data ?? []).map((assignment) => (
                 <div key={assignment.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold">{assignment.user_email}</p>
+                    <p className="font-semibold">{assignment.user_full_name || assignment.user_email}</p>
                     <Badge>{formatStatusLabel(assignment.role, t)}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{assignment.shop_name}</p>
@@ -726,7 +726,7 @@ function TeamManagementPanel({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold">{assignment.user_email}</p>
+                      <p className="font-semibold">{assignment.user_full_name || assignment.user_email}</p>
                       <Badge>{formatStatusLabel(assignment.role, t)}</Badge>
                     </div>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{assignment.shop_name}</p>

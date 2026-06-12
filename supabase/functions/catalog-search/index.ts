@@ -11,32 +11,26 @@ type CatalogSearchContext = {
   budget: string | null;
   urgency: string | null;
   dietaryPreference: string | null;
+  mood: string | null;
+  season: string | null;
+  valuePreference: string | null;
   productHints: string[];
+  brandHints: string[];
   normalizedQuery: string;
 };
 
 function buildContextSummary(context: CatalogSearchContext) {
   const parts: string[] = [];
 
-  if (context.occasion) {
-    parts.push(context.occasion);
-  }
-
-  if (context.audience) {
-    parts.push(`for ${context.audience}`);
-  }
-
-  if (context.dietaryPreference) {
-    parts.push(context.dietaryPreference);
-  }
-
-  if (context.budget) {
-    parts.push(`budget around ${context.budget}`);
-  }
-
-  if (context.urgency) {
-    parts.push(context.urgency);
-  }
+  if (context.occasion) parts.push(context.occasion);
+  if (context.mood) parts.push(context.mood);
+  if (context.season) parts.push(context.season);
+  if (context.dietaryPreference) parts.push(context.dietaryPreference);
+  if (context.valuePreference) parts.push(context.valuePreference);
+  if (context.audience) parts.push(`for ${context.audience}`);
+  if (context.budget) parts.push(`budget around ${context.budget}`);
+  if (context.urgency) parts.push(context.urgency);
+  if (context.brandHints.length > 0) parts.push(`brands: ${context.brandHints.join(', ')}`);
 
   return parts.length > 0 ? `${context.intent}: ${parts.join(', ')}` : context.intent;
 }
@@ -69,16 +63,21 @@ Deno.serve(async (req) => {
       budget: null,
       urgency: null,
       dietaryPreference: null,
+      mood: null,
+      season: null,
+      valuePreference: null,
       productHints: [],
+      brandHints: [],
       normalizedQuery: String(query).trim().toLowerCase(),
     }
 
-    // Prepare catalog context for the AI
-    const catalog = products.slice(0, 500).map((p: any) => ({
+    // Prepare catalog context for the AI with more detail for reasoning
+    const catalog = products.slice(0, 600).map((p: any) => ({
       id: p.id,
       name: p.name,
       category: p.category,
       price: p.price,
+      unit: p.unit, // Added unit for reasoning about quantity/size
       inStock: p.inStock
     }))
 
@@ -90,18 +89,21 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        temperature: 0.35,
+        temperature: 0.3, // Lower temperature for more consistent reasoning
         response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
             content: [
-              'You are an expert personal shopper for Simba Supermarket.',
-              'Interpret the user query as a shopping mission, not just keywords.',
-              'If the user describes a situation, infer the likely need and suggest products that solve it.',
-              'Use the provided search context to understand occasion, audience, budget, urgency, and dietary preference.',
-              'If context is missing or vague, still make the best reasonable inference from the wording.',
-              'Return strict JSON: {"answer": "2 short sentences with the inferred need and suggestions", "productIds": [ids]}',
+              'You are Simba AI, a sophisticated personal shopping expert for Simba Supermarket.',
+              'Your mission: Interpret the user\'s situational need and logically construct a shopping solution.',
+              'Reasoning Guidelines:',
+              '1. SITUATIONAL INTELLIGENCE: If the user says "dinner", "party", "breakfast", or "I am sick", identify the core ingredients or solutions needed. Don\'t just look for those words; look for the products that fit the context.',
+              'Example Logic for "dinner": Select a Protein (Meat/Fish), a Base (Rice/Pasta/Flour), and supporting items (Oil/Vegetables/Spices) to propose a complete logical meal solution.',
+              '2. QUANTITY REASONING: Use the "unit" field to distinguish between small items and bulk/family packs based on the user\'s tone (e.g., "many", "all", "large" vs "one", "small").',
+              '3. VALUE LOGIC: Prioritize premium brands if they sound like they want "the best", or affordable staples for budget requests.',
+              '4. EXPLAIN YOUR LOGIC: In the "answer" field, speak directly to the user. Explain WHY these specific products were chosen for their situation (e.g., "Since you\'re planning a dinner, I\'ve suggested these fresh meats and grains as a base...").',
+              'Return strict JSON: {"answer": "Your expert reasoning (2-3 sentences)", "productIds": [number_ids]}',
             ].join(' '),
           },
           {
@@ -127,11 +129,15 @@ Deno.serve(async (req) => {
     const data = await response.json()
     const aiContent = JSON.parse(data.choices[0].message.content)
 
+    // Robust ID extraction: handle numbers or strings that look like numbers
+    const rawIds = Array.isArray(aiContent.productIds) ? aiContent.productIds : []
+    const validatedIds = rawIds
+      .map((id: any) => Number(id))
+      .filter((id: number) => !isNaN(id) && id > 0)
+
     return new Response(JSON.stringify({
       answer: aiContent.answer,
-      productIds: Array.isArray(aiContent.productIds)
-        ? Array.from(new Set(aiContent.productIds.filter((id: unknown) => typeof id === 'number'))).slice(0, 8)
-        : [],
+      productIds: Array.from(new Set(validatedIds)).slice(0, 15), // Increased limit for better variety
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -265,6 +265,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   full_name text,
+  phone text unique,
   avatar_url text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -302,17 +303,19 @@ security definer
 set search_path = public, auth
 as $$
 begin
-  insert into public.profiles (id, email, full_name, avatar_url, updated_at)
+  insert into public.profiles (id, email, full_name, phone, avatar_url, updated_at)
   values (
     new.id,
     new.email,
     new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'phone',
     new.raw_user_meta_data->>'avatar_url',
     now()
   )
   on conflict (id) do update set
     email = excluded.email,
     full_name = excluded.full_name,
+    phone = excluded.phone,
     avatar_url = excluded.avatar_url,
     updated_at = now();
   return new;
@@ -326,6 +329,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 create index if not exists profiles_email_idx on public.profiles (email);
+create index if not exists profiles_phone_idx on public.profiles (phone);
 
 create or replace function public.current_shop_admin_shop_ids()
 ...
@@ -462,6 +466,7 @@ returns table (
   id uuid,
   user_id uuid,
   user_email text,
+  user_full_name text,
   shop_id uuid,
   shop_name text,
   role text,
@@ -474,14 +479,15 @@ set search_path = public, auth
 as $$
   select sa.id,
     sa.user_id,
-    au.email as user_email,
+    p.email as user_email,
+    p.full_name as user_full_name,
     sa.shop_id,
     s.name as shop_name,
     sa.role,
     sa.created_at
   from public.shop_admins sa
   join public.shops s on s.id = sa.shop_id
-  join auth.users au on au.id = sa.user_id
+  join public.profiles p on p.id = sa.user_id
   where public.is_super_admin()
     or sa.shop_id in (select public.current_shop_admin_shop_ids())
   order by sa.created_at desc

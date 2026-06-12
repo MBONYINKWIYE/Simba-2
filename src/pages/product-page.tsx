@@ -33,7 +33,21 @@ export function ProductPage() {
         {t('backToCatalog')}
       </Link>
       <div className="grid gap-6 lg:grid-cols-2">
-        <img src={product.image} alt={product.name} className="h-full min-h-80 w-full rounded-3xl object-cover" />
+        <div
+          className="overflow-hidden rounded-3xl"
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            (e.currentTarget.querySelector('img') as HTMLElement).style.transformOrigin = `${x}% ${y}%`;
+          }}
+        >
+          <img
+            src={product.image}
+            alt={product.name}
+            className="h-full min-h-80 w-full object-cover transition duration-200 ease-out hover:scale-[2]"
+          />
+        </div>
         <div className="flex flex-col justify-center">
           <Badge>{product.normalizedCategory}</Badge>
           <h1 className="mt-4 text-2xl font-bold sm:text-4xl">{product.name}</h1>

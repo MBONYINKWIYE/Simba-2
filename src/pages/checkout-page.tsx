@@ -2,7 +2,7 @@ import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Clock3, Star, ShoppingBasket } from 'lucide-react';
+import { ChevronDown, Clock3, Star, ShoppingBasket, User, Phone, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
@@ -11,6 +11,7 @@ import { DEFAULT_CHECKOUT_VALUES, PAYPACK_RECEIVER_NUMBER } from '@/lib/constant
 import { buildMomoUssdCode, createManualPaymentOrder, openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
+import { supabase } from '@/lib/supabase';
 import type { AvailableShop, CheckoutFormValues } from '@/types';
 
 type Coordinates = {
@@ -106,8 +107,31 @@ export function CheckoutPage() {
   const [locationError, setLocationError] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [travelMode, setTravelMode] = useState<TravelMode>('drive');
+  const [isEditingContact, setIsEditingContact] = useState(false);
   const { user, isLoading: isAuthLoading, isConfigured } = useAuth();
   const pickupSlots = useMemo(() => buildPickupSlots(), []);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, phone')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          setFormValues((current) => ({
+            ...current,
+            fullName: profile.full_name || current.fullName,
+            phone: profile.phone || current.phone,
+          }));
+        }
+      }
+    }
+
+    fetchProfile();
+  }, [user]);
 
   const checkoutItems = useMemo(
     () =>
@@ -304,6 +328,16 @@ export function CheckoutPage() {
       if (!user) {
         throw new Error(t('signInCheckoutPrompt'));
       }
+
+      // Update profile with current form values if they differ or just to ensure consistency
+      await supabase
+        .from('profiles')
+        .update({
+          full_name: formValues.fullName,
+          phone: formValues.phone,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id);
 
       const result = await createManualPaymentOrder({
         userId: user.id,
@@ -563,22 +597,55 @@ export function CheckoutPage() {
         </div>
 
         <div className="mt-6 grid gap-4">
-          <input
-            required
-            value={formValues.fullName}
-            onChange={(event) => setFormValues((current) => ({ ...current, fullName: event.target.value }))}
-            autoComplete="name"
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder={t('fullName')}
-          />
-          <input
-            required
-            value={formValues.phone}
-            onChange={(event) => setFormValues((current) => ({ ...current, phone: event.target.value }))}
-            autoComplete="tel"
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder={t('phoneNumber')}
-          />
+          {user && formValues.fullName && formValues.phone && !isEditingContact ? (
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 dark:bg-brand-900/30 dark:text-brand-300">
+                  <User size={18} />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{formValues.fullName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{formValues.phone}</p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditingContact(true)}
+                className="text-brand-600 dark:text-brand-400"
+              >
+                <Edit2 size={14} className="mr-2" />
+                {t('change')}
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  required
+                  value={formValues.fullName}
+                  onChange={(event) => setFormValues((current) => ({ ...current, fullName: event.target.value }))}
+                  autoComplete="name"
+                  className="w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                  placeholder={t('fullName')}
+                />
+              </div>
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  required
+                  value={formValues.phone}
+                  onChange={(event) => setFormValues((current) => ({ ...current, phone: event.target.value }))}
+                  autoComplete="tel"
+                  className="w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                  placeholder={t('phoneNumber')}
+                />
+              </div>
+            </div>
+          )}
+          
           <textarea
             required
             value={formValues.address}

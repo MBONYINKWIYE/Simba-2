@@ -11,6 +11,110 @@ import { ordersQueryOptions } from '@/lib/orders';
 import { openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import type { OrderHistoryRecord } from '@/types';
+import { useUpdateProfile } from '@/hooks/use-update-profile';
+import { supabase } from '@/lib/supabase';
+import { useEffect } from 'react';
+
+function ProfileSection({ userId }: { userId: string }) {
+  const { t } = useTranslation();
+  const updateProfile = useUpdateProfile(userId);
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile) {
+        setFullName(profile.full_name || '');
+        setPhone(profile.phone || '');
+      }
+    }
+    fetchProfile();
+  }, [userId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateProfile.mutateAsync({ fullName, phone });
+      setIsEditing(false);
+    } catch (err) {
+      // Error handled by mutation state
+    }
+  };
+
+  return (
+    <section className="glass-panel p-6 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">{t('profileSettings')}</h2>
+        {!isEditing && (
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            {t('updateProfile')}
+          </Button>
+        )}
+      </div>
+
+      {isEditing ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('fullName')}</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full px-4 py-2 rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950 outline-none focus:ring-2 focus:ring-brand-500"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">{t('phoneNumber')}</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-4 py-2 rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950 outline-none focus:ring-2 focus:ring-brand-500"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={updateProfile.isPending}>
+              {updateProfile.isPending ? t('loading') : t('save')}
+            </Button>
+            <Button variant="ghost" type="button" onClick={() => setIsEditing(false)}>
+              {t('cancel')}
+            </Button>
+          </div>
+          {updateProfile.isError && (
+            <p className="text-sm text-rose-600 dark:text-rose-400">
+              {updateProfile.error instanceof Error ? updateProfile.error.message : t('profileUpdateFailed')}
+            </p>
+          )}
+        </form>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('fullName')}</p>
+            <p className="font-semibold">{fullName || '—'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('phoneNumber')}</p>
+            <p className="font-semibold">{phone || '—'}</p>
+          </div>
+        </div>
+      )}
+      {updateProfile.isSuccess && !isEditing && (
+        <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">{t('profileUpdated')}</p>
+      )}
+    </section>
+  );
+}
 
 function formatStatusLabel(value: string, translate: (key: string) => string) {
   const normalizedValue = value.replace(/_/g, ' ');
@@ -262,6 +366,8 @@ export function OrdersPage() {
 
   return (
     <div className="space-y-6">
+      <ProfileSection userId={user.id} />
+      
       <section className="glass-panel p-6">
         <OrdersHeader />
       </section>

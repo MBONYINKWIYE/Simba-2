@@ -72,6 +72,7 @@ export type ShopAdminAssignment = {
   id: string;
   user_id: string;
   user_email: string;
+  user_full_name: string | null;
   shop_id: string;
   shop_name: string;
   role: 'admin' | 'manager' | 'staff';
@@ -274,6 +275,10 @@ export type CatalogSearchContext = {
   budget: string | null;
   urgency: string | null;
   dietaryPreference: string | null;
+  mood: string | null;
+  season: string | null;
+  valuePreference: string | null;
   productHints: string[];
+  brandHints: string[];
   normalizedQuery: string;
 };

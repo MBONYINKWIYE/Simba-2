@@ -92,6 +92,7 @@ export async function syncProfileRecord(params: {
   userId: string;
   email: string | null | undefined;
   fullName?: string | null;
+  phone?: string | null;
   avatarUrl?: string | null;
 }) {
   const client = requireSupabaseClient();
@@ -106,6 +107,7 @@ export async function syncProfileRecord(params: {
       id: params.userId,
       email: normalizedEmail,
       full_name: params.fullName?.trim() || null,
+      phone: params.phone?.trim() || null,
       avatar_url: params.avatarUrl?.trim() || null,
       updated_at: new Date().toISOString(),
     },
@@ -135,8 +137,23 @@ export async function signInWithGoogle(nextPath = '/checkout') {
   }
 }
 
-export async function signInWithEmail(email: string, password: string) {
+export async function signInWithEmail(identifier: string, password: string) {
   const client = requireSupabaseClient();
+  let email = identifier.trim();
+
+  // If it's not an email, try to find the email by phone
+  if (!email.includes('@')) {
+    const { data: profile } = await client
+      .from('profiles')
+      .select('email')
+      .eq('phone', email)
+      .maybeSingle();
+
+    if (profile?.email) {
+      email = profile.email;
+    }
+  }
+
   const { data, error } = await client.auth.signInWithPassword({
     email,
     password,
@@ -151,6 +168,7 @@ export async function signInWithEmail(email: string, password: string) {
       userId: data.user.id,
       email: data.user.email,
       fullName: data.user.user_metadata?.full_name ?? data.user.user_metadata?.name ?? null,
+      phone: data.user.user_metadata?.phone ?? null,
       avatarUrl: data.user.user_metadata?.avatar_url ?? data.user.user_metadata?.picture ?? null,
     });
   }
@@ -158,7 +176,7 @@ export async function signInWithEmail(email: string, password: string) {
   return data;
 }
 
-export async function signUpWithEmail(email: string, password: string, fullName: string) {
+export async function signUpWithEmail(email: string, password: string, fullName: string, phone: string) {
   const client = requireSupabaseClient();
   const { data, error } = await client.auth.signUp({
     email,
@@ -166,6 +184,7 @@ export async function signUpWithEmail(email: string, password: string, fullName:
     options: {
       data: {
         full_name: fullName,
+        phone: phone,
       },
     },
   });
@@ -179,6 +198,7 @@ export async function signUpWithEmail(email: string, password: string, fullName:
       userId: data.session.user.id,
       email: data.session.user.email,
       fullName: fullName,
+      phone: phone,
       avatarUrl: data.session.user.user_metadata?.avatar_url ?? data.session.user.user_metadata?.picture ?? null,
     });
   }
