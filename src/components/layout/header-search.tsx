@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, Search, SlidersHorizontal, Sparkles, X, ChevronDown } from 'lucide-react';
+import { Bot, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSearchStore, defaultFilters } from '@/store/search-store';
@@ -203,8 +203,7 @@ export function HeaderSearch() {
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
               <Button 
                 variant="ghost" 
-                size="sm" 
-                className="text-xs font-bold text-slate-400 hover:text-rose-500 rounded-xl transition-colors px-4"
+                className="text-xs font-bold text-slate-400 hover:text-rose-500 rounded-xl transition-colors px-4 py-2"
                 onClick={() => {
                   useSearchStore.getState().resetFilters();
                   setLocalQuery('');
@@ -215,15 +214,13 @@ export function HeaderSearch() {
               <div className="flex gap-2">
                 <Button 
                   variant="secondary" 
-                  size="sm" 
-                  className="text-xs font-bold rounded-xl px-5 border-slate-200"
+                  className="text-xs font-bold rounded-xl px-5 py-2 border-slate-200"
                   onClick={() => setIsFiltersOpen(false)}
                 >
                   {t('close')}
                 </Button>
-                <Button 
-                  size="sm" 
-                  className="text-xs font-bold rounded-xl px-5 bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-500/20"
+                <Button
+                  className="text-xs font-bold rounded-xl px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-500/20"
                   onClick={() => setIsFiltersOpen(false)}
                 >
                   {t('apply')}

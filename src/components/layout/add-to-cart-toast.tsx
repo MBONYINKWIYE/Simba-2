@@ -7,9 +7,11 @@ import { useUiStore } from '@/store/ui-store';
 
 export function AddToCartToast() {
   const { t } = useTranslation();
+  const items = useCartStore((state) => state.items);
   const lastAddedItem = useCartStore((state) => state.lastAddedItem);
   const openCart = useUiStore((state) => state.openCart);
   const [isVisible, setIsVisible] = useState(false);
+  const hasItems = Object.keys(items).length > 0;
 
   useEffect(() => {
     if (!lastAddedItem) {
@@ -25,7 +27,7 @@ export function AddToCartToast() {
     return () => window.clearTimeout(timeoutId);
   }, [lastAddedItem?.productName, lastAddedItem?.quantity]);
 
-  if (!lastAddedItem) {
+  if (!lastAddedItem || !hasItems) {
     return null;
   }
 

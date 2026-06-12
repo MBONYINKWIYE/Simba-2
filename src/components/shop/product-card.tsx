@@ -1,9 +1,8 @@
-import { Eye, Minus, Plus, ShoppingBasket } from 'lucide-react';
+import { Eye, Minus, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '@/types';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 

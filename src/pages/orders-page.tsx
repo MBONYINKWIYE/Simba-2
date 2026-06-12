@@ -24,6 +24,7 @@ function ProfileSection({ userId }: { userId: string }) {
 
   useEffect(() => {
     async function fetchProfile() {
+      if (!supabase) return;
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, phone')
@@ -52,8 +53,8 @@ function ProfileSection({ userId }: { userId: string }) {
     <section className="glass-panel p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">{t('profileSettings')}</h2>
-        {!isEditing && (
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+          {!isEditing && (
+          <Button variant="secondary" onClick={() => setIsEditing(true)}>
             {t('updateProfile')}
           </Button>
         )}

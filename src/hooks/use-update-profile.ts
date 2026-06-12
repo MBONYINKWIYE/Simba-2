@@ -12,6 +12,8 @@ export function useUpdateProfile(userId: string) {
 
   return useMutation({
     mutationFn: async (values: ProfileUpdateValues) => {
+      if (!supabase) throw new Error('Supabase client not available');
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -26,9 +28,7 @@ export function useUpdateProfile(userId: string) {
       }
     },
     onSuccess: () => {
-      // Invalidate queries that might be using profile data if any
-      // For now, we don't have a specific profile query, but we can invalidate orders as they might show user info
-      queryClient.invalidateQueries({ queryKey: queryKeys.orders });
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders(userId) });
     },
   });
 }

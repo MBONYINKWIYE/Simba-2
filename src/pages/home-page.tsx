@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Sparkles, Star, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { SkeletonGrid } from '@/components/shop/skeleton-grid';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useShopReviewSummary } from '@/hooks/use-reviews';
 import { useShops, useNearestShop } from '@/hooks/use-shops';
-import { slugify, haversineDistanceInKm, cn } from '@/lib/utils';
+import { slugify, haversineDistanceInKm } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import type { Product } from '@/types';
 import { useSearchStore } from '@/store/search-store';
@@ -419,11 +419,8 @@ export function HomePage() {
          </section>
        ) : (
          <>
-           <section className="mt-8">
-             <div className="mb-4 flex items-center justify-between">
-               <h2 className="text-xl font-bold">{t('activeBranches')}</h2>
-             </div>
-             <div
+            <section className="mt-8">
+              <div
                ref={branchesScrollRef}
                className="overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 scrollbar-hide"
                onMouseEnter={() => setBranchesAnimating(false)}

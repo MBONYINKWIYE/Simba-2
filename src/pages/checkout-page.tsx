@@ -113,7 +113,7 @@ export function CheckoutPage() {
 
   useEffect(() => {
     async function fetchProfile() {
-      if (user) {
+      if (user && supabase) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, phone')
@@ -329,7 +329,10 @@ export function CheckoutPage() {
         throw new Error(t('signInCheckoutPrompt'));
       }
 
-      // Update profile with current form values if they differ or just to ensure consistency
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
       await supabase
         .from('profiles')
         .update({
@@ -611,9 +614,8 @@ export function CheckoutPage() {
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
                 onClick={() => setIsEditingContact(true)}
-                className="text-brand-600 dark:text-brand-400"
+                className="text-brand-600 dark:text-brand-400 py-2"
               >
                 <Edit2 size={14} className="mr-2" />
                 {t('change')}
