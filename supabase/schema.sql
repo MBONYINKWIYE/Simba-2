@@ -115,6 +115,15 @@ create table if not exists public.order_items (
   unit_price_rwf integer not null
 );
 
+create table if not exists public.delivery_persons (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid not null references public.shops(id) on delete cascade,
+  name text not null,
+  phone text not null,
+  email text,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.reviews (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null unique references public.orders(id) on delete cascade,
@@ -125,9 +134,28 @@ create table if not exists public.reviews (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.promotions (
+  id bigint generated always as identity primary key,
+  title text not null,
+  description text,
+  image_url text,
+  product_id bigint references public.catalog_products(id) on delete cascade,
+  category text,
+  discount_percent integer not null check (discount_percent > 0 and discount_percent <= 100),
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 alter table public.orders add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.orders add column if not exists shop_id uuid references public.shops(id);
 alter table public.orders add column if not exists assigned_staff_user_id uuid references auth.users(id) on delete set null;
+alter table public.orders add column if not exists delivery_person_id uuid references public.delivery_persons(id) on delete set null;
+alter table public.orders add column if not exists delivery_person_name text;
+alter table public.orders add column if not exists delivery_person_phone text;
+alter table public.orders add column if not exists recurrence text not null default 'one_time' check (recurrence in ('one_time', 'weekly', 'bi_weekly', 'monthly'));
+alter table public.orders add column if not exists next_delivery_date timestamptz;
 alter table public.orders add column if not exists user_email text;
 alter table public.orders add column if not exists pickup_time timestamptz;
 alter table public.orders add column if not exists payment_status text not null default 'pending';
@@ -220,25 +248,29 @@ begin
       check (payment_status in ('pending', 'paid', 'failed'));
   end if;
 
-  if not exists (
+  if exists (
     select 1 from pg_constraint
     where conname = 'orders_status_check'
       and conrelid = 'public.orders'::regclass
   ) then
-    alter table public.orders
-      add constraint orders_status_check
-      check (status in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected'));
+    alter table public.orders drop constraint orders_status_check;
   end if;
 
-  if not exists (
+  alter table public.orders
+    add constraint orders_status_check
+    check (status in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected', 'out_for_delivery', 'delivered'));
+
+  if exists (
     select 1 from pg_constraint
     where conname = 'orders_fulfillment_status_check'
       and conrelid = 'public.orders'::regclass
   ) then
-    alter table public.orders
-      add constraint orders_fulfillment_status_check
-      check (fulfillment_status in ('pending', 'confirmed', 'processing', 'delivered', 'cancelled'));
+    alter table public.orders drop constraint orders_fulfillment_status_check;
   end if;
+
+  alter table public.orders
+    add constraint orders_fulfillment_status_check
+    check (fulfillment_status in ('pending', 'confirmed', 'processing', 'delivered', 'cancelled'));
 end
 $$;
 
@@ -257,6 +289,8 @@ create index if not exists inventory_history_product_created_idx on public.inven
 create index if not exists orders_user_id_idx on public.orders (user_id);
 create index if not exists orders_shop_id_idx on public.orders (shop_id);
 create index if not exists orders_assigned_staff_user_id_idx on public.orders (assigned_staff_user_id);
+create index if not exists orders_delivery_person_id_idx on public.orders (delivery_person_id);
+create index if not exists delivery_persons_shop_id_idx on public.delivery_persons (shop_id);
 create index if not exists orders_shop_status_created_at_idx on public.orders (shop_id, status, created_at desc);
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
 create index if not exists reviews_shop_id_idx on public.reviews (shop_id);
@@ -1135,7 +1169,7 @@ declare
   target_order public.orders;
   actor_role text;
 begin
-  if next_status not in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected') then
+  if next_status not in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected', 'out_for_delivery', 'delivered') then
     raise exception 'Invalid order status';
   end if;
 
@@ -1187,6 +1221,8 @@ begin
         when next_status = 'accepted' then 'confirmed'
         when next_status = 'preparing' then 'processing'
         when next_status = 'picked_up' then 'delivered'
+        when next_status = 'out_for_delivery' then 'processing'
+        when next_status = 'delivered' then 'delivered'
         when next_status = 'rejected' then 'cancelled'
         else fulfillment_status
       end,
@@ -1221,6 +1257,196 @@ begin
   end if;
 
   raise exception 'You do not have permission to update this order status';
+end
+$$;
+
+create or replace function public.list_delivery_persons(
+  target_shop_id uuid default null
+)
+returns table (
+  id uuid,
+  shop_id uuid,
+  name text,
+  phone text,
+  email text,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select dp.id, dp.shop_id, dp.name, dp.phone, dp.email, dp.created_at
+  from public.delivery_persons dp
+  where (
+    public.is_super_admin()
+    and (target_shop_id is null or dp.shop_id = target_shop_id)
+  )
+  or (
+    not public.is_super_admin()
+    and dp.shop_id in (select public.current_shop_admin_shop_ids())
+    and (target_shop_id is null or dp.shop_id = target_shop_id)
+  )
+  order by dp.name
+$$;
+
+create or replace function public.create_delivery_person(
+  p_shop_id uuid,
+  p_name text,
+  p_phone text,
+  p_email text default null
+)
+returns public.delivery_persons
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  created public.delivery_persons;
+begin
+  if not public.can_manage_shop(p_shop_id) then
+    raise exception 'You do not have permission to manage delivery persons for this shop';
+  end if;
+
+  if nullif(trim(p_name), '') is null then
+    raise exception 'Delivery person name is required';
+  end if;
+
+  if nullif(trim(p_phone), '') is null then
+    raise exception 'Delivery person phone is required';
+  end if;
+
+  insert into public.delivery_persons (shop_id, name, phone, email)
+  values (p_shop_id, trim(p_name), trim(p_phone), nullif(trim(coalesce(p_email, '')), ''))
+  returning * into created;
+
+  return created;
+end
+$$;
+
+create or replace function public.delete_delivery_person(
+  target_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  target_shop_id uuid;
+begin
+  select shop_id into target_shop_id
+  from public.delivery_persons
+  where id = target_id;
+
+  if target_shop_id is null then
+    raise exception 'Delivery person not found';
+  end if;
+
+  if not public.can_manage_shop(target_shop_id) then
+    raise exception 'You do not have permission to delete this delivery person';
+  end if;
+
+  delete from public.delivery_persons
+  where id = target_id;
+end
+$$;
+
+create or replace function public.assign_order_to_delivery(
+  target_order_id uuid,
+  target_delivery_person_id uuid
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  target_order public.orders;
+  delivery_person_record public.delivery_persons;
+begin
+  select *
+  into target_order
+  from public.orders
+  where id = target_order_id;
+
+  if target_order.id is null then
+    raise exception 'Order not found';
+  end if;
+
+  if target_order.status != 'ready' then
+    raise exception 'Order must be ready before assigning a delivery person';
+  end if;
+
+  if not public.can_manage_shop(target_order.shop_id) then
+    raise exception 'You do not have permission to assign delivery for this order';
+  end if;
+
+  select *
+  into delivery_person_record
+  from public.delivery_persons
+  where id = target_delivery_person_id;
+
+  if delivery_person_record.id is null then
+    raise exception 'Delivery person not found';
+  end if;
+
+  if delivery_person_record.shop_id != target_order.shop_id then
+    raise exception 'Delivery person does not belong to the same shop';
+  end if;
+
+  update public.orders
+  set
+    delivery_person_id = target_delivery_person_id,
+    delivery_person_name = delivery_person_record.name,
+    delivery_person_phone = delivery_person_record.phone,
+    status = 'out_for_delivery',
+    fulfillment_status = 'processing'
+  where id = target_order_id
+  returning * into target_order;
+
+  return target_order;
+end
+$$;
+
+create or replace function public.remove_order_delivery_assignment(
+  target_order_id uuid
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  target_order public.orders;
+begin
+  select *
+  into target_order
+  from public.orders
+  where id = target_order_id;
+
+  if target_order.id is null then
+    raise exception 'Order not found';
+  end if;
+
+  if not public.can_manage_shop(target_order.shop_id) then
+    raise exception 'You do not have permission to modify this order';
+  end if;
+
+  update public.orders
+  set
+    delivery_person_id = null,
+    delivery_person_name = null,
+    delivery_person_phone = null,
+    status = 'ready',
+    fulfillment_status = case
+      when target_order.fulfillment_status = 'delivered' then 'delivered'
+      else 'processing'
+    end
+  where id = target_order_id
+  returning * into target_order;
+
+  return target_order;
 end
 $$;
 
@@ -1271,6 +1497,39 @@ alter table public.inventory enable row level security;
 alter table public.inventory_history enable row level security;
 alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
+alter table public.delivery_persons enable row level security;
+alter table public.promotions enable row level security;
+
+drop policy if exists "Public read access to promotions" on public.promotions;
+create policy "Public read access to promotions"
+on public.promotions
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Service role manages delivery persons" on public.delivery_persons;
+create policy "Service role manages delivery persons"
+on public.delivery_persons
+for all
+to service_role
+using (true)
+with check (true);
+
+drop policy if exists "Shop admins can read delivery persons" on public.delivery_persons;
+create policy "Shop admins can read delivery persons"
+on public.delivery_persons
+for select
+to authenticated
+using (public.is_super_admin() or shop_id in (select public.current_shop_admin_shop_ids()));
+
+drop policy if exists "Shop admins can manage delivery persons" on public.delivery_persons;
+create policy "Shop admins can manage delivery persons"
+on public.delivery_persons
+for all
+to authenticated
+using (public.is_super_admin() or shop_id in (select public.current_shop_admin_shop_ids()))
+with check (public.is_super_admin() or shop_id in (select public.current_shop_admin_shop_ids()));
+
 alter table public.reviews enable row level security;
 
 drop policy if exists "Public read access to products" on public.catalog_products;
@@ -1493,5 +1752,38 @@ begin
       (kisimenti_shop_id, prod_id, kisimenti_qty),
       (sonatube_shop_id, prod_id, sonatube_qty);
   end loop;
+end
+$$;
+
+-- Seed promotions for demo
+do $$
+declare
+  rice_id bigint;
+  oil_id bigint;
+  soap_id bigint;
+begin
+  select id into rice_id from public.catalog_products where name ilike '%rice%' limit 1;
+  select id into oil_id from public.catalog_products where name ilike '%oil%' limit 1;
+  select id into soap_id from public.catalog_products where name ilike '%soap%' limit 1;
+
+  if not exists (select 1 from public.promotions) then
+    if rice_id is not null then
+      insert into public.promotions (title, description, product_id, discount_percent, starts_at, ends_at, is_active)
+      values ('Rice Sale', 'Discounted rice for a limited time! Stock up and save.', rice_id, 15, now() - interval '1 day', now() + interval '7 days', true);
+    end if;
+
+    if oil_id is not null then
+      insert into public.promotions (title, description, product_id, discount_percent, starts_at, ends_at, is_active)
+      values ('Cooking Oil Deal', 'Save on cooking oil this week.', oil_id, 10, now() - interval '1 day', now() + interval '5 days', true);
+    end if;
+
+    if soap_id is not null then
+      insert into public.promotions (title, description, product_id, discount_percent, starts_at, ends_at, is_active)
+      values ('Soap Special', 'Bulk soap at a great discount.', soap_id, 20, now() - interval '2 days', now() + interval '3 days', true);
+    end if;
+
+    insert into public.promotions (title, description, category, discount_percent, starts_at, ends_at, is_active)
+    values ('Drinks Week', 'All beverages on sale!', 'Alcohol/Drinks', 5, now() - interval '1 day', now() + interval '14 days', true);
+  end if;
 end
 $$;

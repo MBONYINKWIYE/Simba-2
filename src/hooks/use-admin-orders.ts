@@ -22,6 +22,9 @@ const adminOrderSelect = `
   user_email,
   shop_id,
   assigned_staff_user_id,
+  delivery_person_id,
+  delivery_person_name,
+  delivery_person_phone,
   rejection_reason,
   order_items(id, product_id, product_name, quantity, unit_price_rwf)
 `;

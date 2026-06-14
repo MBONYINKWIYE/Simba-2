@@ -1,4 +1,6 @@
-import logoImg from '../../../images/logo.png';
+import logoSrc from '../../../images/logo.avif';
+import logoSrcWebp from '../../../images/logo.webp';
+import logoSrcFallback from '../../../images/logo1.jfif';
 
 type BrandLogoProps = {
   compact?: boolean;
@@ -9,11 +11,15 @@ export function BrandLogo({ compact = false, className = '' }: BrandLogoProps) {
   return (
     <div className={`flex items-center gap-3 ${className}`.trim()}>
       <div className="h-12 w-12 flex items-center justify-center rounded-full bg-white shadow-sm overflow-hidden shrink-0 border border-slate-100">
-        <img
-          src={logoImg}
-          alt="Simba Logo"
-          className="h-full w-full object-cover scale-150"
-        />
+        <picture>
+          <source srcSet={logoSrc} type="image/avif" />
+          <source srcSet={logoSrcWebp} type="image/webp" />
+          <img
+            src={logoSrcFallback}
+            alt="Simba Logo"
+            className="h-full w-full object-cover scale-150"
+          />
+        </picture>
       </div>
 
       {compact ? null : (

@@ -24,6 +24,19 @@ export type Product = ProductRecord & {
   stockQuantity?: number;
 };
 
+export type Promotion = {
+  id: number;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  product_id: number | null;
+  category: string | null;
+  discount_percent: number;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+};
+
 export type CatalogResponse = {
   store: StoreMetadata;
   products: Product[];
@@ -42,6 +55,7 @@ export type CheckoutFormValues = {
   notes: string;
   pickupTime: string;
   paymentMethod: 'momo' | 'cash';
+  recurrence: Recurrence;
 };
 
 export type Shop = {
@@ -76,6 +90,15 @@ export type ShopAdminAssignment = {
   shop_id: string;
   shop_name: string;
   role: 'admin' | 'manager' | 'staff';
+  created_at: string;
+};
+
+export type DeliveryPerson = {
+  id: string;
+  shop_id: string;
+  name: string;
+  phone: string;
+  email: string | null;
   created_at: string;
 };
 
@@ -136,6 +159,7 @@ export type OrderCreatePayload = {
   shopId: string;
   paymentAmountRwf?: number;
   paymentPlan?: 'momo' | 'cash-on-pickup';
+  recurrence?: Recurrence;
 };
 
 export type OrderPaymentPayload = {
@@ -179,7 +203,8 @@ export type CreateCashOrderResult = {
 };
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'delivered' | 'cancelled';
-export type ShopOrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'rejected';
+export type ShopOrderStatus = 'pending' | 'accepted' | 'preparing' | 'ready' | 'picked_up' | 'rejected' | 'out_for_delivery' | 'delivered';
+export type Recurrence = 'one_time' | 'weekly' | 'bi_weekly' | 'monthly';
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed';
 
@@ -217,6 +242,10 @@ export type OrderHistoryRecord = {
   payment_payload?: OrderPaymentPayload;
   paid_at?: string | null;
   rejection_reason?: string | null;
+  delivery_person_name?: string | null;
+  delivery_person_phone?: string | null;
+  recurrence?: Recurrence | null;
+  next_delivery_date?: string | null;
 };
 
 export type ReviewRecord = {
@@ -253,6 +282,11 @@ export type AdminOrderRecord = {
   user_email: string | null;
   shop_id: string;
   assigned_staff_user_id?: string | null;
+  delivery_person_id?: string | null;
+  delivery_person_name?: string | null;
+  delivery_person_phone?: string | null;
+  recurrence?: Recurrence | null;
+  next_delivery_date?: string | null;
   shops?: Pick<Shop, 'id' | 'name' | 'address' | 'phone'> | null;
   order_items: OrderHistoryItem[];
   momo_reference?: string | null;

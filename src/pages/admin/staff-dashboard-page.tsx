@@ -21,11 +21,11 @@ function SummaryCard({ label, value, hint }: { label: string; value: number; hin
 }
 
 function statusClassName(value: string) {
-  if (value === 'ready' || value === 'picked_up') {
+  if (value === 'ready' || value === 'picked_up' || value === 'delivered') {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   }
 
-  if (value === 'accepted' || value === 'preparing') {
+  if (value === 'accepted' || value === 'preparing' || value === 'out_for_delivery') {
     return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
   }
 
@@ -226,6 +226,24 @@ export function StaffDashboardPage() {
                       <div>
                         <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{activeOrder.phone}</p>
                       </div>
+                      {activeOrder.delivery_person_name ? (
+                        <div className="rounded-2xl bg-brand-50/50 p-3 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
+                          <p className="text-[10px] font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-1">{t('deliveryPersonInfo')}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeOrder.delivery_person_name}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400">{activeOrder.delivery_person_phone}</p>
+                        </div>
+                      ) : null}
+                      {activeOrder.recurrence && activeOrder.recurrence !== 'one_time' ? (
+                        <div className="rounded-2xl bg-stone-50/50 p-3 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/30">
+                          <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">{t('recurringOrder')}</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(activeOrder.recurrence)}</p>
+                          {activeOrder.next_delivery_date ? (
+                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                              {t('nextDeliveryDate')}: {new Date(activeOrder.next_delivery_date).toLocaleDateString()}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
                         <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{activeOrder.delivery_address}</p>
                       </div>
@@ -251,7 +269,7 @@ export function StaffDashboardPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={activeOrder.status === 'preparing' || activeOrder.status === 'ready' || activeOrder.status === 'picked_up' || updateOrderStatus.isPending}
+                  disabled={activeOrder.status === 'preparing' || activeOrder.status === 'ready' || activeOrder.status === 'picked_up' || activeOrder.status === 'out_for_delivery' || activeOrder.status === 'delivered' || updateOrderStatus.isPending}
                   onClick={() => void runStatusUpdate('preparing')}
                 >
                   {t('markPreparing')}
@@ -259,14 +277,14 @@ export function StaffDashboardPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={activeOrder.status === 'ready' || activeOrder.status === 'picked_up' || updateOrderStatus.isPending}
+                  disabled={activeOrder.status === 'ready' || activeOrder.status === 'picked_up' || activeOrder.status === 'out_for_delivery' || activeOrder.status === 'delivered' || updateOrderStatus.isPending}
                   onClick={() => void runStatusUpdate('ready')}
                 >
                   {t('markReady')}
                 </Button>
                 <Button
                   type="button"
-                  disabled={activeOrder.status === 'picked_up' || updateOrderStatus.isPending}
+                  disabled={activeOrder.status === 'picked_up' || activeOrder.status === 'out_for_delivery' || activeOrder.status === 'delivered' || updateOrderStatus.isPending}
                   onClick={() => void runStatusUpdate('picked_up')}
                 >
                   {t('markPickedUp')}

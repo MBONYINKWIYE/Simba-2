@@ -16,6 +16,17 @@ type AssignOrderToStaffArgs = {
   staffUserId: string;
 };
 
+type AssignOrderToDeliveryArgs = {
+  orderId: string;
+  scopeKey: string;
+  deliveryPersonId: string;
+};
+
+type RemoveDeliveryAssignmentArgs = {
+  orderId: string;
+  scopeKey: string;
+};
+
 async function updateOrderStatus({ orderId, status, rejectionReason }: UpdateOrderStatusArgs) {
   if (!supabase) {
     throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
@@ -25,6 +36,35 @@ async function updateOrderStatus({ orderId, status, rejectionReason }: UpdateOrd
     target_order_id: orderId,
     next_status: status,
     rejection_note: status === 'rejected' ? rejectionReason ?? null : null,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function assignOrderToDelivery({ orderId, deliveryPersonId }: AssignOrderToDeliveryArgs) {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  }
+
+  const { error } = await supabase.rpc('assign_order_to_delivery', {
+    target_order_id: orderId,
+    target_delivery_person_id: deliveryPersonId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function removeDeliveryAssignment({ orderId }: RemoveDeliveryAssignmentArgs) {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  }
+
+  const { error } = await supabase.rpc('remove_order_delivery_assignment', {
+    target_order_id: orderId,
   });
 
   if (error) {
@@ -57,6 +97,31 @@ export function useUpdateOrderStatus() {
         queryClient.invalidateQueries({ queryKey: queryKeys.adminOrders(variables.scopeKey) }),
         queryClient.invalidateQueries({ queryKey: ['orders'] }),
       ]);
+    },
+  });
+}
+
+export function useAssignOrderToDelivery() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: assignOrderToDelivery,
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.adminOrders(variables.scopeKey) }),
+        queryClient.invalidateQueries({ queryKey: ['delivery-persons'] }),
+      ]);
+    },
+  });
+}
+
+export function useRemoveDeliveryAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: removeDeliveryAssignment,
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.adminOrders(variables.scopeKey) });
     },
   });
 }

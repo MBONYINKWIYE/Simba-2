@@ -1,4 +1,3 @@
-import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BrandLogo } from '@/components/layout/brand-logo';
 import { useTranslation } from 'react-i18next';
@@ -8,24 +7,24 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-12 border-t border-slate-200/80 bg-gradient-to-br from-white via-brand-50/20 to-stone-100/80 py-8 dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+    <footer className="mt-12 border-t border-slate-200/80 bg-orange-200/85 py-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="container-shell">
-        <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr_1fr]">
-          <div className="space-y-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr]">
+          <div className="col-span-2 lg:col-span-1 space-y-2">
             <BrandLogo compact className="gap-2" />
-            <div className="max-w-md space-y-2">
-              <p className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">
+            <div className="max-w-md space-y-1">
+              <p className="text-sm font-bold tracking-tight text-slate-950 dark:text-white">
                 {t('footerTitle')}
               </p>
-              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+              <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
                 {t('footerCopy')}
               </p>
             </div>
-            <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
                 {t('footerContactTitle')}
               </p>
-              <address className="not-italic text-sm text-slate-600 dark:text-slate-300 space-y-1">
+              <address className="not-italic text-xs text-slate-600 dark:text-slate-300 space-y-0.5">
                 <p>
                   <a href="tel:+250788123456" className="hover:text-brand-600 dark:hover:text-brand-400">
                     +250 788 123 456
@@ -45,22 +44,18 @@ export function Footer() {
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
               {t('footerShopTitle')}
             </p>
-            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/">
-                <span>{t('footerHomeLink')}</span>
-                <ArrowUpRight size={14} />
+            <div className="mt-1.5 grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/">
+                {t('footerHomeLink')}
               </Link>
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/#catalog">
-                <span>{t('footerCatalogLink')}</span>
-                <ArrowUpRight size={14} />
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/#catalog">
+                {t('footerCatalogLink')}
               </Link>
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/checkout">
-                <span>{t('footerCheckoutLink')}</span>
-                <ArrowUpRight size={14} />
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/checkout">
+                {t('footerCheckoutLink')}
               </Link>
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/orders">
-                <span>{t('footerOrdersLink')}</span>
-                <ArrowUpRight size={14} />
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/orders">
+                {t('footerOrdersLink')}
               </Link>
             </div>
           </div>
@@ -69,28 +64,24 @@ export function Footer() {
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
               {t('footerSupportTitle')}
             </p>
-            <div className="mt-3 grid gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/auth/login">
-                <span>{t('footerSignInLink')}</span>
-                <ArrowUpRight size={14} />
+            <div className="mt-1.5 grid gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/auth/login">
+                {t('footerSignInLink')}
               </Link>
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/auth/signup">
-                <span>{t('footerCreateAccountLink')}</span>
-                <ArrowUpRight size={14} />
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/auth/signup">
+                {t('footerCreateAccountLink')}
               </Link>
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/checkout">
-                <span>{t('footerPaymentHelpLink')}</span>
-                <ArrowUpRight size={14} />
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/checkout">
+                {t('footerPaymentHelpLink')}
               </Link>
-              <Link className="inline-flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 transition hover:bg-white dark:bg-slate-900/70 dark:hover:bg-slate-900" to="/orders">
-                <span>{t('footerTrackOrderLink')}</span>
-                <ArrowUpRight size={14} />
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/orders">
+                {t('footerTrackOrderLink')}
               </Link>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-2 border-t border-slate-200/80 pt-4 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400 md:flex-row md:items-center md:justify-between">
+        <div className="mt-4 flex flex-col gap-2 border-t border-slate-200/80 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400 md:flex-row md:items-center md:justify-between">
           <p>{t('footerRights', { year })}</p>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, LayoutGrid, LogOut, MoonStar, ShoppingBasket, SunMedium, User, Search, Grid } from 'lucide-react';
+import { ChevronDown, LayoutGrid, LogOut, MoonStar, ShoppingBasket, SunMedium, User, Search, Grid, Tag } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -131,6 +131,14 @@ export function Header() {
       if (categoryMenu && !categoryMenu.contains(target)) {
         setIsCategoryMenuOpen(false);
       }
+      const userMenu = document.querySelector('[data-user-menu]');
+      if (userMenu && !userMenu.contains(target)) {
+        setIsUserMenuOpen(false);
+      }
+      const languageMenu = document.querySelector('[data-language-menu]');
+      if (languageMenu && !languageMenu.contains(target)) {
+        setIsLanguageMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -147,13 +155,13 @@ export function Header() {
 
   return (
     <header
-      className={`z-40 border-b border-white/50 bg-stone-50/85 backdrop-blur transition-transform duration-500 ease-out dark:border-white/10 dark:bg-slate-950/80 ${
-        isLandingPage ? 'fixed left-0 right-0 top-0' : 'sticky top-0'
-      } ${isLandingPage && !isVisible ? '-translate-y-full' : 'translate-y-0'}`}
+className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transition-transform duration-500 ease-out dark:border-white/10 dark:bg-slate-950/80 ${
+         isLandingPage ? 'fixed left-0 right-0 top-0' : 'sticky top-0'
+       } ${isLandingPage && !isVisible ? '-translate-y-full' : 'translate-y-0'}`}
     >
       <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3">
         <div className="flex shrink-0 items-center gap-2 md:gap-3">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3" onClick={() => useSearchStore.getState().resetFilters()}>
             <BrandLogo />
           </Link>
         </div>
@@ -165,7 +173,7 @@ export function Header() {
         <div className="relative hidden lg:block ml-4">
           <Button
             variant="secondary"
-            className="h-11 rounded-2xl px-3"
+            className="h-11 rounded-2xl px-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
             onClick={() => setIsCategoryMenuOpen((open) => !open)}
             aria-expanded={isCategoryMenuOpen}
             aria-haspopup="menu"
@@ -218,7 +226,7 @@ export function Header() {
         <div className="flex shrink-0 items-center justify-end gap-1 md:gap-2">
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-2xl p-0 lg:hidden"
+            className="h-11 w-11 rounded-2xl p-0 lg:hidden dark:text-orange-500 dark:hover:bg-orange-500/20"
             onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
             aria-label={t('search')}
           >
@@ -227,7 +235,7 @@ export function Header() {
           <div className="relative hidden lg:block">
             <Button
               variant="secondary"
-              className="h-11 rounded-2xl px-3"
+              className="h-11 rounded-2xl px-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
               onClick={() => setIsLanguageMenuOpen((open) => !open)}
               aria-expanded={isLanguageMenuOpen}
               aria-haspopup="menu"
@@ -238,7 +246,7 @@ export function Header() {
               <ChevronDown size={15} className={`ml-2 transition ${isLanguageMenuOpen ? 'rotate-180' : ''}`} />
             </Button>
             {isLanguageMenuOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-2 w-40 rounded-3xl border border-slate-200 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-900">
+              <div data-language-menu className="absolute right-0 top-full z-20 mt-2 w-40 rounded-3xl border border-slate-200 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-900">
                 {LANGUAGES.map((language) => (
                   <button
                     key={language.value}
@@ -258,13 +266,13 @@ export function Header() {
           </div>
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-2xl p-0"
+            className="h-11 w-11 rounded-2xl p-0 dark:text-orange-500 dark:hover:bg-orange-500/20"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label={t('darkMode')}
           >
             {theme === 'dark' ? <SunMedium size={18} /> : <MoonStar size={18} />}
           </Button>
-          <Button variant="secondary" className="relative h-11 rounded-2xl px-4" onClick={openCart}>
+          <Button variant="secondary" className="relative h-11 rounded-2xl px-4 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600" onClick={openCart}>
             <ShoppingBasket size={18} />
             <span className="ml-2 hidden sm:inline">{t('cart')}</span>
             {itemCount > 0 && (
@@ -275,29 +283,40 @@ export function Header() {
           </Button>
           {isConfigured ? (
             <div className="relative">
-              <Button
-                variant="secondary"
-                className={`h-11 rounded-2xl ${user ? 'pl-1 pr-3' : 'px-4'}`}
-                onClick={() => setIsUserMenuOpen((open) => !open)}
-                aria-expanded={isUserMenuOpen}
-                aria-haspopup="menu"
-              >
-                {user ? (
-                  <>
-                    <UserAvatar src={userAvatarUrl} name={userDisplayName} email={user.email} size="sm" className="mr-2" />
-                    <span className="max-w-[100px] truncate text-sm font-semibold hidden sm:inline">{userDisplayName}</span>
-                  </>
-                ) : (
-                  <>
-                    <User size={18} className="lg:hidden" />
-                    <span className="hidden lg:inline">{t('signIn')}</span>
-                    <span className="lg:hidden ml-2 text-sm font-semibold">{t('menu')}</span>
-                  </>
-                )}
-                <ChevronDown size={14} className={`ml-2 transition ${isUserMenuOpen ? 'rotate-180' : ''}`} />
-              </Button>
+              {user ? (
+                <Button
+                  variant="secondary"
+                  className="h-11 rounded-2xl pl-1 pr-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
+                  onClick={() => setIsUserMenuOpen((open) => !open)}
+                  aria-expanded={isUserMenuOpen}
+                  aria-haspopup="menu"
+                >
+                  <UserAvatar src={userAvatarUrl} name={userDisplayName} email={user.email} size="sm" className="mr-2" />
+                  <span className="max-w-[100px] truncate text-sm font-semibold hidden sm:inline">{userDisplayName}</span>
+                  <ChevronDown size={14} className={`ml-2 transition ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  className="h-11 rounded-2xl px-4 lg:px-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
+                  onClick={() => {
+                    if (window.innerWidth >= 1024) {
+                      navigate('/auth/login');
+                    } else {
+                      setIsUserMenuOpen((open) => !open);
+                    }
+                  }}
+                  aria-expanded={isUserMenuOpen}
+                  aria-haspopup={window.innerWidth < 1024 ? 'menu' : undefined}
+                >
+                  <User size={18} className="lg:hidden" />
+                  <span className="hidden lg:inline">{t('signIn')}</span>
+                  <span className="lg:hidden ml-2 text-sm font-semibold">{t('menu')}</span>
+                  <ChevronDown size={14} className={`ml-2 transition lg:hidden ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              )}
               {isUserMenuOpen ? (
-                <div className="absolute right-0 top-full z-20 mt-2 w-64 rounded-3xl border border-slate-200 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-900">
+                <div data-user-menu className="absolute right-0 top-full z-20 mt-2 w-64 rounded-3xl border border-slate-200 bg-white p-2 shadow-soft dark:border-slate-700 dark:bg-slate-900">
                   {/* Mobile-only Navigation Links */}
                   <div className="lg:hidden space-y-1 mb-2 border-b border-slate-100 pb-2 dark:border-slate-800">
                     {showHomeLink && (
@@ -336,6 +355,14 @@ export function Header() {
                         {t('checkout')}
                       </Link>
                     )}
+                    <Link
+                      to="/promotions"
+                      className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      <Tag size={15} />
+                      {t('promotions')}
+                    </Link>
                     {showOrdersLink && !user && (
                       <Link
                         to="/orders"
@@ -404,7 +431,15 @@ export function Header() {
                       >
                         {t('profileSettings')}
                       </Link>
-                      {isAdmin ? (
+                      <Link
+                        to="/promotions"
+                        className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Tag size={15} />
+                        {t('promotions')}
+                      </Link>
+                      {isAdmin && !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') ? (
                         <Link
                           to={dashboardPath}
                           className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-bold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"

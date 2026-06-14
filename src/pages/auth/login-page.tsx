@@ -65,8 +65,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-center mb-2">{t('signIn')}</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-center mb-8">
+          <h1 className="text-2xl font-bold text-center mb-1">{t('signIn')}</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-6">
             Access your Simba Supermarket account
           </p>
 
@@ -118,7 +118,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full py-6 text-lg font-bold rounded-2xl shadow-lg shadow-brand-500/20"
+              className="w-full py-4 text-sm font-bold rounded-2xl shadow-lg shadow-brand-500/20"
               disabled={isLoading}
             >
               {isLoading ? t('loading') : t('signIn')}
@@ -142,17 +142,17 @@ export default function LoginPage() {
             <span className="font-semibold">{t('googleSignIn')}</span>
           </button>
 
-          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
-            <p className="font-semibold">{t('authProviderHintTitle')}</p>
-            <p className="mt-1">{t('authProviderHintCopy')}</p>
-          </div>
-
-          <p className="mt-8 text-center text-slate-500 dark:text-slate-400 text-sm">
+          <p className="mt-6 text-center text-slate-500 dark:text-slate-400 text-sm">
             {t('noAccount')}{' '}
             <Link to="/auth/signup" className="text-brand-600 font-bold hover:underline">
               {t('signUp')}
             </Link>
           </p>
+
+          <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
+            <p className="font-semibold">{t('authProviderHintTitle')}</p>
+            <p className="mt-1">{t('authProviderHintCopy')}</p>
+          </div>
         </div>
       </div>
     </div>

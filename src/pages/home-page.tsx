@@ -7,14 +7,18 @@ import { Hero } from '@/components/shop/hero';
 import { ProductGrid } from '@/components/shop/product-grid';
 import { SkeletonGrid } from '@/components/shop/skeleton-grid';
 import { useCatalog } from '@/hooks/use-catalog';
+import { useDragScroll } from '@/hooks/use-drag-scroll';
 import { useShopReviewSummary } from '@/hooks/use-reviews';
 import { useShops, useNearestShop } from '@/hooks/use-shops';
-import { slugify, haversineDistanceInKm } from '@/lib/utils';
+import { haversineDistanceInKm } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import type { Product } from '@/types';
 import { useSearchStore } from '@/store/search-store';
 import { useCatalogAiSearch } from '@/hooks/use-catalog-ai-search';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { usePastOrders } from '@/hooks/use-past-orders';
+import { BuyAgainSection } from '@/components/shop/buy-again-section';
 
 export function HomePage() {
   const { t } = useTranslation();
@@ -37,6 +41,8 @@ export function HomePage() {
 
   const shopsQuery = useShops();
   const { nearestShop, coords } = useNearestShop();
+  const { user } = useAuth();
+  const pastOrdersQuery = usePastOrders(user?.id);
   const selectedShopId = useCartStore((state) => state.selectedShopId);
   const setSelectedShop = useCartStore((state) => state.setSelectedShop);
   const shopReviewSummaryQuery = useShopReviewSummary();
@@ -116,6 +122,7 @@ export function HomePage() {
 
   const branchesScrollRef = useRef<HTMLDivElement>(null);
   const [branchesAnimating, setBranchesAnimating] = useState(true);
+  const { ref: branchesDragRef, onMouseDown: onBranchesMouseDown } = useDragScroll();
 
   useEffect(() => {
     const container = branchesScrollRef.current;
@@ -180,10 +187,32 @@ export function HomePage() {
     !filters.inStockOnly &&
     filters.sortBy === 'default';
 
+  const [visibleLimit, setVisibleLimit] = useState(30);
+  const CHUNK_SIZE = 30;
   const spotlightProducts = useMemo<Product[]>(() => products.slice(0, 12), [products]);
-  const featuredProducts = useMemo<Product[]>(() => products.slice(0, 6), [products]);
-  const CHUNK_SIZE = 20;
-  const [visibleLimit, setVisibleLimit] = useState(CHUNK_SIZE);
+  const featuredProducts = useMemo<Product[]>(() => {
+    const seen = new Set<string>();
+    const result: Product[] = [];
+
+    for (const product of products) {
+      const cat = product.normalizedCategory;
+      if (!seen.has(cat)) {
+        seen.add(cat);
+        result.push(product);
+      }
+    }
+
+    const alcoholName = [...seen].find((c) => /alcohol|drinks?/i.test(c));
+    if (alcoholName) {
+      const second = products.find(
+        (p) => p.normalizedCategory === alcoholName && p.id !== result.find((r) => r.normalizedCategory === alcoholName)?.id
+      );
+      if (second) result.push(second);
+    }
+
+    return result;
+  }, [products]);
+  const homepageProducts = useMemo<Product[]>(() => products.slice(0, visibleLimit), [products, visibleLimit]);
 
   const filteredProducts = useMemo(() => {
     const rawQuery = filters.query.trim().toLowerCase();
@@ -256,21 +285,6 @@ export function HomePage() {
       setIsAiSearching(false);
     }
   };
-
-  const groupedProducts = useMemo(() => {
-    const groups = new Map<string, Product[]>();
-    const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name));
-
-    for (const product of sortedProducts) {
-      const current = groups.get(product.normalizedCategory) ?? [];
-      if (current.length < 6) {
-        current.push(product);
-      }
-      groups.set(product.normalizedCategory, current);
-    }
-
-    return Array.from(groups.entries());
-  }, [products]);
 
   const shopReviewSummary = new Map(
     (shopReviewSummaryQuery.data ?? []).map((entry) => [entry.shop_id, entry]),
@@ -421,27 +435,34 @@ export function HomePage() {
          <>
             <section className="mt-8">
               <div
-               ref={branchesScrollRef}
-               className="overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 scrollbar-hide"
-               onMouseEnter={() => setBranchesAnimating(false)}
-               onMouseLeave={() => setBranchesAnimating(true)}
-               style={{ scrollBehavior: 'auto' }}
-             >
+                ref={(node) => {
+                  (branchesScrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                  (branchesDragRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                }}
+                className="overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 scrollbar-hide cursor-grab"
+                onMouseEnter={() => setBranchesAnimating(false)}
+                onMouseLeave={() => setBranchesAnimating(true)}
+                onMouseDown={onBranchesMouseDown}
+                style={{ scrollBehavior: 'auto' }}
+              >
                <div className="flex gap-4 min-w-max">
                  {branchesCards}
                  {branchesCards}
                </div>
              </div>
            </section>
-           <section className="space-y-4">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
-              </div>
-            </div>
-            <ProductGrid products={featuredProducts} />
-          </section>
+            {user && pastOrdersQuery.data && pastOrdersQuery.data.length > 0 && (
+              <BuyAgainSection orders={pastOrdersQuery.data} />
+            )}
+            <section className="space-y-4">
+             <div className="flex items-end justify-between gap-4">
+               <div>
+                 <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
+                 <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
+               </div>
+             </div>
+             <ProductGrid products={featuredProducts} />
+           </section>
           {data ? (
             <CategoryStrip
               products={spotlightProducts}
@@ -450,24 +471,20 @@ export function HomePage() {
             />
           ) : null}
           {showCategorySections ? (
-            isLoading ? (
-              <SkeletonGrid />
-            ) : (
-              <div className="space-y-12">
-                {groupedProducts.map(([category, products]) => (
-                  <section key={category} id={`category-${slugify(category)}`} className="space-y-4">
-                    <div className="flex items-end justify-between gap-4">
-                      <div>
-                        <h2 className="text-2xl font-bold">{category}</h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {t('showingCategoryProducts', { count: products.length })}
-                        </p>
-                      </div>
-                    </div>
-                    <ProductGrid products={products} />
-                  </section>
-                ))}
-              </div>
+            isLoading ? <SkeletonGrid /> : (
+              <>
+                <ProductGrid products={homepageProducts} />
+                {hasMoreProducts && (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      onClick={() => setVisibleLimit((prev) => prev + CHUNK_SIZE)}
+                      className="cursor-pointer rounded-full border border-gray-300 bg-white px-8 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:shadow-md dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                      Show more
+                    </button>
+                  </div>
+                )}
+              </>
             )
           ) : (
             <>

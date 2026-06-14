@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { ClipboardList, LayoutGrid, Settings2, ShieldCheck, Store } from 'lucide-react';
+import { ClipboardList, LayoutGrid, Settings2, ShieldCheck, Store, Truck } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -9,13 +9,14 @@ import { useAdminOrdersRealtime } from '@/hooks/use-admin-orders';
 import { useShopAdmins, useUnassignedStaff } from '@/hooks/use-shop-admins';
 import { useShops } from '@/hooks/use-shops';
 import { useAssignShopAdmin, useCreateShop, useRemoveShopAdminAssignment } from '@/hooks/use-super-admin-management';
-import { useAssignOrderToStaff, useUpdateOrderStatus } from '@/hooks/use-update-order-status';
+import { useAssignOrderToDelivery, useAssignOrderToStaff, useRemoveDeliveryAssignment, useUpdateOrderStatus } from '@/hooks/use-update-order-status';
+import { useDeliveryPersons, useCreateDeliveryPerson, useDeleteDeliveryPerson } from '@/hooks/use-delivery-persons';
 import { useUserRole } from '@/hooks/use-user-role';
 import { InventoryPanel } from '@/pages/admin/inventory-panel';
 import { ShopSettingsPanel } from '@/pages/admin/shop-settings-panel';
 import { signOut } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
-import type { AdminOrderRecord, ShopAdminAssignment, ShopOrderStatus, UnassignedStaffProfile } from '@/types';
+import type { AdminOrderRecord, DeliveryPerson, ShopAdminAssignment, ShopOrderStatus, UnassignedStaffProfile } from '@/types';
 
 function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
@@ -28,11 +29,11 @@ function SummaryCard({ label, value, hint }: { label: string; value: number; hin
 }
 
 function statusClassName(value: ShopOrderStatus | string) {
-  if (value === 'ready' || value === 'picked_up') {
+  if (value === 'ready' || value === 'picked_up' || value === 'delivered') {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   }
 
-  if (value === 'accepted' || value === 'preparing') {
+  if (value === 'accepted' || value === 'preparing' || value === 'out_for_delivery') {
     return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
   }
 
@@ -120,7 +121,7 @@ function AdminOrderActions({
           </div>
         </>
       ) : null}
-      {canManageOrders && order.status !== 'pending' && order.status !== 'rejected' ? (
+      {canManageOrders && order.status !== 'pending' && order.status !== 'rejected' && order.status !== 'out_for_delivery' && order.status !== 'delivered' ? (
         <>
           <Button
             type="button"
@@ -150,7 +151,17 @@ function AdminOrderActions({
           </Button>
         </>
       ) : null}
-      {!canManageOrders && isAssignedStaff ? (
+      {canManageOrders && order.status === 'out_for_delivery' ? (
+        <Button
+          type="button"
+          className="sm:col-span-2 lg:col-span-3 w-full"
+          disabled={updateOrderStatus.isPending}
+          onClick={() => void runStatusUpdate('delivered')}
+        >
+          {t('markDelivered')}
+        </Button>
+      ) : null}
+      {!canManageOrders && isAssignedStaff && order.status !== 'out_for_delivery' && order.status !== 'delivered' ? (
         <Button
           type="button"
           className="sm:col-span-2 lg:col-span-3 w-full"
@@ -187,16 +198,21 @@ function AdminOrderDetail({
   canManageOrders,
   currentUserRole,
   staffAssignments,
+  deliveryPersons,
 }: {
   order: AdminOrderRecord | null;
   scopeKey: string;
   canManageOrders: boolean;
   currentUserRole: 'admin' | 'manager' | 'staff' | 'super_admin';
   staffAssignments: ShopAdminAssignment[];
+  deliveryPersons: DeliveryPerson[];
 }) {
   const { t, i18n } = useTranslation();
   const assignOrderToStaff = useAssignOrderToStaff();
+  const assignOrderToDelivery = useAssignOrderToDelivery();
+  const removeDeliveryAssignment = useRemoveDeliveryAssignment();
   const [staffUserId, setStaffUserId] = useState('');
+  const [deliveryPersonId, setDeliveryPersonId] = useState('');
 
   if (!order) {
     return (
@@ -254,6 +270,24 @@ function AdminOrderDetail({
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
               {t('assignedStaffLabel')}: {assignedStaff.user_full_name || assignedStaff.user_email}
             </p>
+          ) : null}
+          {order.delivery_person_name ? (
+            <div className="mt-3 rounded-2xl bg-brand-50/50 p-3 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
+              <p className="text-[10px] font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-1">{t('deliveryPersonInfo')}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{order.delivery_person_name}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{order.delivery_person_phone}</p>
+            </div>
+          ) : null}
+          {order.recurrence && order.recurrence !== 'one_time' ? (
+            <div className="mt-3 rounded-2xl bg-stone-50/50 p-3 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/30">
+              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">{t('recurringOrder')}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(order.recurrence)}</p>
+              {order.next_delivery_date ? (
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {t('nextDeliveryDate')}: {new Date(order.next_delivery_date).toLocaleDateString()}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -372,6 +406,194 @@ function AdminOrderDetail({
           ) : null}
         </form>
       ) : null}
+      {canManageOrders && order.status === 'ready' ? (
+        <form
+          className="mt-4 rounded-3xl bg-stone-100 p-4 dark:bg-slate-900"
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            if (!deliveryPersonId) return;
+            void assignOrderToDelivery.mutateAsync({
+              orderId: order.id,
+              scopeKey,
+              deliveryPersonId,
+            });
+          }}
+        >
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            {t('assignDeliveryPerson')}
+          </p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <select
+              value={deliveryPersonId}
+              onChange={(event) => setDeliveryPersonId(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+            >
+              <option value="">{t('selectDeliveryPerson')}</option>
+              {deliveryPersons.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name} - {person.phone}
+                </option>
+              ))}
+            </select>
+            <Button type="submit" disabled={!deliveryPersonId || assignOrderToDelivery.isPending}>
+              {t('assignDelivery')}
+            </Button>
+          </div>
+          {assignOrderToDelivery.isSuccess ? (
+            <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{t('deliveryAssigned')}</p>
+          ) : null}
+          {assignOrderToDelivery.isError ? (
+            <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
+              {assignOrderToDelivery.error instanceof Error ? assignOrderToDelivery.error.message : t('deliveryAssignFailed')}
+            </p>
+          ) : null}
+        </form>
+      ) : null}
+      {canManageOrders && order.status === 'out_for_delivery' && order.delivery_person_id ? (
+        <div className="mt-4 rounded-3xl bg-stone-100 p-4 dark:bg-slate-900">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            {t('deliveryPerson')}
+          </p>
+          <p className="mt-2 font-semibold">{order.delivery_person_name}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{order.delivery_person_phone}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            className="mt-3"
+            disabled={removeDeliveryAssignment.isPending}
+            onClick={() =>
+              void removeDeliveryAssignment.mutateAsync({
+                orderId: order.id,
+                scopeKey,
+              })
+            }
+          >
+            {t('removeDeliveryAssignment')}
+          </Button>
+          {removeDeliveryAssignment.isSuccess ? (
+            <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-300">{t('deliveryAssignmentRemoved')}</p>
+          ) : null}
+          {removeDeliveryAssignment.isError ? (
+            <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">
+              {removeDeliveryAssignment.error instanceof Error ? removeDeliveryAssignment.error.message : t('deliveryAssignFailed')}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DeliveryManagementPanel({
+  shopId,
+}: {
+  shopId: string | null;
+}) {
+  const { t } = useTranslation();
+  const [selectedShopId] = useState(shopId ?? '');
+  const deliveryPersonsQuery = useDeliveryPersons(selectedShopId || shopId);
+  const createDeliveryPerson = useCreateDeliveryPerson();
+  const deleteDeliveryPerson = useDeleteDeliveryPerson();
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+
+  const handleAdd = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const targetShopId = selectedShopId || shopId;
+    if (!targetShopId || !name.trim() || !phone.trim()) return;
+
+    await createDeliveryPerson.mutateAsync({
+      shopId: targetShopId,
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email.trim() || undefined,
+    });
+
+    setName('');
+    setPhone('');
+    setEmail('');
+  };
+
+  const deliveryPersons = deliveryPersonsQuery.data ?? [];
+
+  return (
+    <section className="glass-panel p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">{t('deliveryManagement')}</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('deliveryManagementCopy')}</p>
+        </div>
+        <Badge>{deliveryPersons.length}</Badge>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleAdd}>
+          <h3 className="text-lg font-semibold">{t('addDeliveryPerson')}</h3>
+          <div className="mt-4 grid gap-3">
+            <input
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('deliveryPersonName')}
+            />
+            <input
+              required
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('deliveryPersonPhone')}
+            />
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('deliveryPersonEmail')}
+            />
+          </div>
+          <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={createDeliveryPerson.isPending}>
+            {t('addDeliveryPerson')}
+          </Button>
+          {createDeliveryPerson.isSuccess ? (
+            <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{t('deliveryPersonAdded')}</p>
+          ) : null}
+          {createDeliveryPerson.isError ? (
+            <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
+              {createDeliveryPerson.error instanceof Error ? createDeliveryPerson.error.message : t('deliveryPersonAddFailed')}
+            </p>
+          ) : null}
+        </form>
+
+        <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
+          <h3 className="text-lg font-semibold">{t('deliveryPerson')}</h3>
+          <div className="mt-4 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+            {deliveryPersons.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('noTeamAssignments')}</p>
+            ) : (
+              deliveryPersons.map((person) => (
+                <div key={person.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{person.name}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{person.phone}</p>
+                      {person.email ? <p className="text-sm text-slate-500 dark:text-slate-400">{person.email}</p> : null}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void deleteDeliveryPerson.mutateAsync({ id: person.id })}
+                      disabled={deleteDeliveryPerson.isPending}
+                    >
+                      {t('remove')}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -759,6 +981,7 @@ export function AdminDashboardPage() {
   const shopAdminsQuery = useShopAdmins(Boolean(isSuperAdmin || canManageOrders));
   const unassignedStaffQuery = useUnassignedStaff(Boolean(canManageTeam));
   const ordersQuery = useAdminOrdersRealtime(shopId, isSuperAdmin);
+  const deliveryPersonsQuery = useDeliveryPersons(isSuperAdmin ? null : shopId, isSuperAdmin || Boolean(shopId));
   const shops = shopsQuery.data ?? [];
   const currentShop = shops.find((shop) => shop.id === shopId) ?? null;
 
@@ -787,12 +1010,15 @@ export function AdminDashboardPage() {
   const readyOrdersCount = rawOrders.filter((order) => order.status === 'ready').length;
   const pendingOrdersCount = rawOrders.filter((order) => order.status === 'pending').length;
   const pickedUpOrdersCount = rawOrders.filter((order) => order.status === 'picked_up').length;
+  const outForDeliveryCount = rawOrders.filter((order) => order.status === 'out_for_delivery').length;
+  const deliveredCount = rawOrders.filter((order) => order.status === 'delivered').length;
 
   const activeOrder = orders.find((order) => order.id === orderId) ?? orders[0] ?? null;
   const availableSections = [
     { key: 'orders', label: t('adminOrderQueue'), description: t('adminDashboardCopy'), icon: ClipboardList, visible: true },
     { key: 'team', label: t('teamManagement'), description: isSuperAdmin ? t('teamManagementSuperAdminCopy') : t('teamManagementShopAdminCopy'), icon: ShieldCheck, visible: canManageTeam },
     { key: 'inventory', label: t('inventoryDashboard'), description: t('inventoryDashboardCopy'), icon: LayoutGrid, visible: canManageOrders || isSuperAdmin },
+    { key: 'delivery', label: t('deliveryManagement'), description: t('deliveryManagementCopy'), icon: Truck, visible: canManageOrders || isSuperAdmin },
     { key: 'settings', label: t('shopSettings'), description: t('shopSettingsCopy'), icon: Settings2, visible: canManageOrders || isSuperAdmin },
     { key: 'platform', label: t('superAdminControls'), description: t('superAdminControlsCopy'), icon: ShieldCheck, visible: isSuperAdmin },
   ].filter((section) => section.visible);
@@ -829,12 +1055,14 @@ export function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
         <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
         <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
         <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
         <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
+        <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
+        <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -894,7 +1122,7 @@ export function AdminDashboardPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {['all', 'pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected'].map((status) => (
+              {['all', 'pending', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'rejected'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
@@ -960,6 +1188,7 @@ export function AdminDashboardPage() {
                 canManageOrders={canManageOrders || isSuperAdmin}
                 currentUserRole={isSuperAdmin ? 'super_admin' : (adminRole ?? 'staff')}
                 staffAssignments={shopAdminsQuery.data ?? []}
+                deliveryPersons={deliveryPersonsQuery.data ?? []}
               />
             </div>
           ) : null}
@@ -972,6 +1201,11 @@ export function AdminDashboardPage() {
             />
           ) : null}
 
+          {activeSection === 'delivery' && (canManageOrders || isSuperAdmin) ? (
+            <DeliveryManagementPanel
+              shopId={shopId}
+            />
+          ) : null}
           {activeSection === 'team' && canManageTeam ? (
             <TeamManagementPanel
               isSuperAdmin={isSuperAdmin}

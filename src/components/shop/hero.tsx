@@ -23,6 +23,7 @@ export function Hero({
           loop
           muted
           playsInline
+          preload="none"
           className="absolute inset-0 h-full w-full object-cover opacity-50"
         >
           <source src={adVideo} type="video/mp4" />
@@ -32,7 +33,6 @@ export function Hero({
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-900/60 to-emerald-900/60" />
 
         <div className="relative z-10">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-emerald-100">{t('heroEyebrow')}</p>
           <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">{t('heroTitle')}</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-emerald-50/85">{t('heroCopy')}</p>
           <div className="mt-6">

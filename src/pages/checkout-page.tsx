@@ -2,7 +2,7 @@ import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Clock3, Star, ShoppingBasket, User, Phone, Edit2 } from 'lucide-react';
+import { ChevronDown, Clock3, Star, ShoppingBasket, User, Phone, Edit2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
@@ -12,7 +12,26 @@ import { buildMomoUssdCode, createManualPaymentOrder, openMomoDialer } from '@/l
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { supabase } from '@/lib/supabase';
-import type { AvailableShop, CheckoutFormValues } from '@/types';
+import type { AvailableShop, CheckoutFormValues, Recurrence } from '@/types';
+
+function computeNextDeliveryDate(pickupDate: string, recurrence: Recurrence): Date | null {
+  if (recurrence === 'one_time') return null;
+  const base = new Date(pickupDate);
+  const next = new Date(base);
+  switch (recurrence) {
+    case 'weekly': next.setDate(next.getDate() + 7); break;
+    case 'bi_weekly': next.setDate(next.getDate() + 14); break;
+    case 'monthly': next.setMonth(next.getMonth() + 1); break;
+  }
+  return next;
+}
+
+const RECURRENCE_OPTIONS: { value: Recurrence; labelKey: string }[] = [
+  { value: 'one_time', labelKey: 'oneTime' },
+  { value: 'weekly', labelKey: 'weekly' },
+  { value: 'bi_weekly', labelKey: 'biWeekly' },
+  { value: 'monthly', labelKey: 'monthly' },
+];
 
 type Coordinates = {
   latitude: number;
@@ -321,6 +340,7 @@ export function CheckoutPage() {
       serviceFeeRwf: 0,
       totalRwf: branchTotal,
       shopId: selectedShopId,
+      recurrence: formValues.recurrence,
     };
 
     try {
@@ -599,6 +619,42 @@ export function CheckoutPage() {
           </div>
         </div>
 
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-brand-50 p-3 text-brand-700 dark:bg-brand-900/20 dark:text-brand-200">
+              <RefreshCw size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold">{t('recurringOrder')}</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('recurringOrderHint')}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {RECURRENCE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormValues((current) => ({ ...current, recurrence: option.value }))}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      formValues.recurrence === option.value
+                        ? 'bg-brand-500 text-white'
+                        : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                    }`}
+                  >
+                    {t(option.labelKey)}
+                  </button>
+                ))}
+              </div>
+              {formValues.recurrence !== 'one_time' && formValues.pickupTime && (() => {
+                const nextDate = computeNextDeliveryDate(formValues.pickupTime, formValues.recurrence);
+                return nextDate ? (
+                  <p className="mt-3 text-xs font-medium text-brand-600 dark:text-brand-400">
+                    {t('nextDeliveryDate')}: {nextDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </p>
+                ) : null;
+              })()}
+            </div>
+          </div>
+        </div>
+
         <div className="mt-6 grid gap-4">
           {user && formValues.fullName && formValues.phone && !isEditingContact ? (
             <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
@@ -759,6 +815,22 @@ export function CheckoutPage() {
                 minute: '2-digit',
               })}
             </p>
+          </div>
+        ) : null}
+        {formValues.recurrence !== 'one_time' ? (
+          <div className="mt-4 rounded-3xl bg-white/80 p-4 dark:bg-slate-900/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+              {t('recurringOrder')}
+            </p>
+            <p className="mt-2 font-semibold capitalize">{t(formValues.recurrence)}</p>
+            {formValues.pickupTime && (() => {
+              const nextDate = computeNextDeliveryDate(formValues.pickupTime, formValues.recurrence);
+              return nextDate ? (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t('nextDeliveryDate')}: {nextDate.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                </p>
+              ) : null;
+            })()}
           </div>
         ) : null}
         <div className="mt-6 space-y-4">

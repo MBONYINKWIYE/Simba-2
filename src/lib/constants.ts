@@ -51,6 +51,7 @@ export const DEFAULT_CHECKOUT_VALUES = {
   notes: '',
   pickupTime: '',
   paymentMethod: 'momo',
+  recurrence: 'one_time',
 } as const;
 
 export const SUPER_ADMIN_EMAILS = ['frankbilled@gmail.com'];

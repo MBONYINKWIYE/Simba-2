@@ -27,3 +27,12 @@ body {
 .glass-panel {
   @apply rounded-3xl border border-white/40 bg-white/85 shadow-soft backdrop-blur dark:border-white/10 dark:bg-slate-900/70;
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

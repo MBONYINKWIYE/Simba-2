@@ -3,10 +3,53 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
+import { useCatalog } from '@/hooks/use-catalog';
 import { formatCurrency } from '@/lib/utils';
 import { useOrderSummary } from '@/hooks/use-order-summary';
 import { useCartStore } from '@/store/cart-store';
 import { useUiStore } from '@/store/ui-store';
+import type { Product } from '@/types';
+import { useMemo } from 'react';
+
+function useSuggestedProducts(): Product[] {
+  const { data } = useCatalog();
+  const itemsMap = useCartStore((state) => state.items);
+
+  return useMemo(() => {
+    const allProducts = data?.products ?? [];
+    const cartProductIds = new Set(Object.keys(itemsMap).map(Number));
+    const cartCategories = new Set(
+      Object.values(itemsMap).map((item) => item.product.normalizedCategory),
+    );
+
+    const candidates = allProducts.filter((p) => !cartProductIds.has(p.id));
+
+    const fromOtherCategories = candidates.filter(
+      (p) => !cartCategories.has(p.normalizedCategory),
+    );
+
+    const fromSameCategories = candidates.filter((p) =>
+      cartCategories.has(p.normalizedCategory),
+    );
+
+    const shuffled = (arr: Product[]) => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
+    const picked: Product[] = [];
+    picked.push(...shuffled(fromOtherCategories).slice(0, 3));
+    if (picked.length < 5) {
+      picked.push(...shuffled(fromSameCategories).slice(0, 5 - picked.length));
+    }
+
+    return picked.slice(0, 5);
+  }, [data, itemsMap]);
+}
 
 export function CartDrawer() {
   const { t } = useTranslation();
@@ -20,6 +63,7 @@ export function CartDrawer() {
   const summary = useOrderSummary();
   const { user, isConfigured } = useAuth();
   const navigate = useNavigate();
+  const suggestedProducts = useSuggestedProducts();
 
   const handleSignInRedirect = () => {
     closeCart();
@@ -58,7 +102,7 @@ export function CartDrawer() {
           </div>
         ) : (
           <>
-            <div className="mt-6 space-y-4 overflow-y-auto pb-48">
+            <div className="mt-6 space-y-4 overflow-y-auto pb-64">
               {items.map(({ product, quantity }) => (
                 <div key={product.id} className="flex gap-3 rounded-3xl border border-slate-200 p-3 dark:border-slate-800">
                   <img src={product.image} alt={product.name} className="h-20 w-20 rounded-2xl object-cover" />
@@ -91,6 +135,40 @@ export function CartDrawer() {
                   </div>
                 </div>
               ))}
+
+              {suggestedProducts.length > 0 && (
+                <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
+                  <p className="mb-3 text-sm font-semibold text-slate-600 dark:text-slate-400">
+                    {t('youMightAlsoLike')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {suggestedProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-white p-2 dark:border-slate-800 dark:bg-slate-900"
+                      >
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">{product.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {formatCurrency(product.price)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => addItem(product)}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-white hover:bg-orange-600"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-950">

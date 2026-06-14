@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FEATURED_CATEGORY_ART } from '@/lib/constants';
+import { useDragScroll } from '@/hooks/use-drag-scroll';
 import type { Product } from '@/types';
 
 export function CategoryStrip({
@@ -15,6 +16,7 @@ export function CategoryStrip({
   const { t, i18n } = useTranslation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAnimating, setIsAnimating] = useState(true);
+  const { ref: dragRef, onMouseDown } = useDragScroll();
 
   const topCategories = useMemo(() => {
     const counts = products.reduce<Record<string, number>>((acc, product) => {
@@ -106,10 +108,14 @@ export function CategoryStrip({
         <h2 className="text-xl font-bold">{t('featuredCategories')}</h2>
       </div>
       <div
-        ref={scrollContainerRef}
-        className="overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 scrollbar-hide"
+        ref={(node) => {
+          (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+          (dragRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        }}
+        className="overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 scrollbar-hide cursor-grab"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onMouseDown={onMouseDown}
         style={{ scrollBehavior: 'auto' }}
       >
         <div className="flex gap-4 min-w-max">

@@ -33,6 +33,9 @@ const AdminDashboardPage = lazy(() =>
 const StaffDashboardPage = lazy(() =>
   import('@/pages/admin/staff-dashboard-page').then((module) => ({ default: module.StaffDashboardPage })),
 );
+const PromotionsPage = lazy(() =>
+  import('@/pages/promotions-page').then((module) => ({ default: module.PromotionsPage })),
+);
 
 function RouteFallback() {
   const { t } = useTranslation();
@@ -257,6 +260,16 @@ export const router = createBrowserRouter([
               <AdminRoute requireStaff>
                 <StaffDashboardPage />
               </AdminRoute>
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'promotions',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <PromotionsPage />
             </Suspense>
           </AppShell>
         ),

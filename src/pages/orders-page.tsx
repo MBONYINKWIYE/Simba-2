@@ -156,7 +156,7 @@ function statusClassName(value: string) {
     return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   }
 
-  if (value === 'preparing' || value === 'processing') {
+  if (value === 'preparing' || value === 'processing' || value === 'out_for_delivery') {
     return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
   }
 
@@ -179,7 +179,7 @@ function OrderPaymentAction({ order }: { order: OrderHistoryRecord }) {
     setIsOpening(false);
   };
 
-  if (order.payment_status === 'paid' || order.status === 'rejected' || order.status === 'picked_up' || order.payment_method === 'cash') {
+  if (order.payment_status === 'paid' || order.status === 'rejected' || order.status === 'picked_up' || order.status === 'delivered' || order.payment_method === 'cash') {
     return null;
   }
 
@@ -438,6 +438,24 @@ export function OrdersPage() {
 
               {isExpanded ? (
                 <>
+                  {order.delivery_person_name ? (
+                    <div className="mt-5 rounded-3xl border border-brand-200 bg-brand-50/80 p-4 dark:border-brand-900/40 dark:bg-brand-900/10">
+                      <p className="text-sm font-semibold text-brand-700 dark:text-brand-300">{t('deliveryPersonInfo')}</p>
+                      <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">{order.delivery_person_name}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">{order.delivery_person_phone}</p>
+                    </div>
+                  ) : null}
+                  {order.recurrence && order.recurrence !== 'one_time' ? (
+                    <div className="mt-5 rounded-3xl border border-slate-200 bg-stone-50/80 p-4 dark:border-slate-700/40 dark:bg-slate-900/50">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('recurringOrder')}</p>
+                      <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(order.recurrence)}</p>
+                      {order.next_delivery_date ? (
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                          {t('nextDeliveryDate')}: {new Date(order.next_delivery_date).toLocaleDateString()}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {order.status === 'rejected' && order.rejection_reason ? (
                     <div className="mt-5 rounded-3xl border border-rose-200 bg-rose-50/80 p-4 dark:border-rose-900/40 dark:bg-rose-900/10">
                       <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">{t('rejectionReasonTitle')}</p>
