@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ClipboardList, LayoutGrid, Percent, Settings2, ShieldCheck, Store, Truck } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -22,10 +22,10 @@ import type { AdminOrderRecord, DeliveryPerson, ShopAdminAssignment, ShopOrderSt
 
 function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
-    <div className="rounded-[1.5rem] border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-2 text-3xl font-bold">{value}</p>
-      {hint ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{hint}</p> : null}
+    <div className="rounded-xl border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/60">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-xl font-bold">{value}</p>
+      {hint ? <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p> : null}
     </div>
   );
 }
@@ -108,7 +108,7 @@ function AdminOrderActions({
             <textarea
               value={rejectionReason}
               onChange={(event) => setRejectionReason(event.target.value)}
-              className="mt-3 min-h-24 w-full rounded-2xl border border-rose-200 bg-white px-4 py-3 text-sm dark:border-rose-900/40 dark:bg-slate-950"
+              className="mt-3 min-h-24 w-full rounded-2xl border border-rose-200 bg-white px-3 py-2 text-xs dark:border-rose-900/40 dark:bg-slate-950"
               placeholder={t('rejectionReasonPlaceholder')}
             />
             <Button
@@ -224,7 +224,7 @@ function AdminOrderDetail({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
         </div>
-        <h2 className="mt-4 text-xl font-bold">{t('adminOrderDetail')}</h2>
+        <h2 className="mt-3 text-lg font-bold">{t('adminOrderDetail')}</h2>
         <p className="mt-2 max-w-[240px] text-sm text-slate-500 dark:text-slate-400">{t('adminNoOrders')}</p>
       </section>
     );
@@ -249,10 +249,10 @@ function AdminOrderDetail({
   };
 
   return (
-    <section className="glass-panel p-6">
+    <section className="glass-panel p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold break-words">
+          <h2 className="text-base font-bold break-words">
             {t('orderLabel')} #{order.id.slice(0, 8)}
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
@@ -520,10 +520,10 @@ function DeliveryManagementPanel({
   const deliveryPersons = deliveryPersonsQuery.data ?? [];
 
   return (
-    <section className="glass-panel p-6">
+    <section className="glass-panel p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">{t('deliveryManagement')}</h2>
+          <h2 className="text-lg font-bold">{t('deliveryManagement')}</h2>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('deliveryManagementCopy')}</p>
         </div>
         <Badge>{deliveryPersons.length}</Badge>
@@ -531,26 +531,26 @@ function DeliveryManagementPanel({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleAdd}>
-          <h3 className="text-lg font-semibold">{t('addDeliveryPerson')}</h3>
+          <h3 className="text-sm font-semibold">{t('addDeliveryPerson')}</h3>
           <div className="mt-4 grid gap-3">
             <input
               required
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('deliveryPersonName')}
             />
             <input
               required
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('deliveryPersonPhone')}
             />
             <input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('deliveryPersonEmail')}
             />
           </div>
@@ -568,7 +568,7 @@ function DeliveryManagementPanel({
         </form>
 
         <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
-          <h3 className="text-lg font-semibold">{t('deliveryPerson')}</h3>
+          <h3 className="text-sm font-semibold">{t('deliveryPerson')}</h3>
           <div className="mt-4 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
             {deliveryPersons.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">{t('noTeamAssignments')}</p>
@@ -647,31 +647,31 @@ function SuperAdminPanel() {
   };
 
   return (
-    <section className="glass-panel p-6">
+    <section className="glass-panel p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">{t('superAdminControls')}</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('superAdminControlsCopy')}</p>
+          <h2 className="text-base font-bold">{t('superAdminControls')}</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('superAdminControlsCopy')}</p>
         </div>
         <Badge>{t('superAdminBadge')}</Badge>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleCreateShop}>
-          <h3 className="text-lg font-semibold">{t('createShop')}</h3>
+          <h3 className="text-sm font-semibold">{t('createShop')}</h3>
           <div className="mt-4 grid gap-3">
             <input
               required
               value={shopForm.name}
               onChange={(event) => setShopForm((current) => ({ ...current, name: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopName')}
             />
             <input
               required
               value={shopForm.address}
               onChange={(event) => setShopForm((current) => ({ ...current, address: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopAddress')}
             />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -681,7 +681,7 @@ function SuperAdminPanel() {
                 step="any"
                 value={shopForm.latitude}
                 onChange={(event) => setShopForm((current) => ({ ...current, latitude: event.target.value }))}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                 placeholder={t('latitude')}
               />
               <input
@@ -690,7 +690,7 @@ function SuperAdminPanel() {
                 step="any"
                 value={shopForm.longitude}
                 onChange={(event) => setShopForm((current) => ({ ...current, longitude: event.target.value }))}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                 placeholder={t('longitude')}
               />
             </div>
@@ -698,7 +698,7 @@ function SuperAdminPanel() {
               required
               value={shopForm.phone}
               onChange={(event) => setShopForm((current) => ({ ...current, phone: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopPhone')}
             />
           </div>
@@ -714,21 +714,21 @@ function SuperAdminPanel() {
         </form>
 
         <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleAssignShopAdmin}>
-          <h3 className="text-lg font-semibold">{t('assignShopAdmin')}</h3>
+          <h3 className="text-sm font-semibold">{t('assignShopAdmin')}</h3>
           <div className="mt-4 grid gap-3">
             <input
               required
               type="email"
               value={assignmentForm.adminEmail}
               onChange={(event) => setAssignmentForm((current) => ({ ...current, adminEmail: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopAdminEmail')}
             />
             <select
               required
               value={assignmentForm.shopId}
               onChange={(event) => setAssignmentForm((current) => ({ ...current, shopId: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             >
               <option value="">{t('selectShop')}</option>
               {(shopsQuery.data ?? []).map((shop) => (
@@ -742,7 +742,7 @@ function SuperAdminPanel() {
               onChange={(event) =>
                 setAssignmentForm((current) => ({ ...current, role: event.target.value as 'admin' | 'manager' | 'staff' }))
               }
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             >
               <option value="admin">{t('admin')}</option>
               <option value="manager">{t('manager')}</option>
@@ -765,7 +765,7 @@ function SuperAdminPanel() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
-          <h3 className="text-lg font-semibold">{t('registeredShops')}</h3>
+          <h3 className="text-sm font-semibold">{t('registeredShops')}</h3>
           <div className="mt-4 space-y-3">
             {(shopsQuery.data ?? []).map((shop) => (
               <div key={shop.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
@@ -778,7 +778,7 @@ function SuperAdminPanel() {
         </div>
 
         <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
-          <h3 className="text-lg font-semibold">{t('shopAdminAssignments')}</h3>
+          <h3 className="text-sm font-semibold">{t('shopAdminAssignments')}</h3>
           {shopAdminsQuery.isLoading ? (
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('loading')}</p>
           ) : (
@@ -849,11 +849,11 @@ function TeamManagementPanel({
   };
 
   return (
-    <section className="glass-panel p-6">
+    <section className="glass-panel p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">{t('teamManagement')}</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+<h2 className="text-base font-bold">{t('teamManagement')}</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {isSuperAdmin ? t('teamManagementSuperAdminCopy') : t('teamManagementShopAdminCopy')}
           </p>
         </div>
@@ -862,14 +862,14 @@ function TeamManagementPanel({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleAssign}>
-          <h3 className="text-lg font-semibold">{isSuperAdmin ? t('assignShopAdmin') : t('addStaffMember')}</h3>
+          <h3 className="text-sm font-semibold">{isSuperAdmin ? t('assignShopAdmin') : t('addStaffMember')}</h3>
           <div className="mt-4 grid gap-3">
             <input
               required
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('shopAdminEmail')}
             />
             {isSuperAdmin ? (
@@ -878,7 +878,7 @@ function TeamManagementPanel({
                   required
                   value={selectedShopId}
                   onChange={(event) => setSelectedShopId(event.target.value)}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                 >
                   <option value="">{t('selectShop')}</option>
                   {shops.map((shop) => (
@@ -890,7 +890,7 @@ function TeamManagementPanel({
                 <select
                   value={role}
                   onChange={(event) => setRole(event.target.value as 'admin' | 'manager' | 'staff')}
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                 >
                   <option value="admin">{t('admin')}</option>
                   <option value="manager">{t('manager')}</option>
@@ -898,7 +898,7 @@ function TeamManagementPanel({
                 </select>
               </>
             ) : (
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
                 {shops.find((shop) => shop.id === scopeShopId)?.name ?? t('selectShop')}
               </div>
             )}
@@ -915,7 +915,7 @@ function TeamManagementPanel({
         </form>
 
         <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
-          <h3 className="text-lg font-semibold">{t('unassignedStaff')}</h3>
+          <h3 className="text-sm font-semibold">{t('unassignedStaff')}</h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('unassignedStaffCopy')}</p>
           <div className="mt-4 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
             {unassignedStaff.length === 0 ? (
@@ -940,7 +940,7 @@ function TeamManagementPanel({
       </div>
 
       <div className="mt-6 rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
-        <h3 className="text-lg font-semibold">{isSuperAdmin ? t('shopAdminAssignments') : t('assignedStaffMembers')}</h3>
+        <h3 className="text-sm font-semibold">{isSuperAdmin ? t('shopAdminAssignments') : t('assignedStaffMembers')}</h3>
         <div className="mt-4 space-y-3">
           {visibleAssignments.length === 0 ? (
             <p className="text-sm text-slate-500 dark:text-slate-400">{t('noTeamAssignments')}</p>
@@ -1017,43 +1017,43 @@ function PromotionsPanel() {
   const promotions = promotionsQuery.data ?? [];
 
   return (
-    <section className="glass-panel p-6">
+    <section className="glass-panel p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">{t('promotions')}</h2>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('promotionsDashboardCopy')}</p>
+          <h2 className="text-base font-bold">{t('promotions')}</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('promotionsDashboardCopy')}</p>
         </div>
         <Badge>{promotions.length}</Badge>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleCreate}>
-          <h3 className="text-lg font-semibold">{t('createPromotion')}</h3>
-          <div className="mt-4 grid gap-3">
+          <h3 className="text-sm font-semibold">{t('createPromotion')}</h3>
+          <div className="mt-3 grid gap-2">
             <input
               required
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('promotionTitle')}
             />
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('promotionDescription')}
               rows={2}
             />
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('searchProducts')}
             />
             <select
               value={selectedProductId}
               onChange={(event) => setSelectedProductId(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
             >
               <option value="">{t('selectProductOptional')}</option>
               {filteredProducts.slice(0, 100).map((product) => (
@@ -1069,7 +1069,7 @@ function PromotionsPanel() {
               max="100"
               value={discountPercent}
               onChange={(event) => setDiscountPercent(event.target.value)}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('discountPercent')}
             />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1080,7 +1080,7 @@ function PromotionsPanel() {
                   type="datetime-local"
                   value={startsAt}
                   onChange={(event) => setStartsAt(event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                 />
               </div>
               <div>
@@ -1090,27 +1090,27 @@ function PromotionsPanel() {
                   type="datetime-local"
                   value={endsAt}
                   onChange={(event) => setEndsAt(event.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
                 />
               </div>
             </div>
           </div>
-          <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={createPromotion.isPending}>
+          <Button type="submit" className="mt-3 w-full sm:w-auto" disabled={createPromotion.isPending}>
             {t('createPromotion')}
           </Button>
           {createPromotion.isSuccess ? (
-            <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{t('promotionCreated')}</p>
+            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-300">{t('promotionCreated')}</p>
           ) : null}
           {createPromotion.isError ? (
-            <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
+            <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">
               {createPromotion.error instanceof Error ? createPromotion.error.message : t('promotionCreateFailed')}
             </p>
           ) : null}
         </form>
 
         <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
-          <h3 className="text-lg font-semibold">{t('activePromotions')}</h3>
-          <div className="mt-4 space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+          <h3 className="text-sm font-semibold">{t('activePromotions')}</h3>
+          <div className="mt-3 space-y-2 max-h-[24rem] overflow-y-auto pr-1">
             {promotions.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">{t('noPromotions')}</p>
             ) : (
@@ -1194,14 +1194,15 @@ export function AdminDashboardPage() {
   const currentShop = shops.find((shop) => shop.id === shopId) ?? null;
 
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [footerVisible, setFooterVisible] = useState(true);
 
   if (authRoleQuery.isLoading || ordersQuery.isLoading || shopsQuery.isLoading || shopAdminsQuery.isLoading || (canManageTeam && unassignedStaffQuery.isLoading)) {
-    return <div className="glass-panel p-6">{t('loadingOrders')}</div>;
+    return <div className="glass-panel p-4">{t('loadingOrders')}</div>;
   }
 
   if (ordersQuery.isError) {
     return (
-      <section className="glass-panel p-6">
+      <section className="glass-panel p-4">
         <p className="text-sm text-rose-600 dark:text-rose-300">
           {ordersQuery.error instanceof Error ? ordersQuery.error.message : t('failedToLoadOrders')}
         </p>
@@ -1243,203 +1244,223 @@ export function AdminDashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="glass-panel p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold sm:text-3xl">{t('adminDashboard')}</h1>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
-            {authRoleQuery.data?.shopName ? (
-              <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">
-                {t('adminShopLabel')}: {authRoleQuery.data.shopName === 'All Simba shops' ? t('allOrders') : authRoleQuery.data.shopName}
-              </p>
-            ) : null}
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              {t('dashboardRoleLabel')}: {formatStatusLabel(isSuperAdmin ? 'superAdminBadge' : (adminRole ?? 'staff'), t)}
+    <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-6 flex min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950">
+      <aside className="sticky top-0 hidden h-screen w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:flex">
+        <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+          <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
+            <Store size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{t('adminDashboard')}</p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+              {authRoleQuery.data?.shopName ?? t('adminShopLabel')}
             </p>
           </div>
-          <Button variant="ghost" onClick={() => void signOut()}>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {availableSections.map((section) => {
+            const Icon = section.icon;
+
+            return (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => setActiveSection(section.key)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                  activeSection === section.key
+                    ? 'bg-brand-50 text-brand-700 font-semibold dark:bg-brand-900/20 dark:text-brand-200'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900'
+                }`}
+              >
+                <Icon size={17} className="flex-shrink-0" />
+                <span className="truncate">{section.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-slate-200 p-3 dark:border-slate-800">
+          <div className="rounded-xl bg-stone-50 p-3 dark:bg-slate-900">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {t('dashboardRoleLabel')}
+            </p>
+            <p className="mt-1 text-sm font-semibold">
+              {formatStatusLabel(isSuperAdmin ? 'superAdminBadge' : (adminRole ?? 'staff'), t)}
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => void signOut()} className="mt-2 w-full">
             {t('signOut')}
           </Button>
         </div>
-      </section>
+      </aside>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
-        <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
-        <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
-        <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
-        <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
-        <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
-        <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
-        <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="glass-panel p-4 sm:p-5">
-          <div className="flex items-center gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
-            <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
-              <Store size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{t('adminDashboard')}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {authRoleQuery.data?.shopName ?? t('adminShopLabel')}
-              </p>
+      <div className="flex flex-1 flex-col overflow-auto">
+        <div className="flex-1 px-4 pb-4 pt-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-lg font-bold sm:text-xl">{t('adminDashboard')}</h1>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => void signOut()} className="lg:hidden">
+                {t('signOut')}
+              </Button>
             </div>
           </div>
 
-          <nav className="mt-4 space-y-2">
-            {availableSections.map((section) => {
-              const Icon = section.icon;
-
-              return (
-                <button
-                  key={section.key}
-                  type="button"
-                  onClick={() => setActiveSection(section.key)}
-                  className={`w-full rounded-3xl border px-4 py-3 text-left transition ${
-                    activeSection === section.key
-                      ? 'border-brand-400 bg-brand-50 dark:border-brand-600 dark:bg-brand-900/20'
-                      : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 text-slate-500 dark:text-slate-400">
-                      <Icon size={17} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold">{section.label}</p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{section.description}</p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <div className="min-w-0">
-          {activeSection === 'orders' ? (
-            <div className="grid gap-6 lg:grid-cols-[0.82fr_1.18fr] xl:grid-cols-[0.9fr_1.1fr]">
-              <section className="glass-panel p-4 sm:p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
-              <h2 className="text-xl font-bold sm:text-2xl">{t('adminOrderQueue')}</h2>
-              <Badge className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
-                {orders.length}
-              </Badge>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {['all', 'pending', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'rejected'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setStatusFilter(status)}
-                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
-                    statusFilter === status
-                      ? 'bg-brand-500 text-white shadow-lg'
-                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {status === 'all' ? t('allCategories') : formatStatusLabel(status, t)}
-                </button>
-              ))}
+          <div className="mx-auto mt-4 max-w-7xl">
+            <div className="flex justify-center">
+              <div className="grid w-full gap-2 sm:grid-cols-2 xl:grid-cols-7">
+                <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
+                <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
+                <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
+                <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
+                <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
+                <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
+                <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
+              </div>
             </div>
           </div>
 
-          {orders.length === 0 ? (
-            <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-              {statusFilter === 'all' ? t('adminNoOrders') : t('noResults')}
-            </p>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {orders.map((order) => (
-                <Link
-                  key={order.id}
-                  to={`/admin/orders/${order.id}?section=orders`}
-                  className={`block rounded-3xl border p-4 transition ${
-                    activeOrder?.id === order.id
-                      ? 'border-brand-400 bg-brand-50 shadow-md dark:border-brand-600 dark:bg-brand-900/20'
-                      : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold text-slate-900 dark:text-slate-100">
-                        {order.full_name}
-                      </p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                        #{order.id.slice(0, 8)} • {new Date(order.created_at).toLocaleString(i18n.language, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
+          <div className="mx-auto mt-4 max-w-7xl">
+            {activeSection === 'orders' ? (
+              <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr] xl:grid-cols-[0.9fr_1.1fr]">
+                <section className="glass-panel p-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+                      <h2 className="text-base font-bold sm:text-lg">{t('adminOrderQueue')}</h2>
+                      <Badge className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
+                        {orders.length}
+                      </Badge>
                     </div>
-                    <Badge className={`${statusClassName(order.status)} text-[10px] uppercase tracking-wider`}>
-                      {formatStatusLabel(order.status, t)}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-4">
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{order.phone}</span>
-                    <span className="font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-              </section>
 
-              <AdminOrderDetail
-                order={activeOrder}
-                scopeKey={scopeKey}
-                canManageOrders={canManageOrders || isSuperAdmin}
-                currentUserRole={isSuperAdmin ? 'super_admin' : (adminRole ?? 'staff')}
-                staffAssignments={shopAdminsQuery.data ?? []}
-                deliveryPersons={deliveryPersonsQuery.data ?? []}
+                    <div className="flex flex-wrap gap-2">
+                      {['all', 'pending', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'rejected'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => setStatusFilter(status)}
+                          className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                            statusFilter === status
+                              ? 'bg-brand-500 text-white shadow-lg'
+                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          {status === 'all' ? t('allCategories') : formatStatusLabel(status, t)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {orders.length === 0 ? (
+                    <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                      {statusFilter === 'all' ? t('adminNoOrders') : t('noResults')}
+                    </p>
+                  ) : (
+                    <div className="mt-5 space-y-3">
+                      {orders.map((order) => (
+                        <Link
+                          key={order.id}
+                          to={`/admin/orders/${order.id}?section=orders`}
+                          className={`block rounded-3xl border p-4 transition ${
+                            activeOrder?.id === order.id
+                              ? 'border-brand-400 bg-brand-50 shadow-md dark:border-brand-600 dark:bg-brand-900/20'
+                              : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-bold text-slate-900 dark:text-slate-100">
+                                {order.full_name}
+                              </p>
+                              <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                #{order.id.slice(0, 8)} • {new Date(order.created_at).toLocaleString(i18n.language, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            </div>
+                            <Badge className={`${statusClassName(order.status)} text-[10px] uppercase tracking-wider`}>
+                              {formatStatusLabel(order.status, t)}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-4">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">{order.phone}</span>
+                            <span className="font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <AdminOrderDetail
+                  order={activeOrder}
+                  scopeKey={scopeKey}
+                  canManageOrders={canManageOrders || isSuperAdmin}
+                  currentUserRole={isSuperAdmin ? 'super_admin' : (adminRole ?? 'staff')}
+                  staffAssignments={shopAdminsQuery.data ?? []}
+                  deliveryPersons={deliveryPersonsQuery.data ?? []}
+                />
+              </div>
+            ) : null}
+
+            {activeSection === 'inventory' ? (
+              <InventoryPanel
+                scopeShopId={shopId}
+                isSuperAdmin={isSuperAdmin}
+                shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
               />
+            ) : null}
+
+            {activeSection === 'delivery' && (canManageOrders || isSuperAdmin) ? (
+              <DeliveryManagementPanel shopId={shopId} />
+            ) : null}
+
+            {activeSection === 'promotions' && (canManageOrders || isSuperAdmin) ? (
+              <PromotionsPanel />
+            ) : null}
+
+            {activeSection === 'team' && canManageTeam ? (
+              <TeamManagementPanel
+                isSuperAdmin={isSuperAdmin}
+                scopeShopId={shopId}
+                shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
+                assignments={shopAdminsQuery.data ?? []}
+                unassignedStaff={unassignedStaffQuery.data ?? []}
+              />
+            ) : null}
+
+            {activeSection === 'settings' ? (
+              <ShopSettingsPanel
+                shopId={shopId}
+                shopName={currentShop?.name ?? authRoleQuery.data?.shopName ?? null}
+                phone={currentShop?.phone ?? ''}
+                shops={shops.map((shop) => ({ id: shop.id, name: shop.name, phone: shop.phone }))}
+                isSuperAdmin={isSuperAdmin}
+              />
+            ) : null}
+
+            {activeSection === 'platform' && isSuperAdmin ? <SuperAdminPanel /> : null}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setFooterVisible((v) => !v)}
+            className="flex w-full items-center justify-between px-6 py-2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          >
+            <span>{t('adminDashboard')}</span>
+            <span>{footerVisible ? t('hide') : t('show')}</span>
+          </button>
+          {footerVisible ? (
+            <div className="border-t border-slate-100 px-6 py-3 text-xs text-slate-400 dark:border-slate-800/50">
+              <p>&copy; {new Date().getFullYear()} Simba Supermarket. {t('allRightsReserved')}</p>
             </div>
           ) : null}
-
-          {activeSection === 'inventory' ? (
-            <InventoryPanel
-              scopeShopId={shopId}
-              isSuperAdmin={isSuperAdmin}
-              shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
-            />
-          ) : null}
-
-          {activeSection === 'delivery' && (canManageOrders || isSuperAdmin) ? (
-            <DeliveryManagementPanel
-              shopId={shopId}
-            />
-          ) : null}
-          {activeSection === 'promotions' && (canManageOrders || isSuperAdmin) ? (
-            <PromotionsPanel />
-          ) : null}
-
-          {activeSection === 'team' && canManageTeam ? (
-            <TeamManagementPanel
-              isSuperAdmin={isSuperAdmin}
-              scopeShopId={shopId}
-              shops={shops.map((shop) => ({ id: shop.id, name: shop.name }))}
-              assignments={shopAdminsQuery.data ?? []}
-              unassignedStaff={unassignedStaffQuery.data ?? []}
-            />
-          ) : null}
-
-          {activeSection === 'settings' ? (
-            <ShopSettingsPanel
-              shopId={shopId}
-              shopName={currentShop?.name ?? authRoleQuery.data?.shopName ?? null}
-              phone={currentShop?.phone ?? ''}
-              shops={shops.map((shop) => ({ id: shop.id, name: shop.name, phone: shop.phone }))}
-              isSuperAdmin={isSuperAdmin}
-            />
-          ) : null}
-
-          {activeSection === 'platform' && isSuperAdmin ? <SuperAdminPanel /> : null}
         </div>
       </div>
     </div>

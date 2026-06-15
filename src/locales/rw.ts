@@ -484,6 +484,9 @@ const translation = {
       inactive: 'Ntikora',
       deactivate: 'Guhagarika',
       activate: 'Gutangiza',
+      hide: 'Hisha',
+      show: 'Ereka',
+      allRightsReserved: 'Uburenganzira bwose bwabitswe.',
 };
 
 export default translation;

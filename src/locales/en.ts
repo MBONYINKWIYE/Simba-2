@@ -492,6 +492,9 @@ const translation = {
       inactive: 'Inactive',
       deactivate: 'Deactivate',
       activate: 'Activate',
+      hide: 'Hide',
+      show: 'Show',
+      allRightsReserved: 'All rights reserved.',
 };
 
 export default translation;
