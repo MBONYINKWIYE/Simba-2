@@ -366,7 +366,7 @@ create index if not exists profiles_email_idx on public.profiles (email);
 create index if not exists profiles_phone_idx on public.profiles (phone);
 
 create or replace function public.current_shop_admin_shop_ids()
-...
+
 returns setof uuid
 language sql
 stable
@@ -494,6 +494,8 @@ begin
   return assignment;
 end
 $$;
+
+drop function if exists public.list_shop_admin_assignments();
 
 create or replace function public.list_shop_admin_assignments()
 returns table (
@@ -1506,6 +1508,14 @@ on public.promotions
 for select
 to anon, authenticated
 using (true);
+
+drop policy if exists "Admins can manage promotions" on public.promotions;
+create policy "Admins can manage promotions"
+on public.promotions
+for all
+to authenticated
+using (public.is_super_admin() or exists (select 1 from public.shop_admins where user_id = auth.uid()))
+with check (public.is_super_admin() or exists (select 1 from public.shop_admins where user_id = auth.uid()));
 
 drop policy if exists "Service role manages delivery persons" on public.delivery_persons;
 create policy "Service role manages delivery persons"

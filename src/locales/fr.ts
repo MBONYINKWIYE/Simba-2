@@ -464,6 +464,23 @@ const translation = {
       promotionsEmpty: 'Aucune promotion active pour le moment. Revenez bientôt !',
       promotionsOnSale: 'En solde',
       promotionsOnSaleCopy: '{{count}} produits en promotion maintenant',
+      promotionsDashboardCopy: 'Créez et gérez les promotions et réductions des produits.',
+      createPromotion: 'Créer une promotion',
+      promotionTitle: 'Titre de la promotion',
+      promotionDescription: 'Description (optionnelle)',
+      searchProducts: 'Rechercher des produits',
+      selectProductOptional: 'Sélectionner un produit (optionnel)',
+      discountPercent: 'Pourcentage de réduction',
+      startsAt: 'Commence le',
+      endsAt: 'Se termine le',
+      promotionCreated: 'Promotion créée avec succès.',
+      promotionCreateFailed: 'Échec de la création de la promotion.',
+      activePromotions: 'Promotions actives',
+      noPromotions: 'Aucune promotion pour le moment.',
+      active: 'Actif',
+      inactive: 'Inactif',
+      deactivate: 'Désactiver',
+      activate: 'Activer',
 };
 
 export default translation;

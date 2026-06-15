@@ -467,6 +467,23 @@ const translation = {
       promotionsEmpty: 'Nta mahirwe ariho ubu. Subira nyuma!',
       promotionsOnSale: 'Ku igurwa',
       promotionsOnSaleCopy: 'Ibicuruzwa {{count}} bigurishwa ku igurwa ubu',
+      promotionsDashboardCopy: 'Kurema no gucunga amahirwe yibicuruzwa.',
+      createPromotion: 'Kurema amahirwe',
+      promotionTitle: 'Izina ryamahirwe',
+      promotionDescription: 'Ibisobanuro (byo guhitamo)',
+      searchProducts: 'Gushaka ibicuruzwa',
+      selectProductOptional: 'Hitamo icuruzwa (byo guhitamo)',
+      discountPercent: 'Ijanisha ryagurwa',
+      startsAt: 'Bitangira',
+      endsAt: 'Birangiye',
+      promotionCreated: 'Amahirwe yaremye neza.',
+      promotionCreateFailed: 'Kurema amahirwe byananiranye.',
+      activePromotions: 'Amahirwe akora',
+      noPromotions: 'Nta mahirwe araboneka.',
+      active: 'Akora',
+      inactive: 'Ntikora',
+      deactivate: 'Guhagarika',
+      activate: 'Gutangiza',
 };
 
 export default translation;

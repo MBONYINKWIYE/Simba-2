@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { ClipboardList, LayoutGrid, Settings2, ShieldCheck, Store, Truck } from 'lucide-react';
+import { ClipboardList, LayoutGrid, Percent, Settings2, ShieldCheck, Store, Truck } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,8 @@ import { useShops } from '@/hooks/use-shops';
 import { useAssignShopAdmin, useCreateShop, useRemoveShopAdminAssignment } from '@/hooks/use-super-admin-management';
 import { useAssignOrderToDelivery, useAssignOrderToStaff, useRemoveDeliveryAssignment, useUpdateOrderStatus } from '@/hooks/use-update-order-status';
 import { useDeliveryPersons, useCreateDeliveryPerson, useDeleteDeliveryPerson } from '@/hooks/use-delivery-persons';
+import { usePromotionManagement, useCreatePromotion, useUpdatePromotion, useDeletePromotion } from '@/hooks/use-promotion-management';
+import { useCatalog } from '@/hooks/use-catalog';
 import { useUserRole } from '@/hooks/use-user-role';
 import { InventoryPanel } from '@/pages/admin/inventory-panel';
 import { ShopSettingsPanel } from '@/pages/admin/shop-settings-panel';
@@ -966,6 +968,212 @@ function TeamManagementPanel({
   );
 }
 
+function PromotionsPanel() {
+  const { t } = useTranslation();
+  const promotionsQuery = usePromotionManagement();
+  const createPromotion = useCreatePromotion();
+  const updatePromotion = useUpdatePromotion();
+  const deletePromotion = useDeletePromotion();
+  const catalogQuery = useCatalog();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [discountPercent, setDiscountPercent] = useState('');
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
+
+  const filteredProducts = useMemo(() => {
+    const products = catalogQuery.data?.products ?? [];
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return products.filter((product) => {
+      if (!normalizedSearch) return true;
+      return product.name.toLowerCase().includes(normalizedSearch) || product.category.toLowerCase().includes(normalizedSearch);
+    });
+  }, [catalogQuery.data?.products, searchTerm]);
+
+  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!title.trim() || !discountPercent || !startsAt || !endsAt) return;
+
+    await createPromotion.mutateAsync({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      product_id: selectedProductId ? Number(selectedProductId) : null,
+      discount_percent: Number(discountPercent),
+      starts_at: new Date(startsAt).toISOString(),
+      ends_at: new Date(endsAt).toISOString(),
+    });
+
+    setTitle('');
+    setDescription('');
+    setSelectedProductId('');
+    setDiscountPercent('');
+    setStartsAt('');
+    setEndsAt('');
+  };
+
+  const promotions = promotionsQuery.data ?? [];
+
+  return (
+    <section className="glass-panel p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold">{t('promotions')}</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('promotionsDashboardCopy')}</p>
+        </div>
+        <Badge>{promotions.length}</Badge>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <form className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900" onSubmit={handleCreate}>
+          <h3 className="text-lg font-semibold">{t('createPromotion')}</h3>
+          <div className="mt-4 grid gap-3">
+            <input
+              required
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('promotionTitle')}
+            />
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('promotionDescription')}
+              rows={2}
+            />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('searchProducts')}
+            />
+            <select
+              value={selectedProductId}
+              onChange={(event) => setSelectedProductId(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+            >
+              <option value="">{t('selectProductOptional')}</option>
+              {filteredProducts.slice(0, 100).map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
+            <input
+              required
+              type="number"
+              min="1"
+              max="100"
+              value={discountPercent}
+              onChange={(event) => setDiscountPercent(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('discountPercent')}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('startsAt')}</p>
+                <input
+                  required
+                  type="datetime-local"
+                  value={startsAt}
+                  onChange={(event) => setStartsAt(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t('endsAt')}</p>
+                <input
+                  required
+                  type="datetime-local"
+                  value={endsAt}
+                  onChange={(event) => setEndsAt(event.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950"
+                />
+              </div>
+            </div>
+          </div>
+          <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={createPromotion.isPending}>
+            {t('createPromotion')}
+          </Button>
+          {createPromotion.isSuccess ? (
+            <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{t('promotionCreated')}</p>
+          ) : null}
+          {createPromotion.isError ? (
+            <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">
+              {createPromotion.error instanceof Error ? createPromotion.error.message : t('promotionCreateFailed')}
+            </p>
+          ) : null}
+        </form>
+
+        <div className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/60">
+          <h3 className="text-lg font-semibold">{t('activePromotions')}</h3>
+          <div className="mt-4 space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+            {promotions.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('noPromotions')}</p>
+            ) : (
+              promotions.map((promo) => (
+                <div key={promo.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{promo.title}</p>
+                        <Badge
+                          className={promo.is_active
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                            : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}
+                        >
+                          {promo.is_active ? t('active') : t('inactive')}
+                        </Badge>
+                        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                          -{promo.discount_percent}%
+                        </Badge>
+                      </div>
+                      {promo.description ? (
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{promo.description}</p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                        {new Date(promo.starts_at).toLocaleDateString()} - {new Date(promo.ends_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          void updatePromotion.mutateAsync({
+                            id: promo.id,
+                            is_active: !promo.is_active,
+                          })
+                        }
+                        disabled={updatePromotion.isPending}
+                      >
+                        {promo.is_active ? t('deactivate') : t('activate')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void deletePromotion.mutateAsync({ id: promo.id })}
+                        disabled={deletePromotion.isPending}
+                      >
+                        {t('remove')}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function AdminDashboardPage() {
   const { t, i18n } = useTranslation();
   const { orderId } = useParams();
@@ -1019,6 +1227,7 @@ export function AdminDashboardPage() {
     { key: 'team', label: t('teamManagement'), description: isSuperAdmin ? t('teamManagementSuperAdminCopy') : t('teamManagementShopAdminCopy'), icon: ShieldCheck, visible: canManageTeam },
     { key: 'inventory', label: t('inventoryDashboard'), description: t('inventoryDashboardCopy'), icon: LayoutGrid, visible: canManageOrders || isSuperAdmin },
     { key: 'delivery', label: t('deliveryManagement'), description: t('deliveryManagementCopy'), icon: Truck, visible: canManageOrders || isSuperAdmin },
+    { key: 'promotions', label: t('promotions'), description: t('promotionsDashboardCopy'), icon: Percent, visible: canManageOrders || isSuperAdmin },
     { key: 'settings', label: t('shopSettings'), description: t('shopSettingsCopy'), icon: Settings2, visible: canManageOrders || isSuperAdmin },
     { key: 'platform', label: t('superAdminControls'), description: t('superAdminControlsCopy'), icon: ShieldCheck, visible: isSuperAdmin },
   ].filter((section) => section.visible);
@@ -1206,6 +1415,10 @@ export function AdminDashboardPage() {
               shopId={shopId}
             />
           ) : null}
+          {activeSection === 'promotions' && (canManageOrders || isSuperAdmin) ? (
+            <PromotionsPanel />
+          ) : null}
+
           {activeSection === 'team' && canManageTeam ? (
             <TeamManagementPanel
               isSuperAdmin={isSuperAdmin}

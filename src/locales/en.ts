@@ -475,6 +475,23 @@ const translation = {
       promotionsEmpty: 'No active promotions right now. Check back soon!',
       promotionsOnSale: 'On Sale',
       promotionsOnSaleCopy: '{{count}} products discounted right now',
+      promotionsDashboardCopy: 'Create and manage product promotions and discounts.',
+      createPromotion: 'Create promotion',
+      promotionTitle: 'Promotion title',
+      promotionDescription: 'Description (optional)',
+      searchProducts: 'Search products',
+      selectProductOptional: 'Select a product (optional)',
+      discountPercent: 'Discount percentage',
+      startsAt: 'Starts at',
+      endsAt: 'Ends at',
+      promotionCreated: 'Promotion created successfully.',
+      promotionCreateFailed: 'Failed to create promotion.',
+      activePromotions: 'Active promotions',
+      noPromotions: 'No promotions yet.',
+      active: 'Active',
+      inactive: 'Inactive',
+      deactivate: 'Deactivate',
+      activate: 'Activate',
 };
 
 export default translation;
