@@ -23,7 +23,7 @@ export function ProductCard({ product }: { product: Product }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-900">
       {/* Image container */}
-      <div className="relative aspect-[4/5] overflow-hidden bg-gray-100 dark:bg-gray-800">
+      <div className="relative aspect-[1/1] overflow-hidden bg-gray-100 dark:bg-gray-800">
         <Link to={`/products/${product.slug}`} className="block h-full w-full">
           <img
             src={product.image}
@@ -71,13 +71,13 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
 
       {/* Product info */}
-      <div className="flex flex-1 flex-col p-1.5">
-        <Badge className="mb-0.5 w-fit text-[9px] px-1.5 py-0.5">{product.normalizedCategory}</Badge>
+      <div className="flex flex-1 flex-col p-1">
+        <Badge className="mb-0 w-fit text-[9px] px-1.5 py-0.5">{product.normalizedCategory}</Badge>
         <h3 className="line-clamp-2 text-xs font-semibold text-gray-900 dark:text-white">
           {product.name}
         </h3>
 
-        <div className="mt-auto flex items-end justify-between pt-1">
+        <div className="mt-auto flex items-end justify-between pt-0.5">
           <div>
             {discountedPrice ? (
               <div className="flex items-center gap-1">
@@ -108,16 +108,16 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         {product.inStock ? (
-          <div className="mt-0.5 flex items-center gap-1">
-            <span className="h-1 w-1 rounded-full bg-emerald-500" />
+          <div className="flex items-center gap-1">
+            <span className="h-1 w-1 shrink-0 rounded-full bg-emerald-500" />
             <span className="text-[8px] font-medium text-emerald-600 dark:text-emerald-400">
               {t('availableInStock')}
               {product.stockQuantity !== undefined && ` · ${product.stockQuantity}`}
             </span>
           </div>
         ) : (
-          <div className="mt-0.5 flex items-center gap-1">
-            <span className="h-1 w-1 rounded-full bg-red-400" />
+          <div className="flex items-center gap-1">
+            <span className="h-1 w-1 shrink-0 rounded-full bg-red-400" />
             <span className="text-[8px] font-medium text-red-500 dark:text-red-400">
               {t('availableOutOfStock')}
             </span>
