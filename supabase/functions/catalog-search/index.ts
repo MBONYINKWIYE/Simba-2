@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     }
 
     // Prepare catalog context for the AI with more detail for reasoning
-    const catalog = products.slice(0, 600).map((p: any) => ({
+    const catalog = products.slice(0, 600).map((p: { id: number; name: string; category: string; price: number; unit: string; inStock: boolean }) => ({
       id: p.id,
       name: p.name,
       category: p.category,
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     // Robust ID extraction: handle numbers or strings that look like numbers
     const rawIds = Array.isArray(aiContent.productIds) ? aiContent.productIds : []
     const validatedIds = rawIds
-      .map((id: any) => Number(id))
+      .map((id: string | number) => Number(id))
       .filter((id: number) => !isNaN(id) && id > 0)
 
     return new Response(JSON.stringify({

@@ -7,6 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+type Recurrence = 'one_time' | 'weekly' | 'bi_weekly' | 'monthly';
+
 type CheckoutItem = {
   productId: number;
   productName: string;
@@ -32,6 +34,7 @@ type RequestToPayBody = {
   shopId: string;
   paymentAmountRwf?: number;
   paymentPlan?: 'momo' | 'cash-on-pickup';
+  recurrence?: Recurrence;
 };
 
 type CreateCashOrderBody = {
@@ -50,6 +53,7 @@ type CreateCashOrderBody = {
   serviceFeeRwf: number;
   totalRwf: number;
   shopId: string;
+  recurrence?: Recurrence;
 };
 
 type StatusBody = {
@@ -106,6 +110,7 @@ async function createAccessToken() {
   return json.access as string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getAuthenticatedUser(request: Request, supabaseAdmin: any): Promise<AuthenticatedUser> {
   const authHeader = request.headers.get('Authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
@@ -117,16 +122,36 @@ async function getAuthenticatedUser(request: Request, supabaseAdmin: any): Promi
   return { id: data.user.id, email: data.user.email ?? null };
 }
 
+function computeNextDeliveryDate(pickupDate: string, recurrence: string): string | null {
+  if (recurrence === 'one_time') return null;
+  const base = new Date(pickupDate);
+  const next = new Date(base);
+  switch (recurrence) {
+    case 'weekly': next.setDate(next.getDate() + 7); break;
+    case 'bi_weekly': next.setDate(next.getDate() + 14); break;
+    case 'monthly': next.setMonth(next.getMonth() + 1); break;
+    default: return null;
+  }
+  return next.toISOString();
+}
+
 async function insertOrder(
   payload: RequestToPayBody | CreateCashOrderBody,
   user: AuthenticatedUser,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseAdmin: any,
   momoReference: string | null = null,
   momoStatus: string | null = null
 ) {
   const receiver = Deno.env.get('PAYPACK_RECEIVER_NUMBER') ?? '';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const amount = (payload as any).paymentAmountRwf ?? payload.totalRwf;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const paymentPlan = (payload as any).paymentPlan ?? (payload.checkout.paymentMethod === 'momo' ? 'momo' : 'cash-on-pickup');
+  const recurrence = (payload as any).recurrence ?? 'one_time';
+  const nextDeliveryDate = payload.checkout.pickupTime
+    ? computeNextDeliveryDate(payload.checkout.pickupTime, recurrence)
+    : null;
 
   const { data, error } = await supabaseAdmin.rpc('create_order_with_inventory', {
     p_user_id: user.id,
@@ -151,6 +176,8 @@ async function insertOrder(
     p_momo_account_holder_status: momoReference ? 'active' : null,
     p_momo_status: momoStatus ? momoStatus.toUpperCase() : null,
     p_payment_provider: 'paypack',
+    p_recurrence: recurrence,
+    p_next_delivery_date: nextDeliveryDate,
     p_payment_payload: { 
       provider: 'paypack', 
       receiver, 
@@ -163,6 +190,7 @@ async function insertOrder(
   return data;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser, supabaseAdmin: any) {
   // 1. Always insert order first so it's in history even if payment initiation fails
   const orderId = await insertOrder(payload, user, supabaseAdmin);
@@ -197,7 +225,7 @@ async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser, 
         message: responseData?.message 
       };
     }
-  } catch (error) {
+  } catch {
     return { 
       ok: true, 
       orderId, 
@@ -206,6 +234,7 @@ async function requestToPay(payload: RequestToPayBody, user: AuthenticatedUser, 
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function initiatePayment(orderId: string, phone: string | undefined, user: AuthenticatedUser, supabaseAdmin: any) {
   // 1. Fetch order details
   const { data: order, error: orderError } = await supabaseAdmin
@@ -244,6 +273,7 @@ async function initiatePayment(orderId: string, phone: string | undefined, user:
   return { ok: true, orderId, referenceId: responseData.ref };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getRequestToPayStatus(referenceId: string, user: AuthenticatedUser, supabaseAdmin: any) {
   const { data: order } = await supabaseAdmin.from('orders').select('id').eq('momo_reference', referenceId).eq('user_id', user.id).maybeSingle();
   if (!order) throw new Error('Order not found or unauthorized');
