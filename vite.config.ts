@@ -27,7 +27,7 @@ export default defineConfig({
             return undefined;
           }
 
-          if (id.includes('react') || id.includes('scheduler')) {
+          if (id.includes('react') || id.includes('scheduler') || id.includes('@reduxjs')) {
             return 'vendor-react';
           }
 
@@ -49,6 +49,10 @@ export default defineConfig({
 
           if (id.includes('lucide-react')) {
             return 'vendor-icons';
+          }
+
+          if (id.includes('recharts') || id.includes('d3-')) {
+            return 'vendor-charts';
           }
 
           return 'vendor';
