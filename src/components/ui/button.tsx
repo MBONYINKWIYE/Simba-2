@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 type ButtonProps = PropsWithChildren<
   ButtonHTMLAttributes<HTMLButtonElement> & {
     variant?: 'primary' | 'secondary' | 'ghost';
+    size?: 'sm' | 'md' | 'lg';
     fullWidth?: boolean;
   }
 >;
@@ -12,13 +13,17 @@ export function Button({
   className,
   children,
   variant = 'primary',
+  size = 'md',
   fullWidth,
   ...props
 }: ButtonProps) {
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center rounded-3xl px-4 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex items-center justify-center rounded-3xl text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-60',
+        size === 'sm' && 'px-3 py-2 text-xs',
+        size === 'md' && 'px-4 py-3 text-sm',
+        size === 'lg' && 'px-6 py-4 text-base',
         variant === 'primary' &&
           'bg-brand-500 text-white hover:bg-brand-600 dark:bg-brand-400 dark:text-slate-950',
         variant === 'secondary' &&
