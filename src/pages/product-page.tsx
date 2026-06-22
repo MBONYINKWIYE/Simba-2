@@ -40,6 +40,7 @@ export function ProductPage() {
   const addItem = useCartStore((state) => state.addItem);
   const decrementItem = useCartStore((state) => state.decrementItem);
   const product = data?.products.find((item) => item.slug === slug);
+  const handleShare = useShare(product ?? null);
   const cartItem = useCartStore((state) => (product ? state.items[product.id] : undefined));
   const quantity = cartItem?.quantity ?? 0;
 
@@ -138,7 +139,7 @@ export function ProductPage() {
           <Button
             variant="secondary"
             className="mt-3 w-full sm:w-fit"
-            onClick={useShare(product)}
+            onClick={handleShare}
           >
             <Share2 size={16} className="mr-2" />
             {t('shareProduct')}

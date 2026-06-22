@@ -652,7 +652,7 @@ export function CheckoutPage() {
               <Clock3 size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold">{formValues.deliveryMethod === 'delivery' ? t('selectPickupTime') : t('selectPickupTime')}</h2>
+              <h2 className="text-lg font-semibold">{formValues.deliveryMethod === 'delivery' ? t('deliveryTimeHint') : t('pickupTimeHint')}</h2>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {formValues.deliveryMethod === 'delivery' ? t('deliveryTimeHint') : t('pickupTimeHint')}
               </p>
@@ -821,7 +821,7 @@ export function CheckoutPage() {
           </div>
           {formValues.paymentMethod === 'momo' ? (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
-              <p className="font-semibold">{t('momoCheckoutTitle')}</p>
+              <p className="font-semibold">{t('payNow')}</p>
               <p className="mt-1">{t('momoManualCheckoutCopy', { receiverNumber: PAYPACK_RECEIVER_NUMBER, ussdCode: buildMomoUssdCode(branchTotal) })}</p>
             </div>
           ) : formValues.paymentMethod === 'cod' ? (
