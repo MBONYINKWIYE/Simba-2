@@ -3,6 +3,7 @@ import type { Locale } from '@/types';
 export const DELIVERY_FEE = 2500;
 export const SERVICE_FEE = 700;
 export const ORDER_DEPOSIT_RWF = 1000;
+export const MINIMUM_ORDER_RWF = 2500;
 export const PAYPACK_RECEIVER_NUMBER = '0791509652';
 
 export const FEATURED_CATEGORY_ART = [
@@ -48,10 +49,12 @@ export const DEFAULT_CHECKOUT_VALUES = {
   fullName: '',
   phone: '',
   address: '',
+  deliveryInstructions: '',
   notes: '',
   pickupTime: '',
   paymentMethod: 'momo',
   recurrence: 'one_time',
+  deliveryMethod: 'pickup',
 } as const;
 
 export const SUPER_ADMIN_EMAILS = ['frankbilled@gmail.com'];

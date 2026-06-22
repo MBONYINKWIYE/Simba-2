@@ -1,18 +1,25 @@
-import { Eye, Minus, Plus } from 'lucide-react';
+import { Heart, Minus, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Product } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
+import { useWishlistStore } from '@/store/wishlist-store';
+import { useAuth } from '@/hooks/use-auth';
 import { usePromotions, getProductPromotion } from '@/hooks/use-promotions';
 
 export function ProductCard({ product }: { product: Product }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const userId = user?.id ?? 'guest';
   const addItem = useCartStore((state) => state.addItem);
   const decrementItem = useCartStore((state) => state.decrementItem);
   const cartItem = useCartStore((state) => state.items[product.id]);
   const quantity = cartItem?.quantity ?? 0;
+  const userWishlist = useWishlistStore((state) => state.items[userId]);
+  const toggleWishlist = useWishlistStore((state) => state.toggleItem);
+  const isInWishlist = userWishlist ? product.id in userWishlist : false;
   const { data: promotions } = usePromotions();
   const promotion = promotions ? getProductPromotion(product.id, product.normalizedCategory, promotions) : undefined;
 
@@ -33,13 +40,18 @@ export function ProductCard({ product }: { product: Product }) {
           />
         </Link>
 
-        {/* View details eye icon */}
-        <Link
-          to={`/products/${product.slug}`}
-          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-gray-600 shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+        {/* Wishlist heart icon */}
+        <button
+          onClick={() => toggleWishlist(userId, product)}
+          aria-label={isInWishlist ? t('removeFromWishlist') : t('addToWishlist')}
+          className={`absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full shadow-sm backdrop-blur-sm transition hover:scale-110 ${
+            isInWishlist
+              ? 'bg-rose-500 text-white hover:bg-rose-600'
+              : 'bg-white/80 text-gray-600 hover:bg-white hover:text-rose-500 dark:bg-gray-800/80 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-rose-400'
+          }`}
         >
-          <Eye size={12} />
-        </Link>
+          <Heart size={12} className={isInWishlist ? 'fill-current' : ''} />
+        </button>
 
         {promotion && (
           <div className="absolute left-1.5 top-1.5 rounded-md bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">

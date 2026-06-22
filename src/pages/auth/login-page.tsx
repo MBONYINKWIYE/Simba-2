@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
 import { signInWithEmail, signInWithGoogle, resolvePostSignInPath } from '@/lib/auth';
 import adVideo from '../../../images/ad.mp4';
 
@@ -28,8 +29,8 @@ export default function LoginPage() {
         const redirectUrl = await resolvePostSignInPath(user.id, user.email, nextPath);
         navigate(redirectUrl);
       }
-    } catch (err: any) {
-      setError(err.message || t('authError'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('authError'));
     } finally {
       setIsLoading(false);
     }
@@ -38,8 +39,8 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle(nextPath);
-    } catch (err: any) {
-      setError(err.message || t('failedToStartGoogleSignIn'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('failedToStartGoogleSignIn'));
     }
   };
 
@@ -93,28 +94,22 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between px-1">
-                <label className="text-sm font-medium">{t('password')}</label>
-                <Link
-                  to={`/auth/forgot-password${identifier && identifier.includes('@') ? `?email=${encodeURIComponent(identifier)}` : ''}`}
-                  className="text-xs text-brand-600 hover:underline font-medium"
-                >
-                  {t('forgotPassword')}
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                  type="password"
-                  required
+              <div className="space-y-2">
+                <div className="flex justify-between px-1">
+                  <label className="text-sm font-medium">{t('password')}</label>
+                  <Link
+                    to={`/auth/forgot-password${identifier && identifier.includes('@') ? `?email=${encodeURIComponent(identifier)}` : ''}`}
+                    className="text-xs text-brand-600 hover:underline font-medium"
+                  >
+                    {t('forgotPassword')}
+                  </Link>
+                </div>
+                <PasswordInput
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-                  placeholder="••••••••"
+                  required
                 />
               </div>
-            </div>
 
             <Button
               type="submit"

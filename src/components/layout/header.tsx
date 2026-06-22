@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, LayoutGrid, LogOut, MoonStar, ShoppingBasket, SunMedium, User, Search, Grid, Tag } from 'lucide-react';
+import { ChevronDown, Heart, LayoutGrid, LogOut, MoonStar, ShoppingBasket, SunMedium, User, Search, Grid, Tag } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { useUiStore } from '@/store/ui-store';
 import { useSearchStore } from '@/store/search-store';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { HeaderSearch } from '@/components/layout/header-search';
+import { NotificationBell } from '@/components/layout/notification-bell';
 
 export function Header() {
   const { t } = useTranslation();
@@ -264,9 +265,19 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
               </div>
             ) : null}
           </div>
+          {user && (
+            <NotificationBell userId={user.id} />
+          )}
+          <Link
+            to="/wishlist"
+            className="hidden lg:flex h-11 w-11 items-center justify-center rounded-2xl p-0 text-gray-600 transition hover:bg-orange-100 dark:text-orange-500 dark:hover:bg-orange-500/20"
+            aria-label={t('myWishlist')}
+          >
+            <Heart size={18} />
+          </Link>
           <Button
             variant="ghost"
-            className="h-11 w-11 rounded-2xl p-0 dark:text-orange-500 dark:hover:bg-orange-500/20"
+            className="hidden lg:inline-flex h-11 w-11 items-center justify-center rounded-2xl p-0 dark:text-orange-500 dark:hover:bg-orange-500/20"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             aria-label={t('darkMode')}
           >
@@ -363,6 +374,27 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                       <Tag size={15} />
                       {t('promotions')}
                     </Link>
+                    <Link
+                      to="/branches"
+                      className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      {t('branches')}
+                    </Link>
+                    <Link
+                      to="/about"
+                      className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      {t('about')}
+                    </Link>
+                    <Link
+                      to="/faq"
+                      className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    >
+                      {t('faq')}
+                    </Link>
                     {showOrdersLink && !user && (
                       <Link
                         to="/orders"
@@ -370,6 +402,16 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         {t('myOrders')}
+                      </Link>
+                    )}
+                    {!user && (
+                      <Link
+                        to="/wishlist"
+                        className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Heart size={15} />
+                        {t('myWishlist')}
                       </Link>
                     )}
                     {isAdmin && !user && (
@@ -381,8 +423,20 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                         {dashboardLabel}
                       </Link>
                     )}
+                    {/* Mobile Theme Toggle */}
+                    <button
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-stone-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setTheme(theme === 'dark' ? 'light' : 'dark');
+                        setIsUserMenuOpen(false);
+                      }}
+                    >
+                      <span>{t('darkMode')}</span>
+                      {theme === 'dark' ? <SunMedium size={16} /> : <MoonStar size={16} />}
+                    </button>
+
                     {/* Mobile Language Selector */}
-                    <div className="my-1 border-t border-slate-100 pt-1 dark:border-slate-800" />
+                    <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
                     <details className="group px-3 py-1">
                       <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                         <span>{t('language')}</span>
@@ -425,6 +479,14 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                         {t('myOrders')}
                       </Link>
                       <Link
+                        to="/wishlist"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        <Heart size={15} className="mr-2" />
+                        {t('myWishlist')}
+                      </Link>
+                      <Link
                         to="/orders"
                         className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                         onClick={() => setIsUserMenuOpen(false)}
@@ -438,6 +500,27 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                       >
                         <Tag size={15} />
                         {t('promotions')}
+                      </Link>
+                      <Link
+                        to="/branches"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('branches')}
+                      </Link>
+                      <Link
+                        to="/about"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('about')}
+                      </Link>
+                      <Link
+                        to="/faq"
+                        className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      >
+                        {t('faq')}
                       </Link>
                       {isAdmin && !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') ? (
                         <Link

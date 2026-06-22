@@ -51,6 +51,15 @@ export function Footer() {
               <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/#catalog">
                 {t('footerCatalogLink')}
               </Link>
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/branches">
+                {t('branches')}
+              </Link>
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/about">
+                {t('about')}
+              </Link>
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/faq">
+                {t('faq')}
+              </Link>
               <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/checkout">
                 {t('footerCheckoutLink')}
               </Link>
@@ -76,6 +85,15 @@ export function Footer() {
               </Link>
               <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/orders">
                 {t('footerTrackOrderLink')}
+              </Link>
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/branches">
+                {t('branches')}
+              </Link>
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/about">
+                {t('about')}
+              </Link>
+              <Link className="text-xs font-medium text-slate-600 transition hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400" to="/faq">
+                {t('faq')}
               </Link>
             </div>
           </div>

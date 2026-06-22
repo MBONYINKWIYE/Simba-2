@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { CheckCircle2, Clock3, ReceiptText, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock3, Printer, ReceiptText, ShieldCheck } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -239,7 +239,7 @@ export function OrderConfirmationPage() {
         </div>
       </section>
 
-      <section className="glass-panel p-6">
+      <section className="no-print glass-panel p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold">{t('keepTracking')}</h2>
@@ -254,9 +254,21 @@ export function OrderConfirmationPage() {
                 {t('backToCheckout')}
               </Button>
             </Link>
+            <Button variant="secondary" onClick={() => window.print()}>
+              <Printer size={16} className="mr-2" />
+              {t('printReceipt')}
+            </Button>
           </div>
         </div>
       </section>
+
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff !important; color: #000 !important; }
+          .glass-panel { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+        }
+      `}</style>
     </div>
   );
 }

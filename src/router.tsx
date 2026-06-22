@@ -36,6 +36,18 @@ const StaffDashboardPage = lazy(() =>
 const PromotionsPage = lazy(() =>
   import('@/pages/promotions-page').then((module) => ({ default: module.PromotionsPage })),
 );
+const WishlistPage = lazy(() =>
+  import('@/pages/wishlist-page').then((module) => ({ default: module.WishlistPage })),
+);
+const BranchesPage = lazy(() =>
+  import('@/pages/branches-page').then((module) => ({ default: module.BranchesPage })),
+);
+const AboutPage = lazy(() =>
+  import('@/pages/about-page').then((module) => ({ default: module.AboutPage })),
+);
+const FaqPage = lazy(() =>
+  import('@/pages/faq-page').then((module) => ({ default: module.FaqPage })),
+);
 
 function RouteFallback() {
   const { t } = useTranslation();
@@ -57,7 +69,7 @@ function RouteFallback() {
 
 function ErrorBoundary() {
   const { t } = useTranslation();
-  const error = useRouteError() as any;
+  const error = useRouteError() as { message?: string } | null;
 
   return (
     <AppShell>
@@ -270,6 +282,46 @@ export const router = createBrowserRouter([
           <AppShell>
             <Suspense fallback={fallback}>
               <PromotionsPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'wishlist',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <WishlistPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'branches',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <BranchesPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'about',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <AboutPage />
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'faq',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <FaqPage />
             </Suspense>
           </AppShell>
         ),

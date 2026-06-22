@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
 import { useShops } from '@/hooks/use-shops';
-import { DEFAULT_CHECKOUT_VALUES, PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
+import { DEFAULT_CHECKOUT_VALUES, DELIVERY_FEE, MINIMUM_ORDER_RWF, PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
 import { buildMomoUssdCode, createManualPaymentOrder, openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { supabase } from '@/lib/supabase';
+import { isValidRwandanPhone } from '@/lib/validation';
 import type { AvailableShop, CheckoutFormValues, Recurrence } from '@/types';
 
 function computeNextDeliveryDate(pickupDate: string, recurrence: Recurrence): Date | null {
@@ -126,6 +127,7 @@ export function CheckoutPage() {
   const [locationError, setLocationError] = useState('');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [travelMode, setTravelMode] = useState<TravelMode>('drive');
+  const [phoneError, setPhoneError] = useState('');
   const [isEditingContact, setIsEditingContact] = useState(false);
   const { user, isLoading: isAuthLoading, isConfigured } = useAuth();
   const pickupSlots = useMemo(() => buildPickupSlots(), []);
@@ -280,14 +282,17 @@ export function CheckoutPage() {
     () => branchUnavailableItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
     [branchUnavailableItems],
   );
-  const branchTotal = branchSubtotal;
+  const branchDeliveryFeeRwf = formValues.deliveryMethod === 'delivery' ? DELIVERY_FEE : 0;
+  const branchTotal = branchSubtotal + branchDeliveryFeeRwf;
   const cashOnPickupDepositRwf = calculateCashOnPickupDeposit(branchTotal);
   const cashOnPickupBalanceDueRwf = Math.max(branchTotal - cashOnPickupDepositRwf, 0);
   const submitLabel = isSubmitting
     ? t('processingOrder')
     : formValues.paymentMethod === 'momo'
       ? t('payNow')
-      : t('payDepositNow');
+      : formValues.paymentMethod === 'cod'
+        ? t('placeOrder')
+        : t('payDepositNow');
 
   useEffect(() => {
     if (pickupSlots.length === 0) {
@@ -327,6 +332,17 @@ export function CheckoutPage() {
       return;
     }
 
+    if (branchTotal < MINIMUM_ORDER_RWF) {
+      setErrorMessage(t('minimumOrderError', { amount: MINIMUM_ORDER_RWF.toLocaleString() }));
+      return;
+    }
+
+    if (!isValidRwandanPhone(formValues.phone)) {
+      setPhoneError(t('invalidPhone'));
+      setErrorMessage(t('invalidPhone'));
+      return;
+    }
+
     if (!formValues.pickupTime) {
       setErrorMessage(t('pickupTimeRequired'));
       return;
@@ -336,7 +352,7 @@ export function CheckoutPage() {
       checkout: formValues,
       items: branchCheckoutItems,
       subtotalRwf: branchSubtotal,
-      deliveryFeeRwf: 0,
+      deliveryFeeRwf: branchDeliveryFeeRwf,
       serviceFeeRwf: 0,
       totalRwf: branchTotal,
       shopId: selectedShopId,
@@ -373,7 +389,9 @@ export function CheckoutPage() {
         throw new Error(t('failedToCreateOrder'));
       }
 
-      openMomoDialer(formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal);
+      if (formValues.paymentMethod !== 'cod') {
+        openMomoDialer(formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal);
+      }
 
       clearCart();
       navigate(`/checkout/confirmation/${result.orderId}`, {
@@ -381,9 +399,11 @@ export function CheckoutPage() {
         state: {
           orderId: result.orderId,
           paymentMethod: formValues.paymentMethod,
-          ussdCode: buildMomoUssdCode(
-            formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal,
-          ),
+          ussdCode: formValues.paymentMethod !== 'cod'
+            ? buildMomoUssdCode(
+                formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal,
+              )
+            : undefined,
         },
       });
     } catch (error) {
@@ -448,11 +468,41 @@ export function CheckoutPage() {
         </p>
 
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">{t('deliveryMethodLabel')}</h2>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFormValues((current) => ({ ...current, deliveryMethod: 'pickup' }))}
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+                formValues.deliveryMethod === 'pickup'
+                  ? 'bg-brand-500 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+              }`}
+            >
+              {t('pickupMethod')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormValues((current) => ({ ...current, deliveryMethod: 'delivery' }))}
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+                formValues.deliveryMethod === 'delivery'
+                  ? 'bg-brand-500 text-white shadow-sm'
+                  : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+              }`}
+            >
+              {t('delivery')}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold">{t('availablePickupShops')}</h2>
+              <h2 className="text-lg font-semibold">{formValues.deliveryMethod === 'delivery' ? t('preparingShop') : t('availablePickupShops')}</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                {t('availablePickupShopsHint')}
+                {formValues.deliveryMethod === 'delivery' ? t('preparingShopHint') : t('availablePickupShopsHint')}
               </p>
             </div>
             {coordinates ? (
@@ -504,37 +554,39 @@ export function CheckoutPage() {
                 <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTravelMode('drive')}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    travelMode === 'drive'
-                      ? 'bg-brand-500 text-white'
-                      : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                  }`}
-                >
-                  {t('driveMode')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTravelMode('walk')}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    travelMode === 'walk'
-                      ? 'bg-brand-500 text-white'
-                      : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                  }`}
-                >
-                  {t('walkMode')}
-                </button>
-                {selectedShop ? (
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                    {selectedShopTravelMinutes === null
-                      ? t('travelTimeUnavailable')
-                      : t('travelTimeMinutes', { mode: t(travelMode === 'drive' ? 'driveMode' : 'walkMode'), minutes: selectedShopTravelMinutes })}
-                  </span>
-                ) : null}
-              </div>
+              {formValues.deliveryMethod === 'pickup' && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTravelMode('drive')}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      travelMode === 'drive'
+                        ? 'bg-brand-500 text-white'
+                        : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                    }`}
+                  >
+                    {t('driveMode')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTravelMode('walk')}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      travelMode === 'walk'
+                        ? 'bg-brand-500 text-white'
+                        : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                    }`}
+                  >
+                    {t('walkMode')}
+                  </button>
+                  {selectedShop ? (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                      {selectedShopTravelMinutes === null
+                        ? t('travelTimeUnavailable')
+                        : t('travelTimeMinutes', { mode: t(travelMode === 'drive' ? 'driveMode' : 'walkMode'), minutes: selectedShopTravelMinutes })}
+                    </span>
+                  ) : null}
+                </div>
+              )}
 
               {selectedShop ? (
                 <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -600,8 +652,10 @@ export function CheckoutPage() {
               <Clock3 size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold">{t('selectPickupTime')}</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('pickupTimeHint')}</p>
+              <h2 className="text-lg font-semibold">{formValues.deliveryMethod === 'delivery' ? t('selectPickupTime') : t('selectPickupTime')}</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {formValues.deliveryMethod === 'delivery' ? t('deliveryTimeHint') : t('pickupTimeHint')}
+              </p>
               <select
                 required
                 value={formValues.pickupTime}
@@ -695,11 +749,21 @@ export function CheckoutPage() {
                 <input
                   required
                   value={formValues.phone}
-                  onChange={(event) => setFormValues((current) => ({ ...current, phone: event.target.value }))}
+                  onChange={(event) => {
+                    setFormValues((current) => ({ ...current, phone: event.target.value }));
+                    setPhoneError('');
+                  }}
                   autoComplete="tel"
-                  className="w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                  className={`w-full rounded-2xl border bg-white pl-11 pr-4 py-3 dark:bg-slate-900 ${
+                    phoneError
+                      ? 'border-rose-300 dark:border-rose-700'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
                   placeholder={t('phoneNumber')}
                 />
+                {phoneError ? (
+                  <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{phoneError}</p>
+                ) : null}
               </div>
             </div>
           )}
@@ -711,6 +775,14 @@ export function CheckoutPage() {
             autoComplete="street-address"
             className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
             placeholder={t('deliveryAddress')}
+          />
+          <textarea
+            value={formValues.deliveryInstructions}
+            onChange={(event) => {
+              setFormValues((current) => ({ ...current, deliveryInstructions: event.target.value }));
+            }}
+            className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+            placeholder={t('deliveryInstructionsPlaceholder')}
           />
           <textarea
             value={formValues.notes}
@@ -737,11 +809,25 @@ export function CheckoutPage() {
               />
               <span className="ml-3 font-semibold">{t('cash')}</span>
             </label>
+            <label className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+              <input
+                type="radio"
+                name="paymentMethod"
+                checked={formValues.paymentMethod === 'cod'}
+                onChange={() => setFormValues((current) => ({ ...current, paymentMethod: 'cod' }))}
+              />
+              <span className="ml-3 font-semibold">{t('cod')}</span>
+            </label>
           </div>
           {formValues.paymentMethod === 'momo' ? (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
               <p className="font-semibold">{t('momoCheckoutTitle')}</p>
               <p className="mt-1">{t('momoManualCheckoutCopy', { receiverNumber: PAYPACK_RECEIVER_NUMBER, ussdCode: buildMomoUssdCode(branchTotal) })}</p>
+            </div>
+          ) : formValues.paymentMethod === 'cod' ? (
+            <div className="mt-4 rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-200">
+              <p className="font-semibold">{t('cod')}</p>
+              <p className="mt-1">{t('codCopy')}</p>
             </div>
           ) : (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
@@ -764,12 +850,18 @@ export function CheckoutPage() {
             isSubmitting ||
             !selectedShopId ||
             selectableShops.length === 0 ||
-            branchCheckoutItems.length === 0
+            branchCheckoutItems.length === 0 ||
+            branchTotal < MINIMUM_ORDER_RWF
           }
         >
           {submitLabel}
         </Button>
-        {paymentNotice ? (
+          {branchTotal > 0 && branchTotal < MINIMUM_ORDER_RWF ? (
+            <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+              {t('minimumOrderNotice', { remaining: (MINIMUM_ORDER_RWF - branchTotal).toLocaleString() })}
+            </p>
+          ) : null}
+          {paymentNotice ? (
           <p className="mt-4 rounded-2xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-700 dark:bg-brand-900/20 dark:text-brand-200" aria-live="polite">
             {paymentNotice}
           </p>
@@ -791,7 +883,7 @@ export function CheckoutPage() {
         {selectedShop ? (
           <div className="mt-5 rounded-3xl bg-brand-50 p-4 dark:bg-brand-900/20">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700 dark:text-brand-200">
-              {t('pickupShop')}
+              {formValues.deliveryMethod === 'delivery' ? t('preparingShop') : t('pickupShop')}
             </p>
             <p className="mt-2 font-semibold">{selectedShop.name}</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{selectedShop.address}</p>
@@ -806,7 +898,7 @@ export function CheckoutPage() {
         {formValues.pickupTime ? (
           <div className="mt-4 rounded-3xl bg-white/80 p-4 dark:bg-slate-900/70">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-              {t('selectPickupTime')}
+              {formValues.deliveryMethod === 'delivery' ? t('deliveryTimeLabel') : t('selectPickupTime')}
             </p>
             <p className="mt-2 font-semibold">
               {new Date(formValues.pickupTime).toLocaleString([], {
@@ -884,6 +976,12 @@ export function CheckoutPage() {
               <span>-{formatCurrency(excludedSubtotal)}</span>
             </div>
           ) : null}
+          {formValues.deliveryMethod === 'delivery' && (
+            <div className="flex justify-between">
+              <span>{t('deliveryFee')}</span>
+              <span>{formatCurrency(branchDeliveryFeeRwf)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-lg font-bold">
             <span>{t('total')}</span>
             <span>{formatCurrency(branchTotal)}</span>

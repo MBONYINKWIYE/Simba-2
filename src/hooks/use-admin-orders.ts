@@ -26,6 +26,8 @@ const adminOrderSelect = `
   delivery_person_name,
   delivery_person_phone,
   rejection_reason,
+  recurrence,
+  next_delivery_date,
   order_items(id, product_id, product_name, quantity, unit_price_rwf)
 `;
 

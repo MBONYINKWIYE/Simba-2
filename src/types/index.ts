@@ -52,10 +52,12 @@ export type CheckoutFormValues = {
   fullName: string;
   phone: string;
   address: string;
+  deliveryInstructions: string;
   notes: string;
   pickupTime: string;
-  paymentMethod: 'momo' | 'cash';
+  paymentMethod: 'momo' | 'cash' | 'cod';
   recurrence: Recurrence;
+  deliveryMethod: 'pickup' | 'delivery';
 };
 
 export type Shop = {
@@ -158,14 +160,14 @@ export type OrderCreatePayload = {
   totalRwf: number;
   shopId: string;
   paymentAmountRwf?: number;
-  paymentPlan?: 'momo' | 'cash-on-pickup';
+  paymentPlan?: 'momo' | 'cash-on-pickup' | 'cod';
   recurrence?: Recurrence;
 };
 
 export type OrderPaymentPayload = {
   provider?: string;
   receiverNumber?: string;
-  paymentPlan?: 'momo' | 'cash-on-pickup';
+  paymentPlan?: 'momo' | 'cash-on-pickup' | 'cod';
   paymentAmountRwf?: number;
   depositRwf?: number;
   balanceDueRwf?: number;
@@ -295,6 +297,49 @@ export type AdminOrderRecord = {
   payment_payload?: OrderPaymentPayload;
   paid_at?: string | null;
   rejection_reason?: string | null;
+};
+
+export type AnalyticsPeriodStats = {
+  revenue: number;
+  orders: number;
+};
+
+export type AnalyticsDayData = {
+  day: string;
+  orders: number;
+  revenue: number;
+};
+
+export type AnalyticsStatusData = {
+  status: string;
+  count: number;
+};
+
+export type AnalyticsProductData = {
+  productName: string;
+  quantitySold: number;
+  revenue: number;
+};
+
+export type AnalyticsPaymentData = {
+  paymentMethod: string;
+  count: number;
+  revenue: number;
+};
+
+export type ShopAnalytics = {
+  totalRevenue: number;
+  totalOrders: number;
+  avgOrderValue: number;
+  paidRevenue: number;
+  paidOrders: number;
+  today: AnalyticsPeriodStats;
+  thisWeek: AnalyticsPeriodStats;
+  thisMonth: AnalyticsPeriodStats;
+  revenueByDay: AnalyticsDayData[];
+  ordersByStatus: AnalyticsStatusData[];
+  topProducts: AnalyticsProductData[];
+  revenueByPayment: AnalyticsPaymentData[];
 };
 
 export type CatalogAiSearchResult = {

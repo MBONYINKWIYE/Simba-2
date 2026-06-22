@@ -77,6 +77,7 @@ async function fetchCatalog(locale: Locale, shopId?: string | null): Promise<Cat
   if (shopId) {
     const result = await (supabase
       .from('catalog_products')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .select(`${CATALOG_PRODUCT_FIELDS}, inventory!left(quantity)`) as any)
       .eq('inventory.shop_id', shopId)
       .order('name');

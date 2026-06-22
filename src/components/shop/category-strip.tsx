@@ -99,7 +99,7 @@ export function CategoryStrip({
 
   // Duplicate the cards for seamless infinite scroll
   const duplicatedCards = [...categoryCards, ...categoryCards.map((card) => 
-    React.cloneElement(card as React.ReactElement<any>, { key: `${card.key}-duplicate` })
+    React.cloneElement(card as React.ReactElement<{key?: string | number | null}>, { key: `${card.key}-duplicate` })
   )];
 
   return (

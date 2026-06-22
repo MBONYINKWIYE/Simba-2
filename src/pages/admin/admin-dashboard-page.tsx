@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
-import { ClipboardList, LayoutGrid, Percent, Settings2, ShieldCheck, Store, Truck } from 'lucide-react';
+import { BarChart3, ClipboardList, LayoutGrid, Percent, Settings2, ShieldCheck, Store, Truck } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import { useDeliveryPersons, useCreateDeliveryPerson, useDeleteDeliveryPerson } 
 import { usePromotionManagement, useCreatePromotion, useUpdatePromotion, useDeletePromotion } from '@/hooks/use-promotion-management';
 import { useCatalog } from '@/hooks/use-catalog';
 import { useUserRole } from '@/hooks/use-user-role';
+import { AnalyticsPanel } from '@/pages/admin/analytics-panel';
 import { InventoryPanel } from '@/pages/admin/inventory-panel';
 import { ShopSettingsPanel } from '@/pages/admin/shop-settings-panel';
 import { signOut } from '@/lib/auth';
@@ -1142,7 +1143,6 @@ function PromotionsPanel() {
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
                         onClick={() =>
                           void updatePromotion.mutateAsync({
                             id: promo.id,
@@ -1156,7 +1156,6 @@ function PromotionsPanel() {
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
                         onClick={() => void deletePromotion.mutateAsync({ id: promo.id })}
                         disabled={deletePromotion.isPending}
                       >
@@ -1224,6 +1223,7 @@ export function AdminDashboardPage() {
 
   const activeOrder = orders.find((order) => order.id === orderId) ?? orders[0] ?? null;
   const availableSections = [
+    { key: 'analytics', label: t('analytics'), description: t('analyticsDashboardCopy'), icon: BarChart3, visible: canManageOrders || isSuperAdmin },
     { key: 'orders', label: t('adminOrderQueue'), description: t('adminDashboardCopy'), icon: ClipboardList, visible: true },
     { key: 'team', label: t('teamManagement'), description: isSuperAdmin ? t('teamManagementSuperAdminCopy') : t('teamManagementShopAdminCopy'), icon: ShieldCheck, visible: canManageTeam },
     { key: 'inventory', label: t('inventoryDashboard'), description: t('inventoryDashboardCopy'), icon: LayoutGrid, visible: canManageOrders || isSuperAdmin },
@@ -1289,7 +1289,7 @@ export function AdminDashboardPage() {
               {formatStatusLabel(isSuperAdmin ? 'superAdminBadge' : (adminRole ?? 'staff'), t)}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => void signOut()} className="mt-2 w-full">
+          <Button variant="ghost" onClick={() => void signOut()} className="mt-2 w-full">
             {t('signOut')}
           </Button>
         </div>
@@ -1303,7 +1303,7 @@ export function AdminDashboardPage() {
                 <h1 className="text-lg font-bold sm:text-xl">{t('adminDashboard')}</h1>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => void signOut()} className="lg:hidden">
+              <Button variant="ghost" onClick={() => void signOut()} className="lg:hidden">
                 {t('signOut')}
               </Button>
             </div>
@@ -1324,6 +1324,10 @@ export function AdminDashboardPage() {
           </div>
 
           <div className="mx-auto mt-4 max-w-7xl">
+            {activeSection === 'analytics' ? (
+              <AnalyticsPanel shopId={shopId} isSuperAdmin={isSuperAdmin} />
+            ) : null}
+
             {activeSection === 'orders' ? (
               <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr] xl:grid-cols-[0.9fr_1.1fr]">
                 <section className="glass-panel p-4">

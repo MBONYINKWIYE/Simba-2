@@ -184,7 +184,7 @@ function extractSearchContext(query: string): CatalogSearchContext {
   };
 }
 
-function buildContextSummary(context: CatalogSearchContext, t: (key: string, options?: any) => string) {
+function buildContextSummary(context: CatalogSearchContext, t: (key: string, options?: Record<string, unknown>) => string) {
   const parts: string[] = [];
 
   if (context.occasion) parts.push(context.occasion);
@@ -204,7 +204,7 @@ function buildContextSummary(context: CatalogSearchContext, t: (key: string, opt
   return `${context.intent}: ${parts.join(', ')}`;
 }
 
-function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs, t: (key: string, options?: any) => string): CatalogAiSearchResult {
+function buildLocalAiFallback({ query, products }: CatalogAiSearchArgs, t: (key: string, options?: Record<string, unknown>) => string): CatalogAiSearchResult {
   const context = extractSearchContext(query);
   const tokens = tokenize(query);
   const contextualTokens = tokenize([
@@ -294,7 +294,7 @@ const SITUATIONAL_MAP: Record<string, string[]> = {
   healthy: ['fruit', 'vegetable', 'water', 'yogurt', 'organic', 'low sugar', 'fitness', 'salad', 'food'],
 };
 
-function getRelevantCandidates(query: string, products: Product[]): any[] {
+function getRelevantCandidates(query: string, products: Product[]): { id: number; name: string; category: string; price: number; unit: string; inStock: boolean }[] {
   const normalizedQuery = query.toLowerCase();
   const tokens = tokenize(normalizedQuery);
   
@@ -340,7 +340,7 @@ function getRelevantCandidates(query: string, products: Product[]): any[] {
   }));
 }
 
-async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs, t: (key: string, options?: any) => string): Promise<CatalogAiSearchResult> {
+async function searchCatalogWithAi({ query, products }: CatalogAiSearchArgs, t: (key: string, options?: Record<string, unknown>) => string): Promise<CatalogAiSearchResult> {
   if (!supabase) {
     return buildLocalAiFallback({ query, products }, t);
   }

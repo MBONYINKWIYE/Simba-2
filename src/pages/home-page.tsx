@@ -15,6 +15,7 @@ import { useCartStore } from '@/store/cart-store';
 import type { Product } from '@/types';
 import { useSearchStore } from '@/store/search-store';
 import { useCatalogAiSearch } from '@/hooks/use-catalog-ai-search';
+import { usePromotions } from '@/hooks/use-promotions';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { usePastOrders } from '@/hooks/use-past-orders';
@@ -39,6 +40,7 @@ export function HomePage() {
 
   const aiSearch = useCatalogAiSearch();
 
+  const { data: promotions } = usePromotions();
   const shopsQuery = useShops();
   const { nearestShop, coords } = useNearestShop();
   const { user } = useAuth();
@@ -212,6 +214,33 @@ export function HomePage() {
 
     return result;
   }, [products]);
+
+  const promotedProducts = useMemo<Product[]>(() => {
+    if (!promotions || promotions.length === 0) return [];
+    const promoProductIds = new Set<number>();
+    const promoCategories = new Set<string>();
+    
+    for (const promo of promotions) {
+      if (promo.product_id) promoProductIds.add(promo.product_id);
+      if (promo.category) promoCategories.add(promo.category);
+    }
+
+    const result: Product[] = [];
+    const seenCategories = new Set<string>();
+
+    for (const product of products) {
+      const isPromoted = promoProductIds.has(product.id) || promoCategories.has(product.normalizedCategory);
+      if (isPromoted) {
+        if (!seenCategories.has(product.normalizedCategory)) {
+          seenCategories.add(product.normalizedCategory);
+          result.push(product);
+        }
+      }
+    }
+
+    return result.slice(0, 12);
+  }, [products, promotions]);
+
   const homepageProducts = useMemo<Product[]>(() => products.slice(0, visibleLimit), [products, visibleLimit]);
 
   const filteredProducts = useMemo(() => {
@@ -279,7 +308,7 @@ export function HomePage() {
     try {
       const result = await aiSearch.mutateAsync({ query: filters.query.trim(), products });
       setAiResult({ answer: result.answer, productIds: result.productIds });
-    } catch (error) {
+    } catch {
       setAiResult({ answer: '', productIds: [], error: t('aiSearchFallback') });
     } finally {
       setIsAiSearching(false);
@@ -454,15 +483,29 @@ export function HomePage() {
             {user && pastOrdersQuery.data && pastOrdersQuery.data.length > 0 && (
               <BuyAgainSection orders={pastOrdersQuery.data} />
             )}
+            {promotedProducts.length > 0 && (
+              <section className="space-y-4">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                      <span className="rounded-full bg-rose-500 text-white px-2 py-0.5 text-xs font-bold">%</span>
+                      {t('promotions')}
+                    </h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('promotionsCopy')}</p>
+                  </div>
+                </div>
+                <ProductGrid products={promotedProducts} />
+              </section>
+            )}
             <section className="space-y-4">
-             <div className="flex items-end justify-between gap-4">
-               <div>
-                 <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
-                 <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
-               </div>
-             </div>
-             <ProductGrid products={featuredProducts} />
-           </section>
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">{t('featuredProductsTitle')}</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{t('featuredProductsCopy')}</p>
+                </div>
+              </div>
+              <ProductGrid products={featuredProducts} />
+            </section>
           {data ? (
             <CategoryStrip
               products={spotlightProducts}

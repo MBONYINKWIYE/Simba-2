@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { UserPlus, Mail, User, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PasswordInput } from '@/components/ui/password-input';
 import { signUpWithEmail, signInWithGoogle } from '@/lib/auth';
+import { isValidRwandanPhone } from '@/lib/validation';
 import adVideo from '../../../images/ad.mp4';
 
 export default function SignupPage() {
@@ -18,12 +20,20 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState('');
   const [success, setSuccess] = useState(false);
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setPhoneError('');
+
+    if (!isValidRwandanPhone(phone)) {
+      setPhoneError(t('invalidPhone'));
+      setIsLoading(false);
+      return;
+    }
 
     try {
       await signUpWithEmail(email, password, fullName, phone);
@@ -31,8 +41,8 @@ export default function SignupPage() {
       setTimeout(() => {
         navigate(`/auth/login?next=${encodeURIComponent(nextPath)}`);
       }, 3000);
-    } catch (err: any) {
-      setError(err.message || t('authError'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('authError'));
     } finally {
       setIsLoading(false);
     }
@@ -41,8 +51,8 @@ export default function SignupPage() {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle(nextPath);
-    } catch (err: any) {
-      setError(err.message || t('failedToStartGoogleSignIn'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('failedToStartGoogleSignIn'));
     }
   };
 
@@ -126,28 +136,30 @@ export default function SignupPage() {
                   type="tel"
                   required
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setPhoneError('');
+                  }}
+                  className={`w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 border rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition-all ${
+                    phoneError
+                      ? 'border-red-300 dark:border-red-700'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
                   placeholder="0788000000"
                 />
+                {phoneError ? (
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{phoneError}</p>
+                ) : null}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium px-1">{t('password')}</label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition-all"
-                  placeholder="••••••••"
-                  minLength={6}
-                />
-              </div>
-            </div>
+            <PasswordInput
+              label={t('password')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
 
             <Button
               type="submit"

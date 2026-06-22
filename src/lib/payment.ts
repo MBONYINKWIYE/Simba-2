@@ -3,6 +3,7 @@ import { PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
 import type {
   CreateCashOrderResult,
   OrderCreatePayload,
+  Recurrence,
   RequestToPayResult,
   RequestToPayStatusResult,
 } from '@/types';
@@ -21,6 +22,17 @@ type CreateManualPaymentOrderArgs = {
   order: OrderCreatePayload;
   paymentAmountRwf?: number;
 };
+
+function computeNextDeliveryDate(pickupDate: string, recurrence: Recurrence): Date {
+  const base = new Date(pickupDate);
+  const next = new Date(base);
+  switch (recurrence) {
+    case 'weekly': next.setDate(next.getDate() + 7); break;
+    case 'bi_weekly': next.setDate(next.getDate() + 14); break;
+    case 'monthly': next.setMonth(next.getMonth() + 1); break;
+  }
+  return next;
+}
 
 function encodeUssdCode(ussdCode: string) {
   return ussdCode.replace('#', '%23');
@@ -45,7 +57,12 @@ export function openMomoDialer(totalAmountRwf: number) {
 export async function createManualPaymentOrder({ userId, userEmail, order, paymentAmountRwf }: CreateManualPaymentOrderArgs) {
   const client = requireSupabaseClient();
   const isMomoOrder = order.checkout.paymentMethod === 'momo';
+  const isCodOrder = order.checkout.paymentMethod === 'cod';
   const effectivePaymentAmount = paymentAmountRwf ?? order.totalRwf;
+  const nextDeliveryDate = order.recurrence && order.recurrence !== 'one_time' && order.checkout.pickupTime
+    ? computeNextDeliveryDate(order.checkout.pickupTime, order.recurrence).toISOString()
+    : null;
+
   const { data, error } = await client.rpc('create_order_with_inventory', {
     p_user_id: userId,
     p_user_email: userEmail ?? '',
@@ -62,15 +79,23 @@ export async function createManualPaymentOrder({ userId, userEmail, order, payme
     p_delivery_fee_rwf: order.deliveryFeeRwf,
     p_service_fee_rwf: order.serviceFeeRwf,
     p_total_rwf: order.totalRwf,
-    p_notes: order.checkout.notes,
+    p_notes: [order.checkout.deliveryInstructions, order.checkout.notes].filter(Boolean).join(' | '),
     p_items: order.items,
     p_momo_reference: null,
     p_momo_external_id: null,
     p_momo_account_holder_status: null,
     p_momo_status: isMomoOrder ? 'manual-pending' : null,
-    p_payment_provider: isMomoOrder ? 'manual-momo' : 'cash-on-pickup',
+    p_payment_provider: isCodOrder ? 'cod' : isMomoOrder ? 'manual-momo' : 'cash-on-pickup',
+    p_recurrence: order.recurrence ?? 'one_time',
+    p_next_delivery_date: nextDeliveryDate,
     p_payment_payload: {
-      ...(isMomoOrder
+      ...(isCodOrder
+        ? {
+            collectionMethod: 'cod',
+            paymentAmountRwf: effectivePaymentAmount,
+            paymentInstructions: 'Customer pays in cash upon delivery.',
+          }
+        : isMomoOrder
         ? {
             collectionMethod: 'ussd',
             receiverNumber: PAYPACK_RECEIVER_NUMBER,

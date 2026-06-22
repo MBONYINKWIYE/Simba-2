@@ -4,6 +4,7 @@ import type { Product } from '@/types';
 
 type CartState = {
   items: Record<number, { product: Product; quantity: number }>;
+  savedItems: Record<number, { product: Product; quantity: number }>;
   selectedShopId: string | null;
   lastAddedItem: { productName: string; quantity: number; image: string } | null;
   addItem: (product: Product) => void;
@@ -11,12 +12,16 @@ type CartState = {
   decrementItem: (productId: number) => void;
   setSelectedShop: (shopId: string | null) => void;
   clearCart: () => void;
+  saveForLater: (productId: number) => void;
+  moveToCart: (productId: number) => void;
+  removeSavedItem: (productId: number) => void;
 };
 
 export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: {},
+      savedItems: {},
       selectedShopId: null,
       lastAddedItem: null,
       addItem: (product) =>
@@ -66,6 +71,40 @@ export const useCartStore = create<CartState>()(
           };
         }),
       clearCart: () => set((state) => ({ items: {}, selectedShopId: state.selectedShopId })),
+      saveForLater: (productId) =>
+        set((state) => {
+          const item = state.items[productId];
+          if (!item) return state;
+          const nextItems = { ...state.items };
+          delete nextItems[productId];
+          return {
+            items: nextItems,
+            savedItems: {
+              ...state.savedItems,
+              [productId]: item,
+            },
+          };
+        }),
+      moveToCart: (productId) =>
+        set((state) => {
+          const item = state.savedItems[productId];
+          if (!item) return state;
+          const nextSaved = { ...state.savedItems };
+          delete nextSaved[productId];
+          return {
+            items: {
+              ...state.items,
+              [productId]: item,
+            },
+            savedItems: nextSaved,
+          };
+        }),
+      removeSavedItem: (productId) =>
+        set((state) => {
+          const next = { ...state.savedItems };
+          delete next[productId];
+          return { savedItems: next };
+        }),
     }),
     {
       name: 'simba-cart',

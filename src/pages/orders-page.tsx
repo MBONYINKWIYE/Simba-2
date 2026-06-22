@@ -12,6 +12,7 @@ import { openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import type { OrderHistoryRecord } from '@/types';
 import { useUpdateProfile } from '@/hooks/use-update-profile';
+import { useCancelRecurring } from '@/hooks/use-notifications';
 import { supabase } from '@/lib/supabase';
 import { useEffect } from 'react';
 
@@ -44,7 +45,7 @@ function ProfileSection({ userId }: { userId: string }) {
     try {
       await updateProfile.mutateAsync({ fullName, phone });
       setIsEditing(false);
-    } catch (err) {
+    } catch {
       // Error handled by mutation state
     }
   };
@@ -165,6 +166,39 @@ function statusClassName(value: string) {
   }
 
   return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+}
+
+function CancelRecurringAction({ order }: { order: OrderHistoryRecord }) {
+  const { t } = useTranslation();
+  const cancelRecurring = useCancelRecurring();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  if (order.recurrence === 'one_time' || !order.recurrence) return null;
+
+  return (
+    <div className="mt-3">
+      {showConfirm ? (
+        <div className="flex items-center gap-2 rounded-2xl bg-amber-50 p-3 dark:bg-amber-900/20">
+          <p className="text-xs text-amber-700 dark:text-amber-300">{t('cancelRecurringConfirm')}</p>
+          <Button
+            variant="secondary"
+            className="h-8 px-3 text-xs"
+            onClick={() => cancelRecurring.mutate(order.id)}
+            disabled={cancelRecurring.isPending}
+          >
+            {cancelRecurring.isPending ? t('loading') : t('confirm')}
+          </Button>
+          <Button variant="ghost" className="h-8 px-3 text-xs" onClick={() => setShowConfirm(false)}>
+            {t('cancel')}
+          </Button>
+        </div>
+      ) : (
+        <Button variant="ghost" className="h-8 px-3 text-xs text-rose-600" onClick={() => setShowConfirm(true)}>
+          {t('cancelRecurring')}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 function OrderPaymentAction({ order }: { order: OrderHistoryRecord }) {
@@ -454,6 +488,7 @@ export function OrdersPage() {
                           {t('nextDeliveryDate')}: {new Date(order.next_delivery_date).toLocaleDateString()}
                         </p>
                       ) : null}
+                      <CancelRecurringAction order={order} />
                     </div>
                   ) : null}
                   {order.status === 'rejected' && order.rejection_reason ? (

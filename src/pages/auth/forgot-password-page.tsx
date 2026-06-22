@@ -24,8 +24,8 @@ export default function ForgotPasswordPage() {
     try {
       await requestPasswordReset(email.trim());
       setSent(true);
-    } catch (err: any) {
-      setError(err.message || t('passwordResetFailed'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('passwordResetFailed'));
     } finally {
       setIsLoading(false);
     }

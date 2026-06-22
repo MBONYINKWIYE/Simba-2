@@ -55,7 +55,7 @@ export function HeaderSearch() {
         // Scroll to catalog section to show results
         document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
       }, 150);
-    } catch (error) {
+    } catch {
       setAiResult({ answer: '', productIds: [], error: t('aiSearchFallback') });
       setIsAiSearching(false);
       document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
@@ -164,7 +164,7 @@ export function HeaderSearch() {
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1">{t('sortDefault')}</label>
                 <select
                   value={filters.sortBy}
-                  onChange={(e) => setFilters({ sortBy: e.target.value as any })}
+                  onChange={(e) => setFilters({ sortBy: e.target.value as 'default' | 'price-asc' | 'price-desc' })}
                   className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 px-4 text-sm outline-none transition focus:ring-2 focus:ring-brand-500/20"
                 >
                   <option value="default">{t('sortDefault')}</option>

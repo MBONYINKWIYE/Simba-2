@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bot, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import type { SearchFilters } from '@/store/search-store';
 
 export function AiSearchBar({
   categories,
@@ -15,8 +16,8 @@ export function AiSearchBar({
 }: {
   categories: string[];
   maxPrice: number;
-  filters: any;
-  onChange: (filters: any) => void;
+  filters: SearchFilters;
+  onChange: (filters: SearchFilters) => void;
   onAiSearch: (query: string) => void;
   aiAnswer: string;
   aiError: string;
@@ -109,7 +110,7 @@ export function AiSearchBar({
 
               <select
                 value={filters.sortBy}
-                onChange={(event) => onChange({ ...filters, sortBy: event.target.value as any })}
+                onChange={(event) => onChange({ ...filters, sortBy: event.target.value as 'default' | 'price-asc' | 'price-desc' })}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900"
               >
                 <option value="default">{t('sortDefault')}</option>
