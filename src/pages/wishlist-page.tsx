@@ -10,8 +10,8 @@ export function WishlistPage() {
   const { t } = useTranslation();
   const { user, isLoading, isConfigured } = useAuth();
   const userId = user?.id ?? 'guest';
-  const items = useWishlistStore((state) => state.items[userId] ?? {});
-  const wishlistProducts = Object.values(items);
+  const items = useWishlistStore((state) => state.items[userId]);
+  const wishlistProducts = items ? Object.values(items) : [];
 
   if (!isConfigured) {
     return (

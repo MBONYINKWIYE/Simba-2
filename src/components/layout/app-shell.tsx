@@ -22,8 +22,12 @@ export function AppShell({ children }: PropsWithChildren) {
     <div className={`relative min-h-screen ${isLandingPage ? 'bg-gradient-to-b from-orange-100/60 to-stone-50 dark:bg-gradient-to-b dark:from-orange-950/30 dark:to-slate-950' : 'bg-stone-50 dark:bg-slate-950'} text-slate-900 dark:text-slate-100`}>
       <div className="absolute inset-0 -z-10 bg-hero-grid" />
       <Header />
-      <main className={`${isLandingPage ? 'px-3' : 'container-shell'} py-6 ${isLandingPage ? 'pt-24 sm:pt-28' : ''}`}>{children}</main>
-      <Footer />
+      <div className="min-h-[calc(100vh-72px)] flex flex-col">
+        <main className={`${isLandingPage ? 'px-3' : 'container-shell'} py-6 ${isLandingPage ? 'pt-24 sm:pt-28' : ''}`}>{children}</main>
+      </div>
+      <div className="mt-auto">
+        <Footer />
+      </div>
       <AddToCartToast />
       <CartDrawer />
     </div>

@@ -13,7 +13,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { supabase } from '@/lib/supabase';
 import { isValidRwandanPhone } from '@/lib/validation';
-import type { AvailableShop, CheckoutFormValues, Recurrence } from '@/types';
+import type { AvailableShop, CheckoutFormValues, OrderCreatePayload, Recurrence } from '@/types';
 
 function computeNextDeliveryDate(pickupDate: string, recurrence: Recurrence): Date | null {
   if (recurrence === 'one_time') return null;
@@ -322,14 +322,36 @@ export function CheckoutPage() {
       return;
     }
 
-    if (!selectedShopId) {
-      setErrorMessage(t('pickupShopRequired'));
-      return;
+    if (formValues.deliveryMethod === 'pickup') {
+      if (!selectedShopId) {
+        setErrorMessage(t('pickupShopRequired'));
+        return;
+      }
+
+      if (branchCheckoutItems.length === 0) {
+        setErrorMessage(t('noAvailableItemsForShop'));
+        return;
+      }
     }
 
-    if (branchCheckoutItems.length === 0) {
-      setErrorMessage(t('noAvailableItemsForShop'));
-      return;
+    if (formValues.deliveryMethod === 'delivery') {
+      if (!formValues.address) {
+        setErrorMessage(t('deliveryAddressRequired'));
+        return;
+      }
+
+      if (availableShopsQuery.data && availableShopsQuery.data.length > 0) {
+        const allProductsAvailable = checkoutItems.every((item) => {
+          return availableShopsQuery.data.some((shop) => {
+            return shop.missing_items.every((missing) => missing.productId !== item.productId);
+          });
+        });
+
+        if (!allProductsAvailable) {
+          setErrorMessage(t('someItemsUnavailable'));
+          return;
+        }
+      }
     }
 
     if (branchTotal < MINIMUM_ORDER_RWF) {
@@ -348,16 +370,21 @@ export function CheckoutPage() {
       return;
     }
 
-    const requestPayload = {
+    const requestPayload: OrderCreatePayload = {
       checkout: formValues,
       items: branchCheckoutItems,
       subtotalRwf: branchSubtotal,
       deliveryFeeRwf: branchDeliveryFeeRwf,
       serviceFeeRwf: 0,
       totalRwf: branchTotal,
-      shopId: selectedShopId,
+      paymentAmountRwf: formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal,
+      paymentPlan: formValues.deliveryMethod === 'pickup' ? 'cash-on-pickup' : formValues.paymentMethod === 'cod' ? 'cod' : 'momo',
       recurrence: formValues.recurrence,
     };
+
+    if (formValues.deliveryMethod === 'pickup' && selectedShopId) {
+      requestPayload.shopId = selectedShopId;
+    }
 
     try {
       setIsSubmitting(true);
@@ -500,23 +527,23 @@ export function CheckoutPage() {
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-950/60">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold">{formValues.deliveryMethod === 'delivery' ? t('preparingShop') : t('availablePickupShops')}</h2>
+              <h2 className="text-lg font-semibold">{formValues.deliveryMethod === 'pickup' ? t('availablePickupShops') : t('deliveryAddress')}</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                {formValues.deliveryMethod === 'delivery' ? t('preparingShopHint') : t('availablePickupShopsHint')}
+                {formValues.deliveryMethod === 'pickup' ? t('availablePickupShopsHint') : t('deliveryAddressHint')}
               </p>
             </div>
-            {coordinates ? (
+            {coordinates && formValues.deliveryMethod === 'pickup' ? (
               <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                 {t('nearestShops')}
               </span>
             ) : null}
           </div>
 
-          {(availableShopsQuery.isLoading || shopsQuery.isLoading) && checkoutItems.length > 0 ? (
+          {formValues.deliveryMethod === 'pickup' && (availableShopsQuery.isLoading || shopsQuery.isLoading) && checkoutItems.length > 0 ? (
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('validatingInventory')}</p>
           ) : null}
 
-          {availableShopsQuery.isError || shopsQuery.isError ? (
+          {formValues.deliveryMethod === 'pickup' && (availableShopsQuery.isError || shopsQuery.isError) ? (
             <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
               {availableShopsQuery.error instanceof Error
                 ? availableShopsQuery.error.message
@@ -526,7 +553,7 @@ export function CheckoutPage() {
             </p>
           ) : null}
 
-          {locationError ? (
+          {locationError && formValues.deliveryMethod === 'pickup' ? (
             <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
               {locationError}
             </p>
@@ -536,7 +563,7 @@ export function CheckoutPage() {
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t('emptyCart')}</p>
           ) : null}
 
-          {selectableShops.length > 0 ? (
+          {formValues.deliveryMethod === 'pickup' && selectableShops.length > 0 ? (
             <div className="mt-4 space-y-4">
               <div className="relative">
                 <select
@@ -554,39 +581,37 @@ export function CheckoutPage() {
                 <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               </div>
 
-              {formValues.deliveryMethod === 'pickup' && (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTravelMode('drive')}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      travelMode === 'drive'
-                        ? 'bg-brand-500 text-white'
-                        : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                    }`}
-                  >
-                    {t('driveMode')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTravelMode('walk')}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      travelMode === 'walk'
-                        ? 'bg-brand-500 text-white'
-                        : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
-                    }`}
-                  >
-                    {t('walkMode')}
-                  </button>
-                  {selectedShop ? (
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                      {selectedShopTravelMinutes === null
-                        ? t('travelTimeUnavailable')
-                        : t('travelTimeMinutes', { mode: t(travelMode === 'drive' ? 'driveMode' : 'walkMode'), minutes: selectedShopTravelMinutes })}
-                    </span>
-                  ) : null}
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTravelMode('drive')}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    travelMode === 'drive'
+                      ? 'bg-brand-500 text-white'
+                      : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                  }`}
+                >
+                  {t('driveMode')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTravelMode('walk')}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    travelMode === 'walk'
+                      ? 'bg-brand-500 text-white'
+                      : 'border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                  }`}
+                >
+                  {t('walkMode')}
+                </button>
+                {selectedShop ? (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                    {selectedShopTravelMinutes === null
+                      ? t('travelTimeUnavailable')
+                      : t('travelTimeMinutes', { mode: t(travelMode === 'drive' ? 'driveMode' : 'walkMode'), minutes: selectedShopTravelMinutes })}
+                  </span>
+                ) : null}
+              </div>
 
               {selectedShop ? (
                 <div className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -768,28 +793,32 @@ export function CheckoutPage() {
             </div>
           )}
           
-          <textarea
-            required
-            value={formValues.address}
-            onChange={(event) => setFormValues((current) => ({ ...current, address: event.target.value }))}
-            autoComplete="street-address"
-            className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder={t('deliveryAddress')}
-          />
-          <textarea
-            value={formValues.deliveryInstructions}
-            onChange={(event) => {
-              setFormValues((current) => ({ ...current, deliveryInstructions: event.target.value }));
-            }}
-            className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder={t('deliveryInstructionsPlaceholder')}
-          />
-          <textarea
-            value={formValues.notes}
-            onChange={(event) => setFormValues((current) => ({ ...current, notes: event.target.value }))}
-            className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
-            placeholder={t('deliveryNotes')}
-          />
+          {formValues.deliveryMethod === 'delivery' ? (
+            <div className="space-y-4">
+              <textarea
+                required
+                value={formValues.address}
+                onChange={(event) => setFormValues((current) => ({ ...current, address: event.target.value }))}
+                autoComplete="street-address"
+                className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                placeholder={t('deliveryAddress')}
+              />
+              <textarea
+                value={formValues.deliveryInstructions}
+                onChange={(event) => {
+                  setFormValues((current) => ({ ...current, deliveryInstructions: event.target.value }));
+                }}
+                className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                placeholder={t('deliveryInstructionsPlaceholder')}
+              />
+              <textarea
+                value={formValues.notes}
+                onChange={(event) => setFormValues((current) => ({ ...current, notes: event.target.value }))}
+                className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                placeholder={t('deliveryNotes')}
+              />
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="rounded-3xl border border-brand-300 bg-brand-50 p-4 dark:border-brand-700 dark:bg-brand-900/20">
               <input
@@ -800,24 +829,28 @@ export function CheckoutPage() {
               />
               <span className="ml-3 font-semibold">{t('momo')}</span>
             </label>
-            <label className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <input
-                type="radio"
-                name="paymentMethod"
-                checked={formValues.paymentMethod === 'cash'}
-                onChange={() => setFormValues((current) => ({ ...current, paymentMethod: 'cash' }))}
-              />
-              <span className="ml-3 font-semibold">{t('cash')}</span>
-            </label>
-            <label className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-              <input
-                type="radio"
-                name="paymentMethod"
-                checked={formValues.paymentMethod === 'cod'}
-                onChange={() => setFormValues((current) => ({ ...current, paymentMethod: 'cod' }))}
-              />
-              <span className="ml-3 font-semibold">{t('cod')}</span>
-            </label>
+            {formValues.deliveryMethod === 'pickup' ? (
+              <label className="rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={formValues.paymentMethod === 'cash'}
+                  onChange={() => setFormValues((current) => ({ ...current, paymentMethod: 'cash' }))}
+                />
+                <span className="ml-3 font-semibold">{t('cash')}</span>
+              </label>
+            ) : null}
+            {formValues.deliveryMethod === 'delivery' ? (
+              <label className="rounded-3xl border border-brand-300 bg-brand-50 p-4 dark:border-brand-700 dark:bg-brand-900/20">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={formValues.paymentMethod === 'cod'}
+                  onChange={() => setFormValues((current) => ({ ...current, paymentMethod: 'cod' }))}
+                />
+                <span className="ml-3 font-semibold">{t('cod')}</span>
+              </label>
+            ) : null}
           </div>
           {formValues.paymentMethod === 'momo' ? (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
@@ -829,7 +862,7 @@ export function CheckoutPage() {
               <p className="font-semibold">{t('cod')}</p>
               <p className="mt-1">{t('codCopy')}</p>
             </div>
-          ) : (
+          ) : formValues.deliveryMethod === 'pickup' ? (
             <div className="mt-4 rounded-3xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-200">
               <p className="font-semibold">{t('cashOnPickupTitle')}</p>
               <p className="mt-1">
@@ -839,7 +872,7 @@ export function CheckoutPage() {
                 })}
               </p>
             </div>
-          )}
+          ) : null}
         </div>
         <Button
           type="submit"
@@ -883,7 +916,7 @@ export function CheckoutPage() {
         {selectedShop ? (
           <div className="mt-5 rounded-3xl bg-brand-50 p-4 dark:bg-brand-900/20">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-700 dark:text-brand-200">
-              {formValues.deliveryMethod === 'delivery' ? t('preparingShop') : t('pickupShop')}
+              {formValues.deliveryMethod === 'pickup' ? t('pickupShop') : t('delivery')}
             </p>
             <p className="mt-2 font-semibold">{selectedShop.name}</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{selectedShop.address}</p>

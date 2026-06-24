@@ -158,7 +158,7 @@ export type OrderCreatePayload = {
   deliveryFeeRwf: number;
   serviceFeeRwf: number;
   totalRwf: number;
-  shopId: string;
+  shopId?: string;
   paymentAmountRwf?: number;
   paymentPlan?: 'momo' | 'cash-on-pickup' | 'cod';
   recurrence?: Recurrence;
