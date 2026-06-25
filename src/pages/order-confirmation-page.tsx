@@ -149,7 +149,7 @@ export function OrderConfirmationPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+      <section className="no-print grid gap-6 lg:grid-cols-[1fr_0.9fr]">
         <div className="glass-panel p-6">
           <h2 className="text-2xl font-bold">{t('nextSteps')}</h2>
           <div className="mt-5 space-y-4">
@@ -267,6 +267,9 @@ export function OrderConfirmationPage() {
           .no-print { display: none !important; }
           body { background: #fff !important; color: #000 !important; }
           .glass-panel { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+          header, footer, [data-radix-dialog-content] { display: none !important; }
+          main { padding-top: 0 !important; }
+          .container-shell { max-width: none !important; padding: 0 !important; }
         }
       `}</style>
     </div>

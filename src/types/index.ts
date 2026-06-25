@@ -3,12 +3,15 @@ export type Locale = 'en' | 'fr' | 'rw';
 export type ProductRecord = {
   id: number;
   name: string;
+  description: string;
   price: number;
   category: string;
   subcategoryId: number | null;
   inStock: boolean;
   image: string;
   unit: string;
+  longDescription?: string;
+  stockQuantity?: number;
 };
 
 export type StoreMetadata = {
@@ -22,6 +25,7 @@ export type Product = ProductRecord & {
   slug: string;
   normalizedCategory: string;
   stockQuantity?: number;
+  longDescription?: string;
 };
 
 export type Promotion = {
@@ -29,6 +33,7 @@ export type Promotion = {
   title: string;
   description: string | null;
   image_url: string | null;
+  banner_image: string | null;
   product_id: number | null;
   category: string | null;
   discount_percent: number;

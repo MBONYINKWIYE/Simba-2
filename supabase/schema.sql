@@ -139,6 +139,7 @@ create table if not exists public.promotions (
   title text not null,
   description text,
   image_url text,
+  banner_image text,
   product_id bigint references public.catalog_products(id) on delete cascade,
   category text,
   discount_percent integer not null check (discount_percent > 0 and discount_percent <= 100),

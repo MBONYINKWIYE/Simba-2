@@ -33,6 +33,9 @@ const AdminDashboardPage = lazy(() =>
 const StaffDashboardPage = lazy(() =>
   import('@/pages/admin/staff-dashboard-page').then((module) => ({ default: module.StaffDashboardPage })),
 );
+const AdminProductManagementPage = lazy(() =>
+  import('@/components/admin/admin-product-management').then((module) => ({ default: module.AdminProductManagement })),
+);
 const PromotionsPage = lazy(() =>
   import('@/pages/promotions-page').then((module) => ({ default: module.PromotionsPage })),
 );
@@ -235,6 +238,18 @@ export const router = createBrowserRouter([
             <Suspense fallback={fallback}>
               <AdminRoute>
                 <AdminDashboardPage />
+              </AdminRoute>
+            </Suspense>
+          </AppShell>
+        ),
+      },
+      {
+        path: 'admin/products',
+        element: (
+          <AppShell>
+            <Suspense fallback={fallback}>
+              <AdminRoute>
+                <AdminProductManagementPage />
               </AdminRoute>
             </Suspense>
           </AppShell>

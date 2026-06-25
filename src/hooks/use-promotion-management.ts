@@ -24,6 +24,8 @@ export function usePromotionManagement() {
 type CreatePromotionArgs = {
   title: string;
   description?: string;
+  image_url?: string;
+  banner_image?: string;
   product_id: number | null;
   discount_percent: number;
   starts_at: string;
@@ -36,6 +38,8 @@ async function createPromotion(args: CreatePromotionArgs) {
   const { error } = await supabase.from('promotions').insert({
     title: args.title,
     description: args.description ?? null,
+    image_url: args.image_url ?? null,
+    banner_image: args.banner_image ?? null,
     product_id: args.product_id,
     discount_percent: args.discount_percent,
     starts_at: args.starts_at,
@@ -61,6 +65,8 @@ type UpdatePromotionArgs = {
   id: number;
   title?: string;
   description?: string | null;
+  image_url?: string | null;
+  banner_image?: string | null;
   product_id?: number | null;
   discount_percent?: number;
   starts_at?: string;

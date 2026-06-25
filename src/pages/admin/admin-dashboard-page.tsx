@@ -980,6 +980,8 @@ function PromotionsPanel() {
   const [searchTerm, setSearchTerm] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [bannerImage, setBannerImage] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [discountPercent, setDiscountPercent] = useState('');
   const [startsAt, setStartsAt] = useState('');
@@ -1001,6 +1003,8 @@ function PromotionsPanel() {
     await createPromotion.mutateAsync({
       title: title.trim(),
       description: description.trim() || undefined,
+      image_url: imageUrl.trim() || undefined,
+      banner_image: bannerImage.trim() || undefined,
       product_id: selectedProductId ? Number(selectedProductId) : null,
       discount_percent: Number(discountPercent),
       starts_at: new Date(startsAt).toISOString(),
@@ -1009,6 +1013,8 @@ function PromotionsPanel() {
 
     setTitle('');
     setDescription('');
+    setImageUrl('');
+    setBannerImage('');
     setSelectedProductId('');
     setDiscountPercent('');
     setStartsAt('');
@@ -1044,6 +1050,18 @@ function PromotionsPanel() {
               className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
               placeholder={t('promotionDescription')}
               rows={2}
+            />
+            <input
+              value={imageUrl}
+              onChange={(event) => setImageUrl(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('promotionImageUrl')}
+            />
+            <input
+              value={bannerImage}
+              onChange={(event) => setBannerImage(event.target.value)}
+              className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-950"
+              placeholder={t('promotionBannerImageUrl')}
             />
             <input
               value={searchTerm}
@@ -1135,6 +1153,24 @@ function PromotionsPanel() {
                       {promo.description ? (
                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{promo.description}</p>
                       ) : null}
+                      {(promo.image_url || promo.banner_image) && (
+                        <div className="mt-2 flex gap-2 flex-wrap">
+                          {promo.image_url && (
+                            <img
+                              src={promo.image_url}
+                              alt={promo.title}
+                              className="h-16 w-auto rounded-lg object-cover border border-slate-200 dark:border-slate-700"
+                            />
+                          )}
+                          {promo.banner_image && (
+                            <img
+                              src={promo.banner_image}
+                              alt={`${promo.title} banner`}
+                              className="h-16 w-auto rounded-lg object-cover border border-slate-200 dark:border-slate-700"
+                            />
+                          )}
+                        </div>
+                      )}
                       <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                         {new Date(promo.starts_at).toLocaleDateString()} - {new Date(promo.ends_at).toLocaleDateString()}
                       </p>

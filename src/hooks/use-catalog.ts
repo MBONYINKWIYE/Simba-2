@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { loadCatalogStoreOverride, loadCatalogTranslations, loadFallbackCatalog } from '@/lib/catalog';
 import { queryKeys } from '@/lib/query-keys';
 import { hasSupabaseEnv, supabase } from '@/lib/supabase';
@@ -32,6 +32,7 @@ function toProduct(row: ProductRow): Product {
   return {
     id: row.id,
     name: row.name,
+    description: '',
     price: row.price_rwf,
     category: row.category_name,
     subcategoryId: row.raw_subcategory_id,
@@ -59,6 +60,7 @@ function applyTranslations(products: Product[], translations: Map<number, Produc
     return {
       ...product,
       name: translatedProduct.name || product.name,
+      description: translatedProduct.description || product.description,
       category: translatedProduct.category || product.category,
       unit: translatedProduct.unit || product.unit,
       normalizedCategory: (translatedProduct.category || product.category).trim(),
@@ -97,7 +99,7 @@ async function fetchCatalog(locale: Locale, shopId?: string | null): Promise<Cat
   }
 
   const baseProducts = (data ?? []).map((row) => {
-    const stock_quantity = row.inventory?.[0]?.quantity ?? (row.in_stock ? 50 : 0); // Fallback for demo
+    const stock_quantity = row.inventory?.[0]?.quantity ?? (row.in_stock ? 50 : 0);
     return toProduct({ ...row, stock_quantity });
   });
   const localizedStore = await loadCatalogStoreOverride(locale);
@@ -114,6 +116,37 @@ async function fetchCatalog(locale: Locale, shopId?: string | null): Promise<Cat
   };
 }
 
+async function updateCatalogProducts(products: ProductRecord[], _locale: Locale): Promise<void> {
+  if (!supabase) {
+    throw new Error('Supabase client not available');
+  }
+
+  const productRows = products.map((product) => {
+    return {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price_rwf: product.price,
+      category_name: product.category,
+      raw_subcategory_id: product.subcategoryId,
+      in_stock: product.inStock,
+      image_url: product.image,
+      unit_label: product.unit,
+      stock_quantity: product.stockQuantity ?? null,
+    };
+  });
+
+  const { error: upsertError } = await supabase
+    .from('catalog_products')
+    .upsert(productRows, {
+      onConflict: 'id',
+    });
+
+  if (upsertError) {
+    throw upsertError;
+  }
+}
+
 export function useCatalog() {
   const locale = usePreferencesStore((state) => state.locale);
   const selectedShopId = useCartStore((state) => state.selectedShopId);
@@ -121,5 +154,18 @@ export function useCatalog() {
   return useQuery({
     queryKey: [...queryKeys.catalog(locale), selectedShopId],
     queryFn: () => fetchCatalog(locale, selectedShopId),
+  });
+}
+
+export function useUpdateProduct() {
+  return useMutation({
+    mutationFn: async (args: {
+      products: ProductRecord[];
+      locale: Locale;
+    }) => {
+      await updateCatalogProducts(args.products, args.locale);
+
+      return { success: true };
+    },
   });
 }
