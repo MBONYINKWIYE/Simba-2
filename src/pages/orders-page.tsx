@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { ChevronDown, Star } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ChevronDown, Star, ShoppingCart } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -10,9 +10,11 @@ import { useCreateReview } from '@/hooks/use-reviews';
 import { ordersQueryOptions } from '@/lib/orders';
 import { openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
-import type { OrderHistoryRecord } from '@/types';
+import type { OrderHistoryRecord, Product } from '@/types';
 import { useUpdateProfile } from '@/hooks/use-update-profile';
 import { useCancelRecurring } from '@/hooks/use-notifications';
+import { useCartStore } from '@/store/cart-store';
+import { useCatalog } from '@/hooks/use-catalog';
 import { supabase } from '@/lib/supabase';
 import { useEffect } from 'react';
 
@@ -338,6 +340,59 @@ function ReviewForm({ order }: { order: OrderHistoryRecord }) {
   );
 }
 
+function mapOrderToProducts(
+  order: OrderHistoryRecord,
+  catalog: Product[],
+): { product: Product; quantity: number }[] {
+  const catalogMap = new Map(catalog.map((p) => [p.id, p]));
+  const result: { product: Product; quantity: number }[] = [];
+
+  for (const item of order.order_items) {
+    const product = catalogMap.get(item.product_id);
+    if (product && product.inStock) {
+      result.push({ product, quantity: item.quantity });
+    }
+  }
+
+  return result;
+}
+
+function BuyAgainButton({ order }: { order: OrderHistoryRecord }) {
+  const { t } = useTranslation();
+  const addItem = useCartStore((state) => state.addItem);
+  const { data: catalogData } = useCatalog();
+  const catalog = catalogData?.products ?? [];
+
+  const items = useMemo(() => mapOrderToProducts(order, catalog), [order, catalog]);
+  const missingCount = order.order_items.length - items.length;
+
+  if (order.status !== 'picked_up' && order.status !== 'delivered') return null;
+  if (items.length === 0) return null;
+
+  const handleAddAll = () => {
+    for (const { product } of items) {
+      addItem(product);
+    }
+  };
+
+  return (
+    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800">
+      {missingCount > 0 && (
+        <span className="text-xs text-amber-600 mr-4">
+          {t('buyAgainMissing', { count: missingCount })}
+        </span>
+      )}
+      <Button
+        onClick={handleAddAll}
+        className="gap-1.5 bg-orange-500 px-3 py-2 text-xs hover:bg-orange-600"
+      >
+        <ShoppingCart size={14} />
+        {t('buyAgainButton')}
+      </Button>
+    </div>
+  );
+}
+
 export function OrdersPage() {
   const { t } = useTranslation();
   const { user, isLoading, isConfigured } = useAuth();
@@ -513,6 +568,7 @@ export function OrdersPage() {
                       </div>
                     ))}
                   </div>
+                  <BuyAgainButton order={order} />
                   <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4 dark:border-slate-800">
                     <p className="text-sm text-slate-500 dark:text-slate-400">{t('paymentMethod')}: {formatStatusLabel(order.payment_method, t)}</p>
                     <p className="text-lg font-bold">{formatCurrency(order.total_rwf)}</p>

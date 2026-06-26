@@ -17,9 +17,7 @@ import { useSearchStore } from '@/store/search-store';
 import { useCatalogAiSearch } from '@/hooks/use-catalog-ai-search';
 import { usePromotions } from '@/hooks/use-promotions';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
-import { usePastOrders } from '@/hooks/use-past-orders';
-import { BuyAgainSection } from '@/components/shop/buy-again-section';
+
 
 export function HomePage() {
   const { t } = useTranslation();
@@ -43,8 +41,6 @@ export function HomePage() {
   const { data: promotions } = usePromotions();
   const shopsQuery = useShops();
   const { nearestShop, coords } = useNearestShop();
-  const { user } = useAuth();
-  const pastOrdersQuery = usePastOrders(user?.id);
   const selectedShopId = useCartStore((state) => state.selectedShopId);
   const setSelectedShop = useCartStore((state) => state.setSelectedShop);
   const shopReviewSummaryQuery = useShopReviewSummary();
@@ -480,9 +476,6 @@ export function HomePage() {
                </div>
              </div>
            </section>
-            {user && pastOrdersQuery.data && pastOrdersQuery.data.length > 0 && (
-              <BuyAgainSection orders={pastOrdersQuery.data} />
-            )}
             {promotedProducts.length > 0 && (
               <section className="space-y-4">
                 <div className="flex items-end justify-between gap-4">
