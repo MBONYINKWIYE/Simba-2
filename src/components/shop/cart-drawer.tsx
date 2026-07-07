@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useCatalog } from '@/hooks/use-catalog';
+import { MINIMUM_ORDER_RWF } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 import { useOrderSummary } from '@/hooks/use-order-summary';
 import { useCartStore } from '@/store/cart-store';
@@ -268,6 +269,19 @@ export function CartDrawer() {
                 <span>{t('total')}</span>
                 <span>{formatCurrency(summary.total)}</span>
               </div>
+              {summary.total > 0 && summary.total < MINIMUM_ORDER_RWF ? (
+                <div className="mt-3 rounded-2xl bg-amber-50 p-3 dark:bg-amber-900/20">
+                  <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-amber-200 dark:bg-amber-800">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all"
+                      style={{ width: `${Math.min(100, (summary.total / MINIMUM_ORDER_RWF) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                    {t('minimumOrderNotice', { remaining: (MINIMUM_ORDER_RWF - summary.total).toLocaleString() })}
+                  </p>
+                </div>
+              ) : null}
               </div>
               {isConfigured && !user ? (
                 <Button fullWidth className="mt-4" onClick={handleSignInRedirect}>

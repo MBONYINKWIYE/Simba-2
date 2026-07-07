@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bot, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { Bot, SlidersHorizontal, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSearchStore, defaultFilters } from '@/store/search-store';
@@ -103,13 +103,13 @@ export function HeaderSearch() {
           }}
           placeholder={t('aiSearchPlaceholder')}
           className={cn(
-            "w want-flex-1 h-12 pl-12 pr-20 sm:pr-28 rounded-2xl border-2 transition-all duration-300 outline-none text-sm font-medium shadow-sm",
+            "w want-flex-1 h-12 pl-12 pr-10 sm:pr-12 rounded-2xl border-2 transition-all duration-300 outline-none text-sm font-medium shadow-sm",
             "bg-white dark:bg-slate-900 border-brand-100 dark:border-brand-900/30",
             "focus:border-brand-400 dark:focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10",
             isAiSearching && "opacity-70 cursor-wait"
           )}
         />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <button
             onClick={() => setIsFiltersOpen(!isFiltersOpen)}
             className={cn(
@@ -122,20 +122,6 @@ export function HeaderSearch() {
             aria-label={t('filters')}
           >
             <SlidersHorizontal size={18} />
-          </button>
-          <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800 mx-0.5 hidden sm:block" />
-          <button
-            onClick={() => handleAiSearch()}
-            disabled={isAiSearching || !localQuery.trim()}
-            className={cn(
-              "flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl transition-all duration-300",
-              localQuery.trim() && !isAiSearching
-                ? "text-brand-600 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100" 
-                : "text-brand-400 dark:text-brand-500 pointer-events-none"
-            )}
-          >
-            <Sparkles size={18} className={cn("transition-transform duration-300", localQuery.trim() && "fill-brand-500/10")} />
-            <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline">{t('aiSearchButton')}</span>
           </button>
         </div>
       </div>
