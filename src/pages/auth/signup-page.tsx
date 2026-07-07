@@ -5,7 +5,7 @@ import { UserPlus, Mail, User, Phone, AlertCircle, CheckCircle2 } from 'lucide-r
 import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { signUpWithEmail, signInWithGoogle } from '@/lib/auth';
-import { isValidRwandanPhone } from '@/lib/validation';
+import { isValidRwandanPhone, formatPhoneInput, getPhoneValidationState, normalizePhone } from '@/lib/validation';
 import adVideo from '../../../images/ad.mp4';
 
 export default function SignupPage() {
@@ -36,7 +36,7 @@ export default function SignupPage() {
     }
 
     try {
-      await signUpWithEmail(email, password, fullName, phone);
+      await signUpWithEmail(email, password, fullName, normalizePhone(phone));
       setSuccess(true);
       setTimeout(() => {
         navigate(`/auth/login?next=${encodeURIComponent(nextPath)}`);
@@ -137,15 +137,26 @@ export default function SignupPage() {
                   required
                   value={phone}
                   onChange={(e) => {
-                    setPhone(e.target.value);
+                    setPhone(formatPhoneInput(e.target.value));
                     setPhoneError('');
+                  }}
+                  onBlur={() => {
+                    if (phone) {
+                      setPhone(normalizePhone(phone));
+                      const state = getPhoneValidationState(phone);
+                      if (state.isInvalidPrefix) {
+                        setPhoneError(t('invalidPhone'));
+                      } else if (!state.isValid && !state.isPartial) {
+                        setPhoneError(t('invalidPhone'));
+                      }
+                    }
                   }}
                   className={`w-full pl-11 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 border rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none transition-all ${
                     phoneError
                       ? 'border-red-300 dark:border-red-700'
                       : 'border-slate-200 dark:border-slate-700'
                   }`}
-                  placeholder="0788000000"
+                  placeholder="+250 78 XXX XXX"
                 />
                 {phoneError ? (
                   <p className="mt-1 text-xs text-red-600 dark:text-red-400">{phoneError}</p>

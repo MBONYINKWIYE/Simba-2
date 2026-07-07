@@ -12,7 +12,7 @@ import { buildMomoUssdCode, createManualPaymentOrder, openMomoDialer } from '@/l
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
 import { supabase } from '@/lib/supabase';
-import { isValidRwandanPhone } from '@/lib/validation';
+import { isValidRwandanPhone, formatPhoneInput, getPhoneValidationState, normalizePhone } from '@/lib/validation';
 import type { AvailableShop, CheckoutFormValues, OrderCreatePayload, Recurrence } from '@/types';
 
 function computeNextDeliveryDate(pickupDate: string, recurrence: Recurrence): Date | null {
@@ -380,13 +380,15 @@ export function CheckoutPage() {
       return;
     }
 
+    const normalizedPhone = normalizePhone(formValues.phone);
+
     if (!formValues.pickupTime) {
       setErrorMessage(t('pickupTimeRequired'));
       return;
     }
 
     const requestPayload: OrderCreatePayload = {
-      checkout: formValues,
+      checkout: { ...formValues, phone: normalizedPhone },
       items: branchCheckoutItems,
       subtotalRwf: branchSubtotal,
       deliveryFeeRwf: branchDeliveryFeeRwf,
@@ -415,7 +417,7 @@ export function CheckoutPage() {
         .from('profiles')
         .update({
           full_name: formValues.fullName,
-          phone: formValues.phone,
+          phone: normalizedPhone,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -790,8 +792,18 @@ export function CheckoutPage() {
                   required
                   value={formValues.phone}
                   onChange={(event) => {
-                    setFormValues((current) => ({ ...current, phone: event.target.value }));
+                    setFormValues((current) => ({ ...current, phone: formatPhoneInput(event.target.value) }));
                     setPhoneError('');
+                  }}
+                  onBlur={() => {
+                    if (formValues.phone) {
+                      const state = getPhoneValidationState(formValues.phone);
+                      if (state.isInvalidPrefix) {
+                        setPhoneError(t('invalidPhone'));
+                      } else if (!state.isValid && !state.isPartial) {
+                        setPhoneError(t('invalidPhone'));
+                      }
+                    }
                   }}
                   autoComplete="tel"
                   className={`w-full rounded-2xl border bg-white pl-11 pr-4 py-3 dark:bg-slate-900 ${
@@ -799,7 +811,7 @@ export function CheckoutPage() {
                       ? 'border-rose-300 dark:border-rose-700'
                       : 'border-slate-200 dark:border-slate-700'
                   }`}
-                  placeholder={t('phoneNumber')}
+                  placeholder="+250 78 XXX XXX"
                 />
                 {phoneError ? (
                   <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{phoneError}</p>
