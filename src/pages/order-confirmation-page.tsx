@@ -147,7 +147,6 @@ export function OrderConfirmationPage() {
             </p>
             </div>
           </div>
-        </div>
       </section>
 
       {/* Printable Invoice */}
