@@ -9,8 +9,8 @@ export function Footer() {
   return (
     <footer className="mt-12 border-t border-slate-200/80 bg-orange-200/85 py-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="container-shell">
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr]">
-          <div className="col-span-2 lg:col-span-1 space-y-2">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr]">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 space-y-2">
             <BrandLogo compact className="gap-2" />
             <div className="max-w-md space-y-1">
               <p className="text-sm font-bold tracking-tight text-slate-950 dark:text-white">

@@ -16,7 +16,7 @@ export function Hero({
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-      <div className="relative glass-panel overflow-hidden bg-brand-900 p-6 text-white sm:p-8">
+      <div className="relative glass-panel overflow-hidden bg-brand-900 p-4 sm:p-6 lg:p-8 text-white">
         {/* Background Video */}
         <video
           autoPlay
@@ -33,7 +33,7 @@ export function Hero({
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/90 via-brand-900/60 to-emerald-900/60" />
 
         <div className="relative z-10">
-          <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-tight sm:text-5xl">{t('heroTitle')}</h1>
+          <h1 className="mt-4 max-w-3xl text-2xl sm:text-3xl lg:text-5xl font-bold leading-tight">{t('heroTitle')}</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-emerald-50/85">{t('heroCopy')}</p>
           <div className="mt-6">
             <Link to="/#catalog">

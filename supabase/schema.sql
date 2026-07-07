@@ -103,6 +103,8 @@ create table if not exists public.orders (
   payment_provider text not null default 'mtn-momo',
   payment_payload jsonb not null default '{}'::jsonb,
   paid_at timestamptz,
+  recurrence text not null default 'one_time',
+  next_delivery_date timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -941,7 +943,7 @@ as $$
 $$;
 
 drop function if exists public.create_order_with_inventory(
-  uuid, text, uuid, timestamptz, text, text, text, text, text, text, text, integer, integer, integer, integer, text, jsonb, text, text, text, text, text, jsonb
+  uuid, text, uuid, timestamptz, text, text, text, text, text, text, text, integer, integer, integer, integer, text, jsonb, text, text, text, text, text, text, timestamptz, jsonb
 );
 create or replace function public.create_order_with_inventory(
   p_user_id uuid,
@@ -966,6 +968,8 @@ create or replace function public.create_order_with_inventory(
   p_momo_account_holder_status text default null,
   p_momo_status text default null,
   p_payment_provider text default 'paypack',
+  p_recurrence text default 'one_time',
+  p_next_delivery_date timestamptz default null,
   p_payment_payload jsonb default '{}'::jsonb
 )
 returns uuid
@@ -1042,6 +1046,8 @@ begin
     momo_account_holder_status,
     momo_status,
     payment_provider,
+    recurrence,
+    next_delivery_date,
     payment_payload
   )
   values (
@@ -1067,6 +1073,8 @@ begin
     p_momo_account_holder_status,
     p_momo_status,
     p_payment_provider,
+    coalesce(p_recurrence, 'one_time'),
+    p_next_delivery_date,
     coalesce(p_payment_payload, '{}'::jsonb)
   )
   returning id into created_order_id;

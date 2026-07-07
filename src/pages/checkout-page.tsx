@@ -214,6 +214,13 @@ export function CheckoutPage() {
         distanceKm: coordinates ? haversineDistanceInKm(coordinates, shop) : null,
       }) satisfies RankedShop)
       .sort((left, right) => {
+        // Delivery: prioritize shops that can fulfill the whole order
+        if (formValues.deliveryMethod === 'delivery') {
+          if (left.is_fully_available && !right.is_fully_available) return -1;
+          if (!left.is_fully_available && right.is_fully_available) return 1;
+        }
+
+        // Then sort by distance (nearest first)
         if (left.distanceKm === null && right.distanceKm === null) {
           return left.name.localeCompare(right.name);
         }
@@ -228,7 +235,7 @@ export function CheckoutPage() {
 
         return left.distanceKm - right.distanceKm;
       });
-  }, [availableShopsQuery.data, shopsQuery.data, coordinates, checkoutItems.length, checkoutItems]);
+  }, [availableShopsQuery.data, shopsQuery.data, coordinates, checkoutItems.length, checkoutItems, formValues.deliveryMethod]);
 
   const selectableShops = useMemo(
     () => rankedShops,
@@ -249,6 +256,14 @@ export function CheckoutPage() {
       setSelectedShop(selectableShops[0].id);
     }
   }, [selectableShops, selectedShopId, setSelectedShop]);
+
+  // When delivery method changes, auto-select the best shop
+  useEffect(() => {
+    if (selectableShops.length > 0) {
+      setSelectedShop(selectableShops[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formValues.deliveryMethod]);
 
   const selectedShop = selectableShops.find((shop) => shop.id === selectedShopId) ?? null;
   const selectedShopTravelMinutes = estimateTravelMinutes(selectedShop?.distanceKm ?? null, travelMode);
@@ -382,7 +397,7 @@ export function CheckoutPage() {
       recurrence: formValues.recurrence,
     };
 
-    if (formValues.deliveryMethod === 'pickup' && selectedShopId) {
+    if (selectedShopId) {
       requestPayload.shopId = selectedShopId;
     }
 
@@ -487,7 +502,7 @@ export function CheckoutPage() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+    <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
       <form className="glass-panel p-6" onSubmit={handleSubmit}>
         <h1 className="text-2xl font-bold sm:text-3xl">{t('checkout')}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -794,27 +809,30 @@ export function CheckoutPage() {
           )}
           
           {formValues.deliveryMethod === 'delivery' ? (
-            <div className="space-y-4">
+            <div className="space-y-3 rounded-3xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/30">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('deliveryAddress')}</label>
               <textarea
                 required
                 value={formValues.address}
                 onChange={(event) => setFormValues((current) => ({ ...current, address: event.target.value }))}
                 autoComplete="street-address"
-                className="min-h-32 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
                 placeholder={t('deliveryAddress')}
               />
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('deliveryInstructionsPlaceholder')}</label>
               <textarea
                 value={formValues.deliveryInstructions}
                 onChange={(event) => {
                   setFormValues((current) => ({ ...current, deliveryInstructions: event.target.value }));
                 }}
-                className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
                 placeholder={t('deliveryInstructionsPlaceholder')}
               />
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">{t('deliveryNotes')}</label>
               <textarea
                 value={formValues.notes}
                 onChange={(event) => setFormValues((current) => ({ ...current, notes: event.target.value }))}
-                className="min-h-24 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
+                className="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900"
                 placeholder={t('deliveryNotes')}
               />
             </div>

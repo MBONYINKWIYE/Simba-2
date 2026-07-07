@@ -160,7 +160,7 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
          isLandingPage ? 'fixed left-0 right-0 top-0' : 'sticky top-0'
        } ${isLandingPage && !isVisible ? '-translate-y-full' : 'translate-y-0'}`}
     >
-      <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3">
+      <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3 pr-2 md:pr-4">
         <div className="flex shrink-0 items-center gap-2 md:gap-3">
           <Link to="/" className="flex items-center gap-3" onClick={() => useSearchStore.getState().resetFilters()}>
             <BrandLogo />
@@ -311,14 +311,10 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                   variant="secondary"
                   className="h-11 rounded-2xl px-4 lg:px-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
                   onClick={() => {
-                    if (window.innerWidth >= 1024) {
-                      navigate('/auth/login');
-                    } else {
-                      setIsUserMenuOpen((open) => !open);
-                    }
+                    setIsUserMenuOpen((open) => !open);
                   }}
                   aria-expanded={isUserMenuOpen}
-                  aria-haspopup={window.innerWidth < 1024 ? 'menu' : undefined}
+                  aria-haspopup="menu"
                 >
                   <User size={18} className="lg:hidden" />
                   <span className="hidden lg:inline">{t('signIn')}</span>
@@ -544,14 +540,15 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                       </button>
                     </div>
                   ) : (
-                    <Button
-                      variant="secondary"
-                      className="w-full justify-start rounded-2xl px-3"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        navigate('/auth/login');
-                      }}
-                    >
+                <Button
+                  variant="secondary"
+                  className="h-11 rounded-2xl px-4 lg:px-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
+                  onClick={() => {
+                    setIsUserMenuOpen((open) => !open);
+                  }}
+                  aria-expanded={isUserMenuOpen}
+                  aria-haspopup="menu"
+                >
                       <User size={16} className="mr-2" />
                       {t('signIn')}
                     </Button>

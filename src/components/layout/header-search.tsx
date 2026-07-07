@@ -103,7 +103,7 @@ export function HeaderSearch() {
           }}
           placeholder={t('aiSearchPlaceholder')}
           className={cn(
-            "w-full h-12 pl-12 pr-28 rounded-2xl border-2 transition-all duration-300 outline-none text-sm font-medium shadow-sm",
+            "w want-flex-1 h-12 pl-12 pr-20 sm:pr-28 rounded-2xl border-2 transition-all duration-300 outline-none text-sm font-medium shadow-sm",
             "bg-white dark:bg-slate-900 border-brand-100 dark:border-brand-900/30",
             "focus:border-brand-400 dark:focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10",
             isAiSearching && "opacity-70 cursor-wait"
@@ -113,12 +113,13 @@ export function HeaderSearch() {
           <button
             onClick={() => setIsFiltersOpen(!isFiltersOpen)}
             className={cn(
-              "p-2 rounded-xl transition-all duration-200",
+              "p-1.5 sm:p-2 rounded-xl transition-all duration-200",
               isFiltersOpen 
                 ? "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-400" 
                 : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200"
             )}
             title={t('filters')}
+            aria-label={t('filters')}
           >
             <SlidersHorizontal size={18} />
           </button>
@@ -127,13 +128,13 @@ export function HeaderSearch() {
             onClick={() => handleAiSearch()}
             disabled={isAiSearching || !localQuery.trim()}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-300 group",
+              "flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl transition-all duration-300",
               localQuery.trim() && !isAiSearching
                 ? "text-brand-600 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100" 
                 : "text-slate-300 pointer-events-none"
             )}
           >
-            <Sparkles size={18} className={cn("transition-transform duration-300 group-hover:rotate-12", localQuery.trim() && "fill-brand-500/10")} />
+            <Sparkles size={18} className={cn("transition-transform duration-300", localQuery.trim() && "fill-brand-500/10")} />
             <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline">{t('aiSearchButton')}</span>
           </button>
         </div>
