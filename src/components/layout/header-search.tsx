@@ -116,7 +116,7 @@ export function HeaderSearch() {
               "p-1.5 sm:p-2 rounded-xl transition-all duration-200",
               isFiltersOpen 
                 ? "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-400" 
-                : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-200"
+                : "text-brand-500 hover:bg-orange-50 dark:hover:bg-brand-900/20 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
             )}
             title={t('filters')}
             aria-label={t('filters')}
@@ -131,7 +131,7 @@ export function HeaderSearch() {
               "flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl transition-all duration-300",
               localQuery.trim() && !isAiSearching
                 ? "text-brand-600 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100" 
-                : "text-slate-300 pointer-events-none"
+                : "text-brand-400 dark:text-brand-500 pointer-events-none"
             )}
           >
             <Sparkles size={18} className={cn("transition-transform duration-300", localQuery.trim() && "fill-brand-500/10")} />

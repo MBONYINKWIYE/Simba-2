@@ -106,7 +106,7 @@ export function OrderConfirmationPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <section className="glass-panel overflow-hidden p-6 sm:p-8">
+      <section className="glass-panel overflow-hidden p-6 sm:p-8 print:hidden">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -145,6 +145,96 @@ export function OrderConfirmationPage() {
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               {order.payment_method === 'momo' ? t('momo') : t('cash')}
             </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Printable Invoice */}
+      <section className="hidden print:block bg-white p-8 rounded-none shadow-none border-0">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center border-b-2 border-gray-900 pb-6 mb-6">
+            <h2 className="text-3xl font-bold uppercase tracking-widest text-gray-900">INVOICE</h2>
+            <p className="mt-1 text-sm text-gray-500">#{order.id.slice(0, 8).toUpperCase()}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 mb-6 text-sm">
+            <div>
+              <p className="font-bold text-gray-900 mb-1">{t('orderSummary')}</p>
+              <div className="space-y-0.5 text-gray-600">
+                <p>{t('footerContactTitle')}: Simba Supermarket</p>
+                {order.shops && (
+                  <>
+                    <p>{(order.shops as { name: string; address: string; phone: string }).name}</p>
+                    <p>{(order.shops as { name: string; address: string; phone: string }).address}</p>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-gray-900 mb-1">{t('referenceLabel')}</p>
+              <div className="space-y-0.5 text-gray-600">
+                <p>{t('createdAt')}: {order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}</p>
+                <p>{t('pickupTimeLabel')}: {order.pickup_time ? new Date(order.pickup_time).toLocaleString() : ''}</p>
+              </div>
+            </div>
+          </div>
+
+          {order.full_name && (
+            <div className="mb-6 text-sm">
+              <p className="font-bold text-gray-900 mb-1">{t('customerName')}</p>
+              <div className="space-y-0.5 text-gray-600">
+                <p>{order.full_name}</p>
+                {order.phone && <p>{order.phone}</p>}
+                {order.delivery_address && <p>{order.delivery_address}</p>}
+              </div>
+            </div>
+          )}
+
+          <table className="w-full text-sm mb-6">
+            <thead>
+              <tr className="border-b border-gray-300">
+                <th className="text-left py-2 font-bold text-gray-900 uppercase tracking-wider text-[11px]">{t('item')}</th>
+                <th className="text-right py-2 font-bold text-gray-900 uppercase tracking-wider text-[11px]">Unit price</th>
+                <th className="text-center py-2 font-bold text-gray-900 uppercase tracking-wider text-[11px]">{t('quantity')}</th>
+                <th className="text-right py-2 font-bold text-gray-900 uppercase tracking-wider text-[11px]">{t('total')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.order_items.map((item) => (
+                <tr key={item.id} className="border-b border-gray-100">
+                  <td className="py-2.5 text-gray-900">{item.product_name}</td>
+                  <td className="py-2.5 text-right text-gray-600">{formatCurrency(item.unit_price_rwf)}</td>
+                  <td className="py-2.5 text-center text-gray-600">{item.quantity}</td>
+                  <td className="py-2.5 text-right font-medium text-gray-900">{formatCurrency(item.quantity * item.unit_price_rwf)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="flex justify-end mb-6">
+            <div className="w-64 space-y-1.5 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>{t('subtotal')}</span>
+                <span>{formatCurrency(order.subtotal_rwf)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>{t('delivery')}</span>
+                <span>{formatCurrency(order.delivery_fee_rwf)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>{t('serviceFee')}</span>
+                <span>{formatCurrency(order.service_fee_rwf)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-gray-900 pt-1.5 border-t border-gray-300">
+                <span>{t('total')}</span>
+                <span>{formatCurrency(order.total_rwf)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center pt-6 border-t border-gray-200 text-xs text-gray-400">
+            <p>{t('footerRights', { year: new Date().getFullYear() })}</p>
           </div>
         </div>
       </section>
@@ -267,9 +357,14 @@ export function OrderConfirmationPage() {
           .no-print { display: none !important; }
           body { background: #fff !important; color: #000 !important; }
           .glass-panel { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
-          header, footer, [data-radix-dialog-content] { display: none !important; }
+          header, footer, nav, [data-radix-dialog-content] { display: none !important; }
           main { padding-top: 0 !important; }
           .container-shell { max-width: none !important; padding: 0 !important; }
+          .print\\:hidden { display: none !important; }
+          .hidden.print\\:block { display: block !important; }
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
         }
       `}</style>
     </div>
