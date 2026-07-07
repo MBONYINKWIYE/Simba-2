@@ -1,6 +1,5 @@
 import type { Locale } from '@/types';
 
-export const DELIVERY_FEE = 2500;
 export const SERVICE_FEE = 700;
 export const ORDER_DEPOSIT_RWF = 1000;
 export const MINIMUM_ORDER_RWF = 2500;

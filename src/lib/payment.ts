@@ -76,7 +76,7 @@ export async function createManualPaymentOrder({ userId, userEmail, order, payme
     p_status: 'pending',
     p_fulfillment_status: 'pending',
     p_subtotal_rwf: order.subtotalRwf,
-    p_delivery_fee_rwf: order.deliveryFeeRwf,
+    p_delivery_fee_rwf: order.deliveryFeeRwf ?? 0,
     p_service_fee_rwf: order.serviceFeeRwf,
     p_total_rwf: order.totalRwf,
     p_notes: [order.checkout.deliveryInstructions, order.checkout.notes].filter(Boolean).join(' | '),

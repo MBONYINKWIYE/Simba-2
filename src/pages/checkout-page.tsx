@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { useAvailableShops } from '@/hooks/use-available-shops';
 import { useShops } from '@/hooks/use-shops';
-import { DEFAULT_CHECKOUT_VALUES, DELIVERY_FEE, MINIMUM_ORDER_RWF, PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
+import { DEFAULT_CHECKOUT_VALUES, MINIMUM_ORDER_RWF, PAYPACK_RECEIVER_NUMBER } from '@/lib/constants';
 import { buildMomoUssdCode, createManualPaymentOrder, openMomoDialer } from '@/lib/payment';
 import { formatCurrency } from '@/lib/utils';
 import { useCartStore } from '@/store/cart-store';
@@ -297,8 +297,7 @@ export function CheckoutPage() {
     () => branchUnavailableItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
     [branchUnavailableItems],
   );
-  const branchDeliveryFeeRwf = formValues.deliveryMethod === 'delivery' ? DELIVERY_FEE : 0;
-  const branchTotal = branchSubtotal + branchDeliveryFeeRwf;
+  const branchTotal = branchSubtotal;
   const cashOnPickupDepositRwf = calculateCashOnPickupDeposit(branchTotal);
   const cashOnPickupBalanceDueRwf = Math.max(branchTotal - cashOnPickupDepositRwf, 0);
   const submitLabel = isSubmitting
@@ -391,7 +390,7 @@ export function CheckoutPage() {
       checkout: { ...formValues, phone: normalizedPhone },
       items: branchCheckoutItems,
       subtotalRwf: branchSubtotal,
-      deliveryFeeRwf: branchDeliveryFeeRwf,
+      deliveryFeeRwf: 0,
       serviceFeeRwf: 0,
       totalRwf: branchTotal,
       paymentAmountRwf: formValues.paymentMethod === 'cash' ? cashOnPickupDepositRwf : branchTotal,
@@ -1039,12 +1038,7 @@ export function CheckoutPage() {
               <span>-{formatCurrency(excludedSubtotal)}</span>
             </div>
           ) : null}
-          {formValues.deliveryMethod === 'delivery' && (
-            <div className="flex justify-between">
-              <span>{t('deliveryFee')}</span>
-              <span>{formatCurrency(branchDeliveryFeeRwf)}</span>
-            </div>
-          )}
+
           <div className="flex justify-between text-lg font-bold">
             <span>{t('total')}</span>
             <span>{formatCurrency(branchTotal)}</span>

@@ -218,10 +218,6 @@ export function OrderConfirmationPage() {
                 <span>{formatCurrency(order.subtotal_rwf)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
-                <span>{t('delivery')}</span>
-                <span>{formatCurrency(order.delivery_fee_rwf)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
                 <span>{t('serviceFee')}</span>
                 <span>{formatCurrency(order.service_fee_rwf)}</span>
               </div>
@@ -311,10 +307,6 @@ export function OrderConfirmationPage() {
             <div className="flex justify-between">
               <span>{t('subtotal')}</span>
               <span>{formatCurrency(order.subtotal_rwf)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>{t('delivery')}</span>
-              <span>{formatCurrency(order.delivery_fee_rwf)}</span>
             </div>
             <div className="flex justify-between">
               <span>{t('serviceFee')}</span>
