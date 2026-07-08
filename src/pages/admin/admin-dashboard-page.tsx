@@ -1354,27 +1354,23 @@ export function AdminDashboardPage() {
               <div className="grid gap-4 lg:grid-cols-[0.9fr_1.2fr]">
                 <section className="glass-panel p-4">
                   <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
-                      <div>
-                        <h2 className="text-sm font-bold">{t('adminOrderQueue')}</h2>
-                        <div className="mt-2 flex justify-center">
-                          <div className="grid w-full gap-1.5 sm:grid-cols-2 xl:grid-cols-7">
-                            <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
-                            <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
-                            <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
-                            <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
-                            <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
-                            <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
-                            <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
-                          </div>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="text-sm font-bold">{t('adminOrderQueue')}</h2>
                       <Badge className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
                         {orders.length}
                       </Badge>
                     </div>
-
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid-cols-7 grid gap-1.5">
+                      <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
+                      <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
+                      <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
+                      <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
+                      <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
+                      <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
+                      <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
+                    </div>
+                    <div className="border-b border-slate-100 pb-3 dark:border-slate-800">
+                      <div className="flex flex-wrap gap-2">
                       {['all', 'pending', 'accepted', 'preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'rejected'].map((status) => (
                         <button
                           key={status}
@@ -1433,6 +1429,7 @@ export function AdminDashboardPage() {
                       ))}
                     </div>
                   )}
+                  </div>
                 </section>
 
                 <AdminOrderDetail
