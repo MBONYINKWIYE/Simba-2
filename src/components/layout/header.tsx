@@ -544,7 +544,7 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                   className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-semibold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
                   onClick={() => {
                     setIsUserMenuOpen(false);
-                    navigate('/login');
+                    navigate('/auth/login');
                   }}
                 >
                       <User size={16} className="mr-2" />

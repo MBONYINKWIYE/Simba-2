@@ -608,6 +608,7 @@ function SuperAdminPanel() {
   const shopAdminsQuery = useShopAdmins(true);
   const createShop = useCreateShop();
   const assignShopAdmin = useAssignShopAdmin();
+  const removeShopAdminAssignment = useRemoveShopAdminAssignment();
   const [shopForm, setShopForm] = useState({
     name: '',
     address: '',
@@ -791,7 +792,18 @@ function SuperAdminPanel() {
                     <p className="font-semibold">{assignment.user_full_name || assignment.user_email}</p>
                     <Badge>{formatStatusLabel(assignment.role, t)}</Badge>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{assignment.shop_name}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{assignment.shop_name}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void removeShopAdminAssignment.mutateAsync({ assignmentId: assignment.id })}
+                      disabled={removeShopAdminAssignment.isPending}
+                    >
+                      {t('remove')}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
