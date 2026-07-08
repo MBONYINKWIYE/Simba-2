@@ -110,12 +110,12 @@ export function StaffDashboardPage() {
         <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[0.86fr_1.14fr]">
-        <section className="glass-panel p-4 sm:p-6">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800">
+      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.2fr]">
+        <section className="glass-panel p-3">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
             <div>
-              <h2 className="text-xl font-bold sm:text-2xl">{t('myAssignedOrders')}</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('staffDashboardCopy')}</p>
+              <h2 className="text-base font-bold">{t('myAssignedOrders')}</h2>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('staffDashboardCopy')}</p>
             </div>
             <Badge className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
               {assignedOrders.length}
@@ -123,23 +123,23 @@ export function StaffDashboardPage() {
           </div>
 
           {assignedOrders.length === 0 ? (
-            <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">{t('noAssignedOrders')}</p>
+            <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">{t('noAssignedOrders')}</p>
           ) : (
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2">
               {assignedOrders.map((order) => (
                 <Link
                   key={order.id}
                   to={`/staff/orders/${order.id}`}
-                  className={`block rounded-3xl border p-4 transition ${
+                  className={`block rounded-2xl border p-3 transition ${
                     activeOrder?.id === order.id
                       ? 'border-brand-400 bg-brand-50 shadow-md dark:border-brand-600 dark:bg-brand-900/20'
                       : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold text-slate-900 dark:text-slate-100">{order.full_name}</p>
-                      <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                      <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">{order.full_name}</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                         #{order.id.slice(0, 8)} ·{' '}
                         {new Date(order.created_at).toLocaleString(i18n.language, {
                           month: 'short',
@@ -149,13 +149,13 @@ export function StaffDashboardPage() {
                         })}
                       </p>
                     </div>
-                    <Badge className={`${statusClassName(order.status)} text-[10px] uppercase tracking-wider`}>
+                    <Badge className={`${statusClassName(order.status)} text-xs uppercase tracking-wider`}>
                       {formatStatusLabel(order.status, t)}
                     </Badge>
                   </div>
-                  <div className="mt-3 flex items-center justify-between gap-4">
+                  <div className="mt-2 flex items-center justify-between gap-4">
                     <span className="text-xs text-slate-500 dark:text-slate-400">{order.phone}</span>
-                    <span className="font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
+                    <span className="text-sm font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
                   </div>
                 </Link>
               ))}
@@ -163,28 +163,28 @@ export function StaffDashboardPage() {
           )}
         </section>
 
-        <section className="glass-panel p-6">
+        <section className="glass-panel p-3">
           {!activeOrder ? (
-            <div className="flex min-h-[24rem] items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
+            <div className="flex min-h-[20rem] items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
               {t('noAssignedOrders')}
             </div>
           ) : (
             <>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-2xl font-bold">
+                  <h2 className="text-sm font-bold">
                     {t('orderLabel')} #{activeOrder.id.slice(0, 8)}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     {new Date(activeOrder.created_at).toLocaleString(i18n.language)}
                   </p>
                   {activeOrder.pickup_time ? (
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                       {t('pickupTimeLabel')}: {new Date(activeOrder.pickup_time).toLocaleString(i18n.language)}
                     </p>
                   ) : null}
                   {activeOrder.shops?.name ? (
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                       {t('pickupShop')}: {activeOrder.shops.name}
                     </p>
                   ) : null}
@@ -192,71 +192,71 @@ export function StaffDashboardPage() {
                 <Badge className={statusClassName(activeOrder.status)}>{formatStatusLabel(activeOrder.status, t)}</Badge>
               </div>
 
-              <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.85fr]">
+              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
                 <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                     {t('adminOrderQueue')}
                   </h3>
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-2 space-y-1.5">
                     {activeOrder.order_items.map((item) => (
-                      <div key={item.id} className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/70">
+                      <div key={item.id} className="rounded-2xl bg-white/70 p-2.5 dark:bg-slate-900/70">
                         <div className="flex items-center justify-between gap-4">
                           <div>
-                            <p className="font-semibold">{item.product_name}</p>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                            <p className="text-xs font-semibold">{item.product_name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                               {item.quantity} x {formatCurrency(item.unit_price_rwf)}
                             </p>
                           </div>
-                          <p className="font-semibold">{formatCurrency(item.quantity * item.unit_price_rwf)}</p>
+                          <p className="text-xs font-semibold">{formatCurrency(item.quantity * item.unit_price_rwf)}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="rounded-3xl bg-stone-50 p-5 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                <div className="space-y-3">
+                  <div className="rounded-2xl bg-stone-50 p-3 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
                       {t('customerInfo')}
                     </h3>
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-3 space-y-2">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeOrder.full_name}</p>
+                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{activeOrder.full_name}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{activeOrder.phone}</p>
+                        <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{activeOrder.phone}</p>
                       </div>
                       {activeOrder.delivery_person_name ? (
-                        <div className="rounded-2xl bg-brand-50/50 p-3 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
-                          <p className="text-[10px] font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-1">{t('deliveryPersonInfo')}</p>
-                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeOrder.delivery_person_name}</p>
-                          <p className="text-sm text-slate-600 dark:text-slate-400">{activeOrder.delivery_person_phone}</p>
+                        <div className="rounded-2xl bg-brand-50/50 p-2 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
+                          <p className="text-xs font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-0.5">{t('deliveryPersonInfo')}</p>
+                          <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{activeOrder.delivery_person_name}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">{activeOrder.delivery_person_phone}</p>
                         </div>
                       ) : null}
                       {activeOrder.recurrence && activeOrder.recurrence !== 'one_time' ? (
-                        <div className="rounded-2xl bg-stone-50/50 p-3 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/30">
-                          <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">{t('recurringOrder')}</p>
-                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(activeOrder.recurrence)}</p>
+                        <div className="rounded-2xl bg-stone-50/50 p-2 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/30">
+                          <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-0.5">{t('recurringOrder')}</p>
+                          <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(activeOrder.recurrence)}</p>
                           {activeOrder.next_delivery_date ? (
-                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                            <p className="text-xs text-slate-600 dark:text-slate-400">
                               {t('nextDeliveryDate')}: {new Date(activeOrder.next_delivery_date).toLocaleDateString()}
                             </p>
                           ) : null}
                         </div>
                       ) : null}
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{activeOrder.delivery_address}</p>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{activeOrder.delivery_address}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900">
-                    <div className="space-y-3 text-sm">
+                  <div className="rounded-2xl bg-stone-100 p-3 dark:bg-slate-900">
+                    <div className="space-y-2 text-xs">
                       <div className="flex justify-between gap-4">
                         <span>{t('subtotal')}</span>
                         <span>{formatCurrency(activeOrder.subtotal_rwf)}</span>
                       </div>
-                      <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-base font-bold dark:border-slate-800">
+                      <div className="flex justify-between gap-4 border-t border-slate-200 pt-2 text-sm font-bold dark:border-slate-800">
                         <span>{t('total')}</span>
                         <span>{formatCurrency(activeOrder.total_rwf)}</span>
                       </div>

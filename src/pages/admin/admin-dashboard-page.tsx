@@ -24,7 +24,7 @@ import type { AdminOrderRecord, DeliveryPerson, ShopAdminAssignment, ShopOrderSt
 function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/60">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
       <p className="mt-1 text-xl font-bold">{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p> : null}
     </div>
@@ -250,43 +250,43 @@ function AdminOrderDetail({
   };
 
   return (
-    <section className="glass-panel p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="glass-panel p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-base font-bold break-words">
+          <h2 className="text-sm font-bold break-words">
             {t('orderLabel')} #{order.id.slice(0, 8)}
           </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-words">
             {new Date(order.created_at).toLocaleString(i18n.language)}
           </p>
           {order.pickup_time ? (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-words">
               {t('pickupTimeLabel')}: {new Date(order.pickup_time).toLocaleString(i18n.language)}
             </p>
           ) : null}
           {order.shops?.name ? (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-words">
               {t('pickupShop')}: {order.shops.name}
             </p>
           ) : null}
           {assignedStaff ? (
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-words">
               {t('assignedStaffLabel')}: {assignedStaff.user_full_name || assignedStaff.user_email}
             </p>
           ) : null}
           {order.delivery_person_name ? (
-            <div className="mt-3 rounded-2xl bg-brand-50/50 p-3 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
-              <p className="text-[10px] font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-1">{t('deliveryPersonInfo')}</p>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{order.delivery_person_name}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{order.delivery_person_phone}</p>
+            <div className="mt-2 rounded-2xl bg-brand-50/50 p-2 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
+              <p className="text-xs font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-0.5">{t('deliveryPersonInfo')}</p>
+              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{order.delivery_person_name}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">{order.delivery_person_phone}</p>
             </div>
           ) : null}
           {order.recurrence && order.recurrence !== 'one_time' ? (
-            <div className="mt-3 rounded-2xl bg-stone-50/50 p-3 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/30">
-              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">{t('recurringOrder')}</p>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(order.recurrence)}</p>
+            <div className="mt-2 rounded-2xl bg-stone-50/50 p-2 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/30">
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-0.5">{t('recurringOrder')}</p>
+              <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 capitalize">{t(order.recurrence)}</p>
               {order.next_delivery_date ? (
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
                   {t('nextDeliveryDate')}: {new Date(order.next_delivery_date).toLocaleDateString()}
                 </p>
               ) : null}
@@ -301,68 +301,68 @@ function AdminOrderDetail({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.85fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             {t('adminOrderQueue')}
           </h3>
-          <div className="mt-3 space-y-3">
+          <div className="mt-2 space-y-1.5">
             {order.order_items.map((item) => (
-              <div key={item.id} className="rounded-3xl bg-white/70 p-4 dark:bg-slate-900/70">
+              <div key={item.id} className="rounded-2xl bg-white/70 p-2.5 dark:bg-slate-900/70">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-semibold">{item.product_name}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-semibold">{item.product_name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {item.quantity} x {formatCurrency(item.unit_price_rwf)}
                     </p>
                   </div>
-                  <p className="font-semibold">{formatCurrency(item.quantity * item.unit_price_rwf)}</p>
+                  <p className="text-xs font-semibold">{formatCurrency(item.quantity * item.unit_price_rwf)}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-3xl bg-stone-50 p-5 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-stone-50 p-3 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
+            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
               {t('customerInfo')}
             </h3>
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-2">
               <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{order.full_name}</p>
+                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{order.full_name}</p>
                 <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('customerName')}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{order.phone}</p>
+                <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{order.phone}</p>
                 <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('phone')}</p>
               </div>
               {order.user_email ? (
                 <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{order.user_email}</p>
+                  <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{order.user_email}</p>
                   <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('email')}</p>
                 </div>
               ) : null}
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{order.delivery_address}</p>
-                <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('deliveryAddress')}</p>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{order.delivery_address}</p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-bold">{t('deliveryAddress')}</p>
               </div>
               {order.notes ? (
-                <div className="rounded-2xl bg-brand-50/50 p-3 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
-                  <p className="text-[10px] font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-1">{t('notes')}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{order.notes}</p>
+                <div className="rounded-2xl bg-brand-50/50 p-2 dark:bg-brand-900/10 border border-brand-100/50 dark:border-brand-800/30">
+                  <p className="text-xs font-bold text-brand-700 dark:text-brand-300 uppercase tracking-wider mb-0.5">{t('notes')}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">{order.notes}</p>
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="rounded-3xl bg-stone-100 p-4 dark:bg-slate-900">
-            <div className="space-y-3 text-sm">
+          <div className="rounded-2xl bg-stone-100 p-3 dark:bg-slate-900">
+            <div className="space-y-2 text-xs">
               <div className="flex justify-between gap-4">
                 <span>{t('subtotal')}</span>
                 <span>{formatCurrency(order.subtotal_rwf)}</span>
               </div>
-              <div className="flex justify-between gap-4 border-t border-slate-200 pt-3 text-base font-bold dark:border-slate-800">
+              <div className="flex justify-between gap-4 border-t border-slate-200 pt-2 text-sm font-bold dark:border-slate-800">
                 <span>{t('total')}</span>
                 <span>{formatCurrency(order.total_rwf)}</span>
               </div>
@@ -1281,7 +1281,7 @@ export function AdminDashboardPage() {
 
   return (
     <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-6 flex min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950">
-      <aside className="sticky top-0 hidden h-screen w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:flex">
+      <aside className="sticky top-0 hidden w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:flex">
         <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
             <Store size={18} />
@@ -1318,7 +1318,7 @@ export function AdminDashboardPage() {
 
         <div className="border-t border-slate-200 p-3 dark:border-slate-800">
           <div className="rounded-xl bg-stone-50 p-3 dark:bg-slate-900">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {t('dashboardRoleLabel')}
             </p>
             <p className="mt-1 text-sm font-semibold">
@@ -1365,7 +1365,7 @@ export function AdminDashboardPage() {
             ) : null}
 
             {activeSection === 'orders' ? (
-              <div className="grid gap-4 lg:grid-cols-[0.82fr_1.18fr] xl:grid-cols-[0.9fr_1.1fr]">
+              <div className="grid gap-4 lg:grid-cols-[0.9fr_1.2fr]">
                 <section className="glass-panel p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
@@ -1380,7 +1380,7 @@ export function AdminDashboardPage() {
                         <button
                           key={status}
                           onClick={() => setStatusFilter(status)}
-                          className={`rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition ${
+                          className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
                             statusFilter === status
                               ? 'bg-brand-500 text-white shadow-lg'
                               : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
@@ -1397,23 +1397,23 @@ export function AdminDashboardPage() {
                       {statusFilter === 'all' ? t('adminNoOrders') : t('noResults')}
                     </p>
                   ) : (
-                    <div className="mt-5 space-y-3">
+                    <div className="mt-4 space-y-2">
                       {orders.map((order) => (
                         <Link
                           key={order.id}
                           to={`/admin/orders/${order.id}?section=orders`}
-                          className={`block rounded-3xl border p-4 transition ${
+                          className={`block rounded-2xl border p-3 transition ${
                             activeOrder?.id === order.id
                               ? 'border-brand-400 bg-brand-50 shadow-md dark:border-brand-600 dark:bg-brand-900/20'
                               : 'border-slate-200 bg-white/70 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-900/60'
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate font-bold text-slate-900 dark:text-slate-100">
+                              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
                                 {order.full_name}
                               </p>
-                              <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                                 #{order.id.slice(0, 8)} • {new Date(order.created_at).toLocaleString(i18n.language, {
                                   month: 'short',
                                   day: 'numeric',
@@ -1422,13 +1422,13 @@ export function AdminDashboardPage() {
                                 })}
                               </p>
                             </div>
-                            <Badge className={`${statusClassName(order.status)} text-[10px] uppercase tracking-wider`}>
+                            <Badge className={`${statusClassName(order.status)} text-xs uppercase tracking-wider`}>
                               {formatStatusLabel(order.status, t)}
                             </Badge>
                           </div>
-                          <div className="mt-3 flex items-center justify-between gap-4">
+                          <div className="mt-2 flex items-center justify-between gap-4">
                             <span className="text-xs text-slate-500 dark:text-slate-400">{order.phone}</span>
-                            <span className="font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
+                            <span className="text-sm font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
                           </div>
                         </Link>
                       ))}

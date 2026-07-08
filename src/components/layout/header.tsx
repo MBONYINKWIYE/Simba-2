@@ -160,7 +160,7 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
          isLandingPage ? 'fixed left-0 right-0 top-0' : 'sticky top-0'
        } ${isLandingPage && !isVisible ? '-translate-y-full' : 'translate-y-0'}`}
     >
-      <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3 pr-2 md:pr-4">
+      <div className="container-shell flex items-center justify-between gap-2 py-4 md:gap-3">
         <div className="flex shrink-0 items-center gap-2 md:gap-3">
           <Link to="/" className="flex items-center gap-3" onClick={() => useSearchStore.getState().resetFilters()}>
             <BrandLogo />

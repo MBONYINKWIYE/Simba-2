@@ -25,9 +25,11 @@ export function AppShell({ children }: PropsWithChildren) {
       <div className="min-h-[calc(100vh-72px)] flex flex-col">
         <main className={`${isLandingPage ? 'px-3' : 'container-shell'} py-6 ${isLandingPage ? 'pt-24 sm:pt-28' : ''}`}>{children}</main>
       </div>
-      <div className="mt-auto">
-        <Footer />
-      </div>
+      {!location.pathname.startsWith('/admin') && !location.pathname.startsWith('/staff') ? (
+        <div className="mt-auto">
+          <Footer />
+        </div>
+      ) : null}
       <AddToCartToast />
       <CartDrawer />
     </div>
