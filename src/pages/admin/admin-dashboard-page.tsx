@@ -24,9 +24,9 @@ import type { AdminOrderRecord, DeliveryPerson, ShopAdminAssignment, ShopOrderSt
 function SummaryCard({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white/80 p-3 dark:border-slate-800 dark:bg-slate-950/60">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
-      <p className="mt-1 text-xl font-bold">{value}</p>
-      {hint ? <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{hint}</p> : null}
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-bold">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{hint}</p> : null}
     </div>
   );
 }
@@ -253,7 +253,7 @@ function AdminOrderDetail({
     <section className="glass-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-sm font-bold break-words">
+          <h2 className="text-xs font-bold break-words">
             {t('orderLabel')} #{order.id.slice(0, 8)}
           </h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-words">
@@ -1281,14 +1281,14 @@ export function AdminDashboardPage() {
 
   return (
     <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-6 -mb-6 flex min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950">
-      <aside className="sticky top-0 hidden w-64 flex-shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:flex">
+      <aside className="fixed left-0 top-16 z-30 hidden w-64 h-[calc(100vh-4rem)] flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:flex">
         <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
           <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200">
             <Store size={18} />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{t('adminDashboard')}</p>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            <p className="truncate text-xs font-semibold">{t('adminDashboard')}</p>
+            <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
               {authRoleQuery.data?.shopName ?? t('adminShopLabel')}
             </p>
           </div>
@@ -1303,7 +1303,7 @@ export function AdminDashboardPage() {
                 key={section.key}
                 type="button"
                 onClick={() => setActiveSection(section.key)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs transition ${
                   activeSection === section.key
                     ? 'bg-brand-50 text-brand-700 font-semibold dark:bg-brand-900/20 dark:text-brand-200'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900'
@@ -1318,10 +1318,10 @@ export function AdminDashboardPage() {
 
         <div className="border-t border-slate-200 p-3 dark:border-slate-800">
           <div className="rounded-xl bg-stone-50 p-3 dark:bg-slate-900">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {t('dashboardRoleLabel')}
             </p>
-            <p className="mt-1 text-sm font-semibold">
+            <p className="mt-1 text-xs font-semibold">
               {formatStatusLabel(isSuperAdmin ? 'superAdminBadge' : (adminRole ?? 'staff'), t)}
             </p>
           </div>
@@ -1331,31 +1331,17 @@ export function AdminDashboardPage() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col overflow-auto">
+      <div className="ml-64 flex flex-1 flex-col overflow-auto">
         <div className="flex-1 px-4 pb-4 pt-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-lg font-bold sm:text-xl">{t('adminDashboard')}</h1>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
+                <h1 className="text-base font-bold sm:text-lg">{t('adminDashboard')}</h1>
+                <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{t('adminDashboardCopy')}</p>
               </div>
               <Button variant="ghost" onClick={() => void signOut()} className="lg:hidden">
                 {t('signOut')}
               </Button>
-            </div>
-          </div>
-
-          <div className="mx-auto mt-4 max-w-7xl">
-            <div className="flex justify-center">
-              <div className="grid w-full gap-2 sm:grid-cols-2 xl:grid-cols-7">
-                <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
-                <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
-                <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
-                <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
-                <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
-                <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
-                <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
-              </div>
             </div>
           </div>
 
@@ -1369,7 +1355,20 @@ export function AdminDashboardPage() {
                 <section className="glass-panel p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
-                      <h2 className="text-base font-bold sm:text-lg">{t('adminOrderQueue')}</h2>
+                      <div>
+                        <h2 className="text-sm font-bold">{t('adminOrderQueue')}</h2>
+                        <div className="mt-2 flex justify-center">
+                          <div className="grid w-full gap-1.5 sm:grid-cols-2 xl:grid-cols-7">
+                            <SummaryCard label={t('incomingOrdersMetric')} value={pendingOrdersCount} hint={t('incomingOrdersMetricHint')} />
+                            <SummaryCard label={t('preparingOrdersMetric')} value={preparingOrdersCount} hint={t('preparingOrdersMetricHint')} />
+                            <SummaryCard label={t('readyOrdersMetric')} value={readyOrdersCount} hint={t('readyOrdersMetricHint')} />
+                            <SummaryCard label={t('pickedUpOrdersMetric')} value={pickedUpOrdersCount} hint={t('pickedUpOrdersMetricHint')} />
+                            <SummaryCard label={t('assignedOrdersMetric')} value={assignedOrdersCount} hint={t('assignedOrdersMetricHint')} />
+                            <SummaryCard label={t('outForDelivery')} value={outForDeliveryCount} hint={t('outForDelivery')} />
+                            <SummaryCard label={t('delivered')} value={deliveredCount} hint={t('delivered')} />
+                          </div>
+                        </div>
+                      </div>
                       <Badge className="bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200">
                         {orders.length}
                       </Badge>
@@ -1393,7 +1392,7 @@ export function AdminDashboardPage() {
                   </div>
 
                   {orders.length === 0 ? (
-                    <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    <p className="mt-8 text-center text-xs text-slate-500 dark:text-slate-400">
                       {statusFilter === 'all' ? t('adminNoOrders') : t('noResults')}
                     </p>
                   ) : (
@@ -1410,10 +1409,10 @@ export function AdminDashboardPage() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                              <p className="truncate text-xs font-bold text-slate-900 dark:text-slate-100">
                                 {order.full_name}
                               </p>
-                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                              <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                 #{order.id.slice(0, 8)} • {new Date(order.created_at).toLocaleString(i18n.language, {
                                   month: 'short',
                                   day: 'numeric',
@@ -1428,7 +1427,7 @@ export function AdminDashboardPage() {
                           </div>
                           <div className="mt-2 flex items-center justify-between gap-4">
                             <span className="text-xs text-slate-500 dark:text-slate-400">{order.phone}</span>
-                            <span className="text-sm font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
+                            <span className="text-xs font-bold text-brand-600 dark:text-brand-300">{formatCurrency(order.total_rwf)}</span>
                           </div>
                         </Link>
                       ))}
