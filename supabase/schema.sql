@@ -108,6 +108,16 @@ create table if not exists public.orders (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  body text not null,
+  link text,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.order_items (
   id bigint generated always as identity primary key,
   order_id uuid not null references public.orders(id) on delete cascade,
@@ -1179,6 +1189,8 @@ as $$
 declare
   target_order public.orders;
   actor_role text;
+  notification_title text;
+  notification_body text;
 begin
   if next_status not in ('pending', 'accepted', 'preparing', 'ready', 'picked_up', 'rejected', 'out_for_delivery', 'delivered') then
     raise exception 'Invalid order status';
@@ -1208,6 +1220,20 @@ begin
       end
     where id = target_order_id
     returning * into target_order;
+
+    notification_title := case next_status
+      when 'accepted' then 'Order Accepted'
+      when 'preparing' then 'Preparing'
+      when 'ready' then 'Ready for Pickup'
+      when 'picked_up' then 'Picked Up'
+      when 'out_for_delivery' then 'Out for Delivery'
+      when 'delivered' then 'Delivered'
+      when 'rejected' then 'Order Rejected'
+      else next_status
+    end;
+    notification_body := 'Your order #' || substr(target_order_id::text, 1, 8) || ' is now: ' || notification_title;
+    insert into public.notifications (user_id, title, body, link)
+    values (target_order.user_id, notification_title, notification_body, '/orders/' || target_order_id);
 
     return target_order;
   end if;
@@ -1248,6 +1274,20 @@ begin
     where id = target_order_id
     returning * into target_order;
 
+    notification_title := case next_status
+      when 'accepted' then 'Order Accepted'
+      when 'preparing' then 'Preparing'
+      when 'ready' then 'Ready for Pickup'
+      when 'picked_up' then 'Picked Up'
+      when 'out_for_delivery' then 'Out for Delivery'
+      when 'delivered' then 'Delivered'
+      when 'rejected' then 'Order Rejected'
+      else next_status
+    end;
+    notification_body := 'Your order #' || substr(target_order_id::text, 1, 8) || ' is now: ' || notification_title;
+    insert into public.notifications (user_id, title, body, link)
+    values (target_order.user_id, notification_title, notification_body, '/orders/' || target_order_id);
+
     return target_order;
   end if;
 
@@ -1263,6 +1303,16 @@ begin
       end
     where id = target_order_id
     returning * into target_order;
+
+    notification_title := case next_status
+      when 'preparing' then 'Preparing'
+      when 'ready' then 'Ready for Pickup'
+      when 'picked_up' then 'Picked Up'
+      else next_status
+    end;
+    notification_body := 'Your order #' || substr(target_order_id::text, 1, 8) || ' is now: ' || notification_title;
+    insert into public.notifications (user_id, title, body, link)
+    values (target_order.user_id, notification_title, notification_body, '/orders/' || target_order_id);
 
     return target_order;
   end if;
@@ -1510,6 +1560,21 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.delivery_persons enable row level security;
 alter table public.promotions enable row level security;
+alter table public.notifications enable row level security;
+
+drop policy if exists "Users can view own notifications" on public.notifications;
+create policy "Users can view own notifications"
+on public.notifications
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can update own notifications" on public.notifications;
+create policy "Users can update own notifications"
+on public.notifications
+for update
+to authenticated
+using (auth.uid() = user_id);
 
 drop policy if exists "Public read access to promotions" on public.promotions;
 create policy "Public read access to promotions"

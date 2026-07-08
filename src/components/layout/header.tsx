@@ -540,18 +540,16 @@ className={`z-40 border-b border-white/50 bg-orange-200/85 backdrop-blur transit
                       </button>
                     </div>
                   ) : (
-                <Button
-                  variant="secondary"
-                  className="h-11 rounded-2xl px-4 lg:px-3 dark:bg-orange-500 dark:border-orange-400 dark:text-white dark:hover:bg-orange-600"
+                <button
+                  className="flex w-full items-center rounded-2xl px-3 py-2 text-left text-sm font-semibold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
                   onClick={() => {
-                    setIsUserMenuOpen((open) => !open);
+                    setIsUserMenuOpen(false);
+                    navigate('/login');
                   }}
-                  aria-expanded={isUserMenuOpen}
-                  aria-haspopup="menu"
                 >
                       <User size={16} className="mr-2" />
                       {t('signIn')}
-                    </Button>
+                    </button>
                   )}
                 </div>
               ) : null}

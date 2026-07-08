@@ -36,3 +36,9 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+@media (min-width: 1920px) {
+  html {
+    zoom: 0.8;
+  }
+}
